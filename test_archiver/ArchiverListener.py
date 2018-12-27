@@ -1,0 +1,60 @@
+from archiver import Archiver, read_config_file
+
+class ArchiverListener(object):
+    ROBOT_LISTENER_API_VERSION = 2
+
+    def __init__(self, config_file_or_database, user=None, pw=None, host=None, port=5432):
+        if not user:
+            config = read_config_file(config_file_or_database)
+        else:
+            config = {
+                'database': config_file_or_database,
+                'user': user,
+                'password': pw,
+                'host': host,
+                'port': port,
+            }
+        self.archiver = Archiver(config, 'listen.txt')
+        self.rpa = False
+        self.dry_run = False
+        self.generator = None
+
+    def start_suite(self, name, attrs):
+        if not self.archiver.test_run_id:
+            self.archiver.begin_test_run('ArchiverListener', None, self.generator, self.rpa, self.dry_run)
+        self.archiver.begin_suite(name)
+
+    def end_suite(self, name, attrs):
+        self.archiver.end_suite(attrs)
+
+    def start_test(self, name, attrs):
+        self.archiver.begin_test(name)
+
+    def end_test(self, name, attrs):
+        self.archiver.end_test(attrs)
+
+    def start_keyword(self, name, attrs):
+        self.archiver.begin_keyword(attrs['kwname'], attrs['libname'], attrs['type'], attrs['args'])
+
+    def end_keyword(self, name, attrs):
+        self.archiver.end_keyword(attrs)
+
+    def log_message(self, message):
+        self.archiver.begin_log_message(message['level'], message['timestamp'])
+        self.archiver.end_log_message(message['message'])
+
+    def message(self, message):
+        if not self.generator:
+            self.generator = message['message']
+        elif message['message'].startswith('Settings:'):
+            self.process_settings(message['message'])
+
+
+    def process_settings(self, settings):
+        settings = dict([row.split(':', 1) for row in settings.split('\n')])
+
+        self.rpa = True if settings['RPA'].strip() == 'True' else False
+        self.dry_run = True if settings['DryRun'].strip() == 'True' else False
+
+    def close(self):
+        self.archiver.end_test_run()
