@@ -3,9 +3,10 @@ from archiver import Archiver, read_config_file
 class ArchiverListener(object):
     ROBOT_LISTENER_API_VERSION = 2
 
-    def __init__(self, config_file_or_database, user=None, pw=None, host=None, port=5432):
-        if not user:
+    def __init__(self, config_file_or_database, db_engine=None, user=None, pw=None, host=None, port=5432):
+        if not db_engine:
             config = read_config_file(config_file_or_database)
+            db_engine = config['db_engine'] if 'db_engine' in config else db_engine
         else:
             config = {
                 'database': config_file_or_database,
@@ -14,7 +15,7 @@ class ArchiverListener(object):
                 'host': host,
                 'port': port,
             }
-        self.archiver = Archiver(config, 'listen.txt')
+        self.archiver = Archiver(db_engine, config, 'listen.txt')
         self.rpa = False
         self.dry_run = False
         self.generator = None

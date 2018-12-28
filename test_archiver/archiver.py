@@ -2,7 +2,7 @@ import json
 from hashlib import sha1
 from datetime import datetime
 
-from database import Database
+from database import PostgresqlDatabase, SQLiteDatabase
 
 ARCHIVER_VERSION = "0.1"
 
@@ -225,20 +225,26 @@ class LogMessage(TestItem):
 
 
 class Archiver(object):
-    def __init__(self, config, file_name):
+    def __init__(self, db_engine, config, file_name):
         self.config = config
         self.test_run_id = None
         self.output_from_dryrun = False
-
-        self.db = Database(
-                config['database'],
-                config['host'],
-                config['port'],
-                config['user'],
-                config['password'],
-            )
-
+        self.db = self._db(db_engine)
         self.stack = []
+
+    def _db(self, db_engine):
+        if db_engine == 'postgresql':
+            return PostgresqlDatabase(
+                    self.config['database'],
+                    self.config['host'],
+                    self.config['port'],
+                    self.config['user'],
+                    self.config['password'],
+                )
+        elif db_engine == 'sqlite':
+            return SQLiteDatabase(self.config['database'])
+        else:
+            raise Exception("Unsupported database type '{}'".format(self.config['database_type']))
 
     def _current_item(self):
         return self.stack[-1] if self.stack else None

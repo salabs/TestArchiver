@@ -88,9 +88,9 @@ class TestResultsHandler(xml.sax.handler.ContentHandler):
     def characters(self, content):
         self._current_content += content
 
-def parse_xml(xml_file, config):
+def parse_xml(xml_file, db_engine, config):
     BUFFER_SIZE = 65536
-    archiver = Archiver(config, 'parse.txt')
+    archiver = Archiver(db_engine, config, 'parse.txt')
     handler = TestResultsHandler(archiver)
     parser = xml.sax.make_parser()
     parser.setContentHandler(handler)
@@ -109,6 +109,8 @@ if __name__ == '__main__':
     parser.add_argument('output_file')
     parser.add_argument('--config', dest='config_file',
                         help='path to JSON config file containing database credentials')
+    parser.add_argument('--dbengine', default='sqlite',
+                        help='Database engine, postgresql or sqlite (default)')
     parser.add_argument('--database', help='database name')
     parser.add_argument('--host', help='databse host name', default=None)
     parser.add_argument('--user', help='database user')
@@ -118,7 +120,9 @@ if __name__ == '__main__':
 
     if args.config_file:
         config = read_config_file(args.config_file)
+        db_engine = config['db_engine']
     else:
+        db_engine = args.dbengine
         config = {
                 'database': args.database,
                 'user': args.user,
@@ -126,4 +130,4 @@ if __name__ == '__main__':
                 'host': args.host,
                 'port': args.port,
             }
-    parse_xml(args.output_file, config)
+    parse_xml(args.output_file, db_engine, config)

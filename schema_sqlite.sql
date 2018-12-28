@@ -1,6 +1,6 @@
 
 CREATE TABLE test_run (
-    id serial PRIMARY KEY,
+    id integer PRIMARY KEY AUTOINCREMENT,
     imported_at timestamp DEFAULT CURRENT_TIMESTAMP,
     archived_using text,
     generator text,
@@ -11,12 +11,12 @@ CREATE TABLE test_run (
 );
 
 CREATE TABLE suite (
-    id serial PRIMARY KEY,
+    id integer PRIMARY KEY AUTOINCREMENT,
     name text,
     full_name text NOT NULL,
     repository text NOT NULL
 );
-CREATE UNIQUE INDEX ON suite(repository, full_name);
+CREATE UNIQUE INDEX unique_suite_idx ON suite(repository, full_name);
 
 CREATE TABLE suite_result (
     suite_id int REFERENCES suite(id) ON DELETE CASCADE NOT NULL,
@@ -34,15 +34,15 @@ CREATE TABLE suite_result (
     teardown_fingerprint text,
     PRIMARY KEY (test_run_id, suite_id)
 );
-CREATE UNIQUE INDEX ON suite_result(start_time, fingerprint);
+CREATE UNIQUE INDEX unique_suite_result_idx ON suite_result(start_time, fingerprint);
 
 CREATE TABLE test_case (
-    id serial PRIMARY KEY,
+    id integer PRIMARY KEY AUTOINCREMENT,
     name text NOT NULL,
     full_name text,
     suite_id int REFERENCES suite(id) NOT NULL
 );
-CREATE UNIQUE INDEX ON test_case(name, suite_id);
+CREATE UNIQUE INDEX unique_test_case_idx ON test_case(name, suite_id);
 
 CREATE TABLE test_result (
     test_id int REFERENCES test_case(id) ON DELETE CASCADE NOT NULL,
@@ -63,7 +63,6 @@ CREATE TABLE test_result (
 );
 
 CREATE TABLE log_message (
-    id serial PRIMARY KEY,
     test_run_id int REFERENCES test_run(id) ON DELETE CASCADE NOT NULL,
     test_id int REFERENCES test_case(id) ON DELETE CASCADE,
     suite_id int REFERENCES suite(id) ON DELETE CASCADE NOT NULL,
@@ -92,7 +91,7 @@ CREATE TABLE keyword_tree (
     keyword text,
     library text,
     status text,
-    arguments text[]
+    arguments text
 );
 
 CREATE TABLE tree_hierarchy (
