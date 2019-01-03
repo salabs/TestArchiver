@@ -54,7 +54,7 @@ class ArchiverListener(object):
     def process_settings(self, settings):
         settings = dict([row.split(':', 1) for row in settings.split('\n')])
 
-        self.rpa = True if settings['RPA'].strip() == 'True' else False
+        self.rpa = True if 'RPA' in settings and settings['RPA'].strip() == 'True' else False
         self.dry_run = True if settings['DryRun'].strip() == 'True' else False
 
     def close(self):

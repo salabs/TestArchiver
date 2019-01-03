@@ -22,7 +22,7 @@ class TestResultsHandler(xml.sax.handler.ContentHandler):
             self.archiver.begin_test_run('Output parser',
                     attrs.get('generated'),
                     attrs.get('generator'),
-                    attrs.get('rpa'),
+                    attrs.get('rpa') if 'rpa' in attrs.getNames() else False,
                     None,
                 )
         elif name == 'suite':

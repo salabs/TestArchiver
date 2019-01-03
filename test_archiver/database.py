@@ -18,7 +18,6 @@ class Database(object):
         values = self._handle_values(values)
         cursor = self._connection.cursor()
         try:
-            #print(sql, values)
             cursor.execute(sql, values)
         finally:
             cursor.close()
@@ -28,7 +27,6 @@ class Database(object):
         cursor = self._connection.cursor()
         row = None
         try:
-            #print(sql, values)
             cursor.execute(sql, values)
             row = cursor.fetchone()
         finally:
@@ -142,7 +140,6 @@ class SQLiteDatabase(Database):
     def _handle_values(self, values):
         handled_values = []
         for value in values:
-            #print(type(value))
             if type(value) == list:
                 handled_values.append(str(value))
             else:
