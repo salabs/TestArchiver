@@ -1,5 +1,3 @@
-import sqlite3
-import psycopg2
 
 class Database(object):
     def __init__(self, db_name, db_host, db_port, db_user, db_password):
@@ -55,12 +53,13 @@ class Database(object):
 class PostgresqlDatabase(Database):
 
     def _connect(self):
+        import psycopg2
         self._connection = psycopg2.connect(
-                host=self.host,
-                database=self.database,
-                user=self.user,
-                password=self.password,
-            )
+            host=self.host,
+            database=self.database,
+            user=self.user,
+            password=self.password,
+        )
 
     def _handle_values(self, values):
         return values
@@ -135,6 +134,7 @@ class SQLiteDatabase(Database):
         super(SQLiteDatabase, self).__init__(db_name, None, None, None, None)
 
     def _connect(self):
+        import sqlite3
         self._connection = sqlite3.connect(self.database)
 
     def _handle_values(self, values):
