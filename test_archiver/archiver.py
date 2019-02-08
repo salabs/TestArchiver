@@ -4,7 +4,7 @@ from datetime import datetime
 
 from database import PostgresqlDatabase, SQLiteDatabase
 
-ARCHIVER_VERSION = "0.1"
+ARCHIVER_VERSION = "0.2"
 
 ROBOT_TIMESTAMP_FORMAT = "%Y%m%d %H:%M:%S.%f"
 MAX_LOG_MESSAGE_LENGTH = 2000
@@ -140,9 +140,15 @@ class Suite(FingerprintedItem):
 
     def insert_metadata(self):
         for name in self.metadata:
-            data = {'name': name, 'value': self.metadata[name],
+            content = self.metadata[name]
+            data = {'name': name, 'value': content,
                     'suite_id': self.id, 'test_run_id': self.archiver.test_run_id}
             self.archiver.db.insert('suite_metadata', data)
+            if name.startswith('series') and '#' in content:
+                series_name, build_number = content.split('#')
+                self.archiver.test_series[series_name] = build_number
+            elif name == 'team':
+                self.archiver.team = content
 
 class Test(FingerprintedItem):
     def __init__(self, archiver, name):
@@ -228,6 +234,8 @@ class Archiver(object):
     def __init__(self, db_engine, config, file_name):
         self.config = config
         self.test_run_id = None
+        self.test_series = {}
+        self.team = None
         self.output_from_dryrun = False
         self.db = self._db(db_engine)
         self.stack = []
@@ -244,7 +252,7 @@ class Archiver(object):
         elif db_engine == 'sqlite':
             return SQLiteDatabase(self.config['database'])
         else:
-            raise Exception("Unsupported database type '{}'".format(self.config['database_type']))
+            raise Exception("Unsupported database type '{}'".format(db_engine))
 
     def _current_item(self):
         return self.stack[-1] if self.stack else None
@@ -261,10 +269,32 @@ class Archiver(object):
 
     def update_dryrun_status(self):
         data = {'dryrun': self.output_from_dryrun}
-        self.test_run_id = self.db.update('test_run', data, {'id': self.test_run_id})
+        self.db.update('test_run', data, {'id': self.test_run_id})
 
     def end_test_run(self):
+        for name in self.test_series:
+            self.report_series(name, self.test_series[name])
+        if not self.test_series:
+            self.report_series('default series', None)
         self.db._connection.commit()
+
+    def report_series(self, name, build_number):
+        data = {
+                'team': self.team if self.team else 'No team',
+                'name': name,
+            }
+        series_id = self.db.insert_and_return_id('test_series', data, ['team', 'name'])
+
+        if not build_number:
+            previous_build_number = self.db.max_value('test_series_mapping', 'build_number',
+                                                      {'series': series_id})
+            build_number = previous_build_number + 1 if previous_build_number else 1
+        data = {
+                'series': series_id,
+                'test_run_id': self.test_run_id,
+                'build_number': build_number,
+            }
+        self.db.insert('test_series_mapping', data)
 
     def begin_suite(self, name):
         self.stack.append(Suite(self, name, 'repo'))

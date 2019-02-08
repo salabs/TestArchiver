@@ -49,6 +49,9 @@ class Database(object):
     def insert(self, table, data):
         raise NotImplementedError()
 
+    def max_value(self, table, column, where_data):
+        raise NotImplementedError()
+
 
 class PostgresqlDatabase(Database):
 
@@ -126,6 +129,16 @@ class PostgresqlDatabase(Database):
                 value_placeholders=','.join(['%s' for _ in keys]),
             )
         self._execute(sql, [data[key] for key in keys])
+
+    def max_value(self, table, column, where_data):
+        sql = "SELECT max({column}) FROM {table} WHERE {where};"
+        sql = sql.format(
+                table=table,
+                column=column,
+                where=' AND '.join(['{}=%s'.format(col) for col in where_data]),
+            )
+        (value, ) = self._execute_and_fetchone(sql, [where_data[key] for key in where_data])
+        return value
 
 
 class SQLiteDatabase(Database):
@@ -206,3 +219,13 @@ class SQLiteDatabase(Database):
                 value_placeholders=','.join(['?' for _ in keys]),
             )
         self._execute(sql, [data[key] for key in keys])
+
+    def max_value(self, table, column, where_data):
+        sql = "SELECT max({column}) FROM {table} WHERE {where};"
+        sql = sql.format(
+                table=table,
+                column=column,
+                where=' AND '.join(['{}=?'.format(col) for col in where_data]),
+            )
+        (value, ) = self._execute_and_fetchone(sql, [where_data[key] for key in where_data])
+        return value

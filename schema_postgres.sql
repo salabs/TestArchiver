@@ -1,3 +1,9 @@
+CREATE TABLE test_series (
+    id serial PRIMARY KEY,
+    name text NOT NULL,
+    team text NOT NULL
+);
+CREATE UNIQUE INDEX unique_test_series_idx ON test_series(team, name);
 
 CREATE TABLE test_run (
     id serial PRIMARY KEY,
@@ -8,6 +14,13 @@ CREATE TABLE test_run (
     rpa boolean,
     dryrun boolean,
     ignored boolean DEFAULT false
+);
+
+CREATE TABLE test_series_mapping (
+    series int REFERENCES test_series(id),
+    test_run_id int REFERENCES test_run(id),
+    build_number int NOT NULL,
+    PRIMARY KEY (series, test_run_id, build_number)
 );
 
 CREATE TABLE suite (
@@ -40,7 +53,7 @@ CREATE TABLE test_case (
     id serial PRIMARY KEY,
     name text NOT NULL,
     full_name text,
-    suite_id int REFERENCES suite(id) NOT NULL
+    suite_id int REFERENCES suite(id) ON DELETE CASCADE NOT NULL
 );
 CREATE UNIQUE INDEX unique_test_case_idx ON test_case(name, suite_id);
 
