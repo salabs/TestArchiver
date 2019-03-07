@@ -15,7 +15,7 @@ class ArchiverListener(object):
                 'host': host,
                 'port': port,
             }
-        self.archiver = Archiver(db_engine, config, 'listen.txt')
+        self.archiver = Archiver(db_engine, config)
         self.rpa = False
         self.dry_run = False
         self.generator = None

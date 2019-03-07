@@ -90,7 +90,7 @@ class TestResultsHandler(xml.sax.handler.ContentHandler):
 
 def parse_xml(xml_file, db_engine, config):
     BUFFER_SIZE = 65536
-    archiver = Archiver(db_engine, config, 'parse.txt')
+    archiver = Archiver(db_engine, config)
     handler = TestResultsHandler(archiver)
     parser = xml.sax.make_parser()
     parser.setContentHandler(handler)

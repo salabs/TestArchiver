@@ -231,11 +231,12 @@ class LogMessage(TestItem):
 
 
 class Archiver(object):
-    def __init__(self, db_engine, config, file_name):
+    def __init__(self, db_engine, config):
         self.config = config
         self.test_run_id = None
         self.test_series = {}
         self.team = None
+        self.repository = config['repository'] if 'repository' in config else 'default repo'
         self.output_from_dryrun = False
         self.db = self._db(db_engine)
         self.stack = []
