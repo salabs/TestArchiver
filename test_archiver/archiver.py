@@ -9,6 +9,17 @@ ARCHIVER_VERSION = "0.2"
 ROBOT_TIMESTAMP_FORMAT = "%Y%m%d %H:%M:%S.%f"
 MAX_LOG_MESSAGE_LENGTH = 2000
 
+ARHIVED_LOG_LEVELS = (
+        "TRACE",
+        "DEBUG",
+        "INFO",
+        "WARN",
+        "ERROR",
+        "FAIL",
+    )
+
+ARCHIVE_KEYWORDS = True
+
 def read_config_file(file_name):
     with open(file_name, 'r') as config_file:
         return json.load(config_file)
@@ -167,7 +178,8 @@ class Test(FingerprintedItem):
             data = {'fingerprint': self.execution_fingerprint, 'keyword': None, 'library': None,
                 'status': self.execution_status, 'arguments': self.arguments}
             self.archiver.db.insert_or_ignore('keyword_tree', data, ['fingerprint'])
-        self.insert_subtrees()
+        if ARCHIVE_KEYWORDS:
+            self.insert_subtrees()
         self.insert_tags()
 
     def insert_tags(self):
@@ -196,10 +208,11 @@ class Keyword(FingerprintedItem):
         return "keyword"
 
     def insert_results(self):
-        data = {'fingerprint': self.fingerprint, 'keyword': self.name, 'library': self.library,
-                'status': self.status, 'arguments': self.arguments}
-        self.archiver.db.insert_or_ignore('keyword_tree', data, ['fingerprint'])
-        self.insert_subtrees()
+        if ARCHIVE_KEYWORDS:
+            data = {'fingerprint': self.fingerprint, 'keyword': self.name, 'library': self.library,
+                    'status': self.status, 'arguments': self.arguments}
+            self.archiver.db.insert_or_ignore('keyword_tree', data, ['fingerprint'])
+            self.insert_subtrees()
 
     def insert_subtrees(self):
         call_index = 0
@@ -223,10 +236,12 @@ class LogMessage(TestItem):
         return "log_message"
 
     def insert(self, content):
-        data = {'test_run_id': self.archiver.test_run_id, 'timestamp': self.timestamp,
-                'log_level': self.log_level, 'message': content[:MAX_LOG_MESSAGE_LENGTH],
-                'test_id': self.parent_test().id, 'suite_id': self.parent_suite().id}
-        self.id = self.archiver.db.insert('log_message', data)
+        if self.log_level in ARHIVED_LOG_LEVELS:
+            data = {'test_run_id': self.archiver.test_run_id, 'timestamp': self.timestamp,
+                    'log_level': self.log_level, 'message': content[:MAX_LOG_MESSAGE_LENGTH],
+                    'test_id': self.parent_test().id if self.parent_test() else None,
+                    'suite_id': self.parent_suite().id}
+            self.id = self.archiver.db.insert('log_message', data)
 
 
 

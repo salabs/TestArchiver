@@ -2,22 +2,23 @@ import argparse
 import sys
 import xml.sax
 
-from archiver import Archiver, read_config_file
+from archiver import Archiver, read_config_file, ARHIVED_LOG_LEVELS
 
 EXCLUDED_SECTIONS = ('statistics', 'errors')
 
 class TestResultsHandler(xml.sax.handler.ContentHandler):
     def __init__(self, archiver):
         self.archiver = archiver
-        self._current_content = ""
+        self._current_content = []
         self.excluding = False
         self.dryrun = False
+        self.skipping_content = False
 
     def startElement(self, name, attrs):
         if name in EXCLUDED_SECTIONS:
             self.excluding = True
         elif self.excluding:
-            pass
+            self.skipping_content = True
         elif name == 'robot':
             self.archiver.begin_test_run('Output parser',
                     attrs.get('generated'),
@@ -37,9 +38,17 @@ class TestResultsHandler(xml.sax.handler.ContentHandler):
             pass
         elif name == 'msg':
             self.archiver.begin_log_message(attrs.getValue('level'), attrs.getValue('timestamp'))
+            if attrs.getValue('level') not in ARHIVED_LOG_LEVELS:
+                self.skipping_content = True
         elif name == 'status':
             self.archiver.begin_status(attrs.getValue('status'), attrs.getValue('starttime'),
                                        attrs.getValue('endtime'))
+        elif name == 'assign':
+            pass
+        elif name == 'var':
+            pass
+        elif name == 'timeout':
+            pass
         elif name == 'tag':
             pass
         elif name == 'item':# metadata item
@@ -55,7 +64,7 @@ class TestResultsHandler(xml.sax.handler.ContentHandler):
         if name in EXCLUDED_SECTIONS:
             self.excluding = False
         elif self.excluding:
-            pass
+            self.skipping_content = False
         elif name == 'robot':
             self.archiver.update_dryrun_status()
         elif name == 'suite':
@@ -68,7 +77,14 @@ class TestResultsHandler(xml.sax.handler.ContentHandler):
             self.archiver.update_argumets(self.content())
         elif name == 'msg':
             self.archiver.end_log_message(self.content())
+            self.skipping_content = False
         elif name == 'status':
+            pass
+        elif name == 'assign':
+            pass
+        elif name == 'var':
+            pass
+        elif name == 'timeout':
             pass
         elif name == 'tag':
             self.archiver.update_tags(self.content())
@@ -80,13 +96,15 @@ class TestResultsHandler(xml.sax.handler.ContentHandler):
             pass
         else:
             print("WARNING: ending unknown item '{}'".format(name))
-        self._current_content = ''
+        self._current_content = []
 
     def content(self):
-        return self._current_content.strip('\n')
+        return ''.join(self._current_content).strip('\n')
 
     def characters(self, content):
-        self._current_content += content
+        if not self.skipping_content:
+           self._current_content += content
+        self._current_content.append(content)
 
 def parse_xml(xml_file, db_engine, config):
     BUFFER_SIZE = 65536
@@ -130,4 +148,5 @@ if __name__ == '__main__':
                 'host': args.host,
                 'port': args.port,
             }
+
     parse_xml(args.output_file, db_engine, config)
