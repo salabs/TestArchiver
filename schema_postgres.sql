@@ -52,10 +52,10 @@ CREATE UNIQUE INDEX unique_suite_result_idx ON suite_result(start_time, fingerpr
 CREATE TABLE test_case (
     id serial PRIMARY KEY,
     name text NOT NULL,
-    full_name text,
+    full_name text NOT NULL,
     suite_id int REFERENCES suite(id) ON DELETE CASCADE NOT NULL
 );
-CREATE UNIQUE INDEX unique_test_case_idx ON test_case(name, suite_id);
+CREATE UNIQUE INDEX unique_test_case_idx ON test_case(full_name, suite_id);
 
 CREATE TABLE test_result (
     test_id int REFERENCES test_case(id) ON DELETE CASCADE NOT NULL,
@@ -80,7 +80,7 @@ CREATE TABLE log_message (
     test_run_id int REFERENCES test_run(id) ON DELETE CASCADE NOT NULL,
     test_id int REFERENCES test_case(id) ON DELETE CASCADE,
     suite_id int REFERENCES suite(id) ON DELETE CASCADE NOT NULL,
-    timestamp timestamp NOT NULL,
+    timestamp timestamp,
     log_level text NOT NULL,
     message text
 );

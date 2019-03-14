@@ -4,9 +4,14 @@ import xml.sax
 
 from archiver import Archiver, read_config_file, ARHIVED_LOG_LEVELS
 
-EXCLUDED_SECTIONS = ('statistics', 'errors')
+SUPPORTED_OUTPUT_FORMATS = (
+        'rf', 'robot', 'robotframework',
+        'xUnit',
+    )
 
-class TestResultsHandler(xml.sax.handler.ContentHandler):
+DEFAULT_SUITE_NAME = 'Unnamed suite'
+
+class XmlOutputParser(xml.sax.handler.ContentHandler):
     def __init__(self, archiver):
         self.archiver = archiver
         self._current_content = []
@@ -15,12 +20,34 @@ class TestResultsHandler(xml.sax.handler.ContentHandler):
         self.skipping_content = False
 
     def startElement(self, name, attrs):
-        if name in EXCLUDED_SECTIONS:
+        raise NotImplementedError
+
+    def endElement(self, name):
+        raise NotImplementedError
+
+    def content(self):
+        return ''.join(self._current_content).strip('\n')
+
+    def characters(self, content):
+        if not self.skipping_content:
+           self._current_content += content
+        self._current_content.append(content)
+
+
+
+class RobotFrameworkOutputParser(XmlOutputParser):
+    EXCLUDED_SECTIONS = ('statistics', 'errors')
+
+    def __init__(self, archiver):
+        super(RobotFrameworkOutputParser, self).__init__(archiver)
+
+    def startElement(self, name, attrs):
+        if name in RobotFrameworkOutputParser.EXCLUDED_SECTIONS:
             self.excluding = True
         elif self.excluding:
             self.skipping_content = True
         elif name == 'robot':
-            self.archiver.begin_test_run('Output parser',
+            self.archiver.begin_test_run('RF parser',
                     attrs.get('generated'),
                     attrs.get('generator'),
                     attrs.get('rpa') if 'rpa' in attrs.getNames() else False,
@@ -61,18 +88,18 @@ class TestResultsHandler(xml.sax.handler.ContentHandler):
             print("WARNING: begin unknown item '{}'".format(name))
 
     def endElement(self, name):
-        if name in EXCLUDED_SECTIONS:
+        if name in RobotFrameworkOutputParser.EXCLUDED_SECTIONS:
             self.excluding = False
         elif self.excluding:
             self.skipping_content = False
         elif name == 'robot':
             self.archiver.update_dryrun_status()
         elif name == 'suite':
-            self.archiver.end_suite(None)
+            self.archiver.end_suite()
         elif name == 'test':
-            self.archiver.end_test(None)
+            self.archiver.end_test()
         elif name == 'kw':
-            self.archiver.end_keyword(None)
+            self.archiver.end_keyword()
         elif name == 'arg':
             self.archiver.update_argumets(self.content())
         elif name == 'msg':
@@ -98,18 +125,75 @@ class TestResultsHandler(xml.sax.handler.ContentHandler):
             print("WARNING: ending unknown item '{}'".format(name))
         self._current_content = []
 
-    def content(self):
-        return ''.join(self._current_content).strip('\n')
 
-    def characters(self, content):
-        if not self.skipping_content:
-           self._current_content += content
-        self._current_content.append(content)
+class XUnitOutputParser(XmlOutputParser):
+    def __init__(self, archiver):
+        super(XUnitOutputParser, self).__init__(archiver)
 
-def parse_xml(xml_file, db_engine, config):
+    def startElement(self, name, attrs):
+        if name in []:
+            self.excluding = True
+        elif self.excluding:
+            self.skipping_content = True
+        elif name in ('testsuite', 'testsuites'):
+            if not self.archiver.test_run_id:
+                self.archiver.begin_test_run(
+                        'xUnit parser', None, 'xUnit', False, None
+                    )
+            suite_name = attrs.getValue('name') if 'name' in attrs.getNames() else DEFAULT_SUITE_NAME
+            self.archiver.begin_suite(suite_name)
+            errors = int(attrs.getValue('errors')) if 'errors' in attrs.getNames() else 0
+            failures = int(attrs.getValue('failures')) if 'failures' in attrs.getNames() else 0
+            suite_status = 'PASS' if errors + failures == 0 else 'FAIL'
+            elapsed = int(float(attrs.getValue('time'))*1000) if 'time' in attrs.getNames() else None
+            self.archiver.begin_status(suite_status, elapsed=elapsed)
+        elif name == 'testcase':
+            class_name = attrs.getValue('classname')
+            self.archiver.begin_test(attrs.getValue('name'), class_name)
+            elapsed = int(float(attrs.getValue('time'))*1000)
+            self.archiver.begin_status('PASS', elapsed=elapsed)
+        elif name == 'failure':
+            self.archiver.update_status('FAIL')
+            self.archiver.log_message('FAIL', attrs.getValue('message'))
+        elif name == 'error':
+            self.archiver.update_status('FAIL')
+            self.archiver.log_message('ERROR', attrs.getValue('message'))
+        elif name == 'system-out':
+            self.archiver.begin_log_message('INFO')
+        elif name == 'system-err':
+            self.archiver.begin_log_message('ERROR')
+        else:
+            print("WARNING: begin unknown item '{}'".format(name))
+
+    def endElement(self, name):
+        if name in []:
+            self.excluding = False
+        elif self.excluding:
+            self.skipping_content = False
+        elif name == 'testsuite':
+            self.archiver.end_suite()
+        elif name == 'testcase':
+            self.archiver.end_test()
+        elif name == 'failure':
+            self.archiver.log_message('FAIL', self.content())
+        elif name == 'error':
+            self.archiver.log_message('ERROR', self.content())
+        elif name in ('system-out', 'system-err'):
+            self.archiver.end_log_message(self.content())
+        else:
+            print("WARNING: ending unknown item '{}'".format(name))
+        self._current_content = []
+
+
+def parse_xml(xml_file, output_format, db_engine, config):
     BUFFER_SIZE = 65536
     archiver = Archiver(db_engine, config)
-    handler = TestResultsHandler(archiver)
+    if output_format.lower() in ('rf', 'robot', 'robotframework'):
+        handler = RobotFrameworkOutputParser(archiver)
+    elif output_format.lower() == 'xunit':
+        handler = XUnitOutputParser(archiver)
+    else:
+        raise Exception("Unsupported output format '{}'".format(output_format))
     parser = xml.sax.make_parser()
     parser.setContentHandler(handler)
     with open(xml_file) as file:
@@ -134,6 +218,8 @@ if __name__ == '__main__':
     parser.add_argument('--user', help='database user')
     parser.add_argument('--pw', '--password', help='database password')
     parser.add_argument('--port', help='database port (default: 5432)', default=5432, type=int)
+    parser.add_argument('--format', help='output format (default: robotframework)', default='robotframework',
+                        choices=SUPPORTED_OUTPUT_FORMATS)
     args = parser.parse_args()
 
     if args.config_file:
@@ -149,4 +235,4 @@ if __name__ == '__main__':
                 'port': args.port,
             }
 
-    parse_xml(args.output_file, db_engine, config)
+    parse_xml(args.output_file, args.format, db_engine, config)

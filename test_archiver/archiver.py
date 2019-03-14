@@ -4,7 +4,7 @@ from datetime import datetime
 
 from database import PostgresqlDatabase, SQLiteDatabase
 
-ARCHIVER_VERSION = "0.2"
+ARCHIVER_VERSION = "0.3"
 
 ROBOT_TIMESTAMP_FORMAT = "%Y%m%d %H:%M:%S.%f"
 MAX_LOG_MESSAGE_LENGTH = 2000
@@ -47,12 +47,12 @@ class TestItem(object):
         return self.archiver.stack[-1] if self.archiver.stack else None
 
 class FingerprintedItem(TestItem):
-    def __init__(self, archiver, name):
+    def __init__(self, archiver, name, class_name=None):
         super(FingerprintedItem, self).__init__(archiver)
         self.name = name
         self.parent_item = self._parent_item()
         parent_prefix = self.parent_item.full_name + '.' if self.parent_item else ''
-        self.full_name = parent_prefix + self.name
+        self.full_name = '{}.{}'.format(class_name, name) if class_name else parent_prefix + self.name
         self.id = None
 
         self.status = None
@@ -62,6 +62,7 @@ class FingerprintedItem(TestItem):
 
         self.start_time = None
         self.end_time = None
+        self.elapsed_time = None
 
         self.kw_type = None
         self.library = None
@@ -76,14 +77,17 @@ class FingerprintedItem(TestItem):
         self.execution_fingerprint = None
         self.teardown_fingerprint = None
 
-    def update_status(self, status, start_time, end_time):
+    def update_status(self, status, start_time, end_time, elapsed=None):
         if status == 'NOT_RUN':
             # If some keyword is not executed the execution was a dryrun
             self.archiver.output_from_dryrun = True
         self.status = status
-        self.start_time = datetime.strptime(start_time, ROBOT_TIMESTAMP_FORMAT)
-        self.end_time = datetime.strptime(end_time, ROBOT_TIMESTAMP_FORMAT)
-        self.elapsed_time = int((self.end_time - self.start_time).total_seconds()*1000)
+        self.start_time = datetime.strptime(start_time, ROBOT_TIMESTAMP_FORMAT) if start_time else None
+        self.end_time = datetime.strptime(end_time, ROBOT_TIMESTAMP_FORMAT) if end_time else None
+        if self.start_time and self.end_time:
+            self.elapsed_time = int((self.end_time - self.start_time).total_seconds()*1000)
+        elif elapsed != None:
+            self.elapsed_time = elapsed
 
     def _hashing_name(self):
         return self.full_name
@@ -105,7 +109,7 @@ class FingerprintedItem(TestItem):
         fingerprint.update(str(self.setup_fingerprint).encode('utf-8'))
         fingerprint.update(str(self.execution_fingerprint).encode('utf-8'))
         fingerprint.update(str(self.teardown_fingerprint).encode('utf-8'))
-        fingerprint.update(self.status.encode('utf-8'))
+        fingerprint.update(str(self.status).encode('utf-8'))
         fingerprint.update(str(self.arguments).encode('utf-8'))
         self.fingerprint = fingerprint.hexdigest()
 
@@ -162,10 +166,10 @@ class Suite(FingerprintedItem):
                 self.archiver.team = content
 
 class Test(FingerprintedItem):
-    def __init__(self, archiver, name):
-        super(Test, self).__init__(archiver, name)
+    def __init__(self, archiver, name, class_name):
+        super(Test, self).__init__(archiver, name, class_name)
         data = {'full_name': self.full_name, 'name': name, 'suite_id': self.parent_item.id}
-        self.id = self.archiver.db.insert_and_return_id('test_case', data, ['suite_id', 'name'])
+        self.id = self.archiver.db.insert_and_return_id('test_case', data, ['suite_id', 'full_name'])
 
     def _item_type(self):
         return "test"
@@ -315,30 +319,33 @@ class Archiver(object):
     def begin_suite(self, name):
         self.stack.append(Suite(self, name, 'repo'))
 
-    def end_suite(self, attributes):
+    def end_suite(self, attributes=None):
         if attributes:
             self._current_item().update_status(attributes['status'], attributes['starttime'],
                                                attributes['endtime'])
             self._current_item().metadata = attributes['metadata']
         self.stack.pop().finish()
 
-    def begin_test(self, name):
-        self.stack.append(Test(self, name))
+    def begin_test(self, name, class_name=None):
+        self.stack.append(Test(self, name, class_name))
 
-    def end_test(self, attributes):
+    def end_test(self, attributes=None):
         if attributes:
             self._current_item().update_status(attributes['status'], attributes['starttime'],
                                                attributes['endtime'])
             self._current_item().tags = attributes['tags']
         self.stack.pop().finish()
 
-    def begin_status(self, status, start_time, end_time):
-        self._current_item().update_status(status, start_time, end_time)
+    def begin_status(self, status, start_time=None, end_time=None, elapsed=None):
+        self._current_item().update_status(status, start_time, end_time, elapsed)
+
+    def update_status(self, status):
+        self._current_item().status = status
 
     def begin_keyword(self, name, library, kw_type, arguments=None):
         self.stack.append(Keyword(self, name, library, kw_type.lower(), arguments))
 
-    def end_keyword(self, attributes):
+    def end_keyword(self, attributes=None):
         if attributes:
             self._current_item().update_status(attributes['status'], attributes['starttime'],
                                                attributes['endtime'])
@@ -356,7 +363,11 @@ class Archiver(object):
     def end_metadata(self, content):
         self._current_item().metadata[self._current_item()._last_metadata_name] = content
 
-    def begin_log_message(self, level, timestamp):
+    def log_message(self, level, content, timestamp=None):
+        self.begin_log_message(level, timestamp)
+        self.end_log_message(content)
+
+    def begin_log_message(self, level, timestamp=None):
         self.stack.append(LogMessage(self, level, timestamp))
 
     def end_log_message(self, content):
