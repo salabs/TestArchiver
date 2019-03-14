@@ -357,6 +357,10 @@ class Archiver(object):
     def update_tags(self, tag):
         self._current_item().tags.append(tag)
 
+    def metadata(self, name, content):
+        self.begin_metadata(name)
+        self.end_metadata(content)
+
     def begin_metadata(self, name):
         self._current_item()._last_metadata_name = name
 

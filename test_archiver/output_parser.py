@@ -162,6 +162,11 @@ class XUnitOutputParser(XmlOutputParser):
             self.archiver.begin_log_message('INFO')
         elif name == 'system-err':
             self.archiver.begin_log_message('ERROR')
+        elif name == 'properties':
+            pass
+        elif name == 'property':
+            self.archiver.metadata(attrs.getValue('name'), attrs.getValue('value'))
+            #<property name="" value=""/>
         else:
             print("WARNING: begin unknown item '{}'".format(name))
 
@@ -180,6 +185,8 @@ class XUnitOutputParser(XmlOutputParser):
             self.archiver.log_message('ERROR', self.content())
         elif name in ('system-out', 'system-err'):
             self.archiver.end_log_message(self.content())
+        elif name in ('properties', 'property'):
+            pass
         else:
             print("WARNING: ending unknown item '{}'".format(name))
         self._current_content = []
