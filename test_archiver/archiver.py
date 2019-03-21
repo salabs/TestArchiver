@@ -174,8 +174,11 @@ class Suite(FingerprintedItem):
             data = {'name': name, 'value': content,
                     'suite_id': self.id, 'test_run_id': self.archiver.test_run_id}
             self.archiver.db.insert('suite_metadata', data)
-            if name.startswith('series') and '#' in content:
-                series_name, build_number = content.split('#')
+            if name.startswith('series'):
+                if '#' in content:
+                    series_name, build_number = content.split('#')
+                else:
+                    series_name, build_number = content, None
                 self.archiver.test_series[series_name] = build_number
             elif name == 'team':
                 self.archiver.team = content
@@ -269,7 +272,8 @@ class Archiver(object):
         self.config = config
         self.test_run_id = None
         self.test_series = {}
-        self.team = None
+        self.team = config['team'] if 'team' in config else None
+        self.series = config['series'] if 'series' in config else []
         self.repository = config['repository'] if 'repository' in config else 'default repo'
         self.output_from_dryrun = False
         self.db = self._db(db_engine)

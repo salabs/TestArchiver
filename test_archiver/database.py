@@ -149,6 +149,11 @@ class SQLiteDatabase(Database):
     def _connect(self):
         import sqlite3
         self._connection = sqlite3.connect(self.database)
+        try:
+            self._execute('SELECT 1 FROM test_case;')
+        except sqlite3.OperationalError as e:
+            with open('schema_sqlite.sql') as schema_file:
+                self._connection.executescript(schema_file.read())
 
     def _handle_values(self, values):
         handled_values = []

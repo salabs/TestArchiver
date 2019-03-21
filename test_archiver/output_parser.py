@@ -201,7 +201,7 @@ class XUnitOutputParser(XmlOutputParser):
         self._current_content = []
 
 
-def parse_xml(xml_file, output_format, db_engine, config):
+def parse_xml(xml_file, output_format, db_engine, config, ):
     BUFFER_SIZE = 65536
     archiver = Archiver(db_engine, config)
     if output_format.lower() in ('rf', 'robot', 'robotframework'):
@@ -236,6 +236,9 @@ if __name__ == '__main__':
     parser.add_argument('--port', help='database port (default: 5432)', default=5432, type=int)
     parser.add_argument('--format', help='output format (default: robotframework)', default='robotframework',
                         choices=SUPPORTED_OUTPUT_FORMATS)
+    parser.add_argument('--team', help='Team name for the ', default=None)
+    parser.add_argument('--series', action='append',
+                        help="Name of the testseries (and optionally build number 'SERIES_NAME#BUILD_NUM')")
     args = parser.parse_args()
 
     if args.config_file:
@@ -250,5 +253,8 @@ if __name__ == '__main__':
                 'host': args.host,
                 'port': args.port,
             }
+    config['series'] = args.series
+    if args.team:
+        config['team'] = args.team
 
     parse_xml(args.output_file, args.format, db_engine, config)
