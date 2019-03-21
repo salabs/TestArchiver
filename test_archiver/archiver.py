@@ -6,7 +6,20 @@ from database import PostgresqlDatabase, SQLiteDatabase
 
 ARCHIVER_VERSION = "0.3"
 
-ROBOT_TIMESTAMP_FORMAT = "%Y%m%d %H:%M:%S.%f"
+SUPPORTED_TIMESTAMP_FORMATS = (
+        "%Y%m%d %H:%M:%S.%f",
+        "%Y-%m-%d %H:%M:%S.%fZ",
+        "%Y-%m-%d %H:%M:%S.%f",
+        "%Y-%m-%d %H:%M:%SZ",
+        "%Y-%m-%d %H:%M:%S",
+        "%Y%m%dT%H:%M:%S.%f",
+        "%Y-%m-%dT%H:%M:%S.%f",
+        "%Y-%m-%dT%H:%M:%S.%fZ",
+        "%Y-%m-%dT%H:%M:%S.%f",
+        "%Y-%m-%dT%H:%M:%SZ",
+        "%Y-%m-%dT%H:%M:%S",
+    )
+
 MAX_LOG_MESSAGE_LENGTH = 2000
 
 ARHIVED_LOG_LEVELS = (
@@ -82,10 +95,12 @@ class FingerprintedItem(TestItem):
             # If some keyword is not executed the execution was a dryrun
             self.archiver.output_from_dryrun = True
         self.status = status
-        self.start_time = datetime.strptime(start_time, ROBOT_TIMESTAMP_FORMAT) if start_time else None
-        self.end_time = datetime.strptime(end_time, ROBOT_TIMESTAMP_FORMAT) if end_time else None
+        self.start_time = start_time
+        self.end_time = end_time
         if self.start_time and self.end_time:
-            self.elapsed_time = int((self.end_time - self.start_time).total_seconds()*1000)
+            start = timestamp_to_datetime(self.start_time)
+            end = timestamp_to_datetime(self.end_time)
+            self.elapsed_time = int((end - start).total_seconds()*1000)
         elif elapsed != None:
             self.elapsed_time = elapsed
 
@@ -378,3 +393,12 @@ class Archiver(object):
         self._current_item().insert(content)
         self.stack.pop()
 
+def timestamp_to_datetime(timestamp):
+    parsed_datetime = None
+    for timestamp_format in SUPPORTED_TIMESTAMP_FORMATS:
+        try:
+            parsed_datetime = datetime.strptime(timestamp, timestamp_format)
+            return parsed_datetime
+        except Exception as e:
+            pass
+    raise Exception("timestamp: '{}' is in unsopported format".format(timestamp))

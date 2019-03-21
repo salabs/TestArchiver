@@ -5,8 +5,8 @@ import xml.sax
 from archiver import Archiver, read_config_file, ARHIVED_LOG_LEVELS
 
 SUPPORTED_OUTPUT_FORMATS = (
-        'rf', 'robot', 'robotframework',
-        'xUnit',
+        'robot', 'robotframework',
+        'xUnit', 'junit'
     )
 
 DEFAULT_SUITE_NAME = 'Unnamed suite'
@@ -26,12 +26,14 @@ class XmlOutputParser(xml.sax.handler.ContentHandler):
         raise NotImplementedError
 
     def content(self):
-        return ''.join(self._current_content).strip('\n')
+        cont = ''.join(self._current_content).strip(' \n')
+        self._current_content = []
+        return cont
 
     def characters(self, content):
         if not self.skipping_content:
-           self._current_content += content
-        self._current_content.append(content)
+            if content.strip('\n'):
+                self._current_content.append(content)
 
 
 
@@ -146,11 +148,13 @@ class XUnitOutputParser(XmlOutputParser):
             failures = int(attrs.getValue('failures')) if 'failures' in attrs.getNames() else 0
             suite_status = 'PASS' if errors + failures == 0 else 'FAIL'
             elapsed = int(float(attrs.getValue('time'))*1000) if 'time' in attrs.getNames() else None
-            self.archiver.begin_status(suite_status, elapsed=elapsed)
+            timestamp = attrs.getValue('timestamp') if 'timestamp' in attrs.getNames() else None
+            self.archiver.begin_status(suite_status, start_time=timestamp, elapsed=elapsed)
         elif name == 'testcase':
             class_name = attrs.getValue('classname')
             self.archiver.begin_test(attrs.getValue('name'), class_name)
             elapsed = int(float(attrs.getValue('time'))*1000)
+            status = attrs.getValue('status') if 'status' in attrs.getNames() else 'PASS'
             self.archiver.begin_status('PASS', elapsed=elapsed)
         elif name == 'failure':
             self.archiver.update_status('FAIL')
@@ -158,15 +162,16 @@ class XUnitOutputParser(XmlOutputParser):
         elif name == 'error':
             self.archiver.update_status('FAIL')
             self.archiver.log_message('ERROR', attrs.getValue('message'))
-        elif name == 'system-out':
-            self.archiver.begin_log_message('INFO')
-        elif name == 'system-err':
-            self.archiver.begin_log_message('ERROR')
+        elif name == 'skipped':
+            self.archiver.update_status('SKIPPED')
+            if 'message' in attrs.getNames():
+                self.archiver.log_message('INFO', attrs.getValue('message'))
+        elif name in ('system-out', 'system-err'):
+            pass
         elif name == 'properties':
             pass
         elif name == 'property':
             self.archiver.metadata(attrs.getValue('name'), attrs.getValue('value'))
-            #<property name="" value=""/>
         else:
             print("WARNING: begin unknown item '{}'".format(name))
 
@@ -175,7 +180,7 @@ class XUnitOutputParser(XmlOutputParser):
             self.excluding = False
         elif self.excluding:
             self.skipping_content = False
-        elif name == 'testsuite':
+        elif name in ('testsuite', 'testsuites'):
             self.archiver.end_suite()
         elif name == 'testcase':
             self.archiver.end_test()
@@ -183,9 +188,13 @@ class XUnitOutputParser(XmlOutputParser):
             self.archiver.log_message('FAIL', self.content())
         elif name == 'error':
             self.archiver.log_message('ERROR', self.content())
-        elif name in ('system-out', 'system-err'):
-            self.archiver.end_log_message(self.content())
+        elif name == 'system-out':
+            self.archiver.log_message('INFO', self.content())
+        elif name == 'system-err':
+            self.archiver.log_message('ERROR', self.content())
         elif name in ('properties', 'property'):
+            pass
+        elif name == 'skipped':
             pass
         else:
             print("WARNING: ending unknown item '{}'".format(name))
@@ -197,10 +206,10 @@ def parse_xml(xml_file, output_format, db_engine, config):
     archiver = Archiver(db_engine, config)
     if output_format.lower() in ('rf', 'robot', 'robotframework'):
         handler = RobotFrameworkOutputParser(archiver)
-    elif output_format.lower() == 'xunit':
+    elif output_format.lower() in ('xunit', 'junit'):
         handler = XUnitOutputParser(archiver)
     else:
-        raise Exception("Unsupported output format '{}'".format(output_format))
+        raise Exception("Unsupported report format '{}'".format(output_format))
     parser = xml.sax.make_parser()
     parser.setContentHandler(handler)
     with open(xml_file) as file:
