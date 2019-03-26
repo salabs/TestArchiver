@@ -280,7 +280,7 @@ class Archiver(object):
         self.stack = []
 
     def _db(self, db_engine):
-        if db_engine == 'postgresql':
+        if db_engine in ('postgresql', 'postgres'):
             return PostgresqlDatabase(
                     self.config['database'],
                     self.config['host'],
@@ -288,7 +288,7 @@ class Archiver(object):
                     self.config['user'],
                     self.config['password'],
                 )
-        elif db_engine == 'sqlite':
+        elif db_engine in ('sqlite', 'sqlite3'):
             return SQLiteDatabase(self.config['database'])
         else:
             raise Exception("Unsupported database type '{}'".format(db_engine))

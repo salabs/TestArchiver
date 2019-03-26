@@ -1,3 +1,4 @@
+import os
 
 class Database(object):
     def __init__(self, db_name, db_host, db_port, db_user, db_password):
@@ -152,8 +153,9 @@ class SQLiteDatabase(Database):
         try:
             self._execute('SELECT 1 FROM test_case;')
         except sqlite3.OperationalError as e:
-            with open('schema_sqlite.sql') as schema_file:
-                self._connection.executescript(schema_file.read())
+            schema_file = os.path.join(os.path.dirname(__file__), 'schemas/schema_sqlite.sql')
+            with open(schema_file) as schema:
+                self._connection.executescript(schema.read())
 
     def _handle_values(self, values):
         handled_values = []

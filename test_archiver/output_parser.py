@@ -235,8 +235,8 @@ if __name__ == '__main__':
     parser.add_argument('--pw', '--password', help='database password')
     parser.add_argument('--port', help='database port (default: 5432)', default=5432, type=int)
     parser.add_argument('--format', help='output format (default: robotframework)', default='robotframework',
-                        choices=SUPPORTED_OUTPUT_FORMATS)
-    parser.add_argument('--team', help='Team name for the ', default=None)
+                        choices=SUPPORTED_OUTPUT_FORMATS, type=str.lower)
+    parser.add_argument('--team', help='Team name for the test series', default=None)
     parser.add_argument('--series', action='append',
                         help="Name of the testseries (and optionally build number 'SERIES_NAME#BUILD_NUM')")
     args = parser.parse_args()
