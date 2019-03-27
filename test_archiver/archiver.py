@@ -311,7 +311,7 @@ class Archiver(object):
         self.db.update('test_run', data, {'id': self.test_run_id})
 
     def end_test_run(self):
-        if 'series' in self.config:
+        if 'series' in self.config and self.config['series']:
             for content in self.config['series']:
                 if '#' in content:
                     series_name, build_number = content.split('#')

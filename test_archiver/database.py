@@ -64,6 +64,13 @@ class PostgresqlDatabase(Database):
             user=self.user,
             password=self.password,
         )
+        try:
+            self._execute('SELECT 1 FROM test_case;')
+        except psycopg2.ProgrammingError as e:
+            self._connection.rollback()
+            schema_file = os.path.join(os.path.dirname(__file__), 'schemas/schema_postgres.sql')
+            with open(schema_file) as schema:
+                self._execute(schema.read())
 
     def _handle_values(self, values):
         return values
