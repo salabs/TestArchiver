@@ -1,12 +1,15 @@
 import argparse
+import os.path
 import sys
 import xml.sax
 
 from archiver import Archiver, read_config_file, ARHIVED_LOG_LEVELS
 
+# xunit and junit use the same junit parser
 SUPPORTED_OUTPUT_FORMATS = (
         'robot', 'robotframework',
-        'xUnit', 'junit'
+        'xUnit', 'junit',
+        'xunit', 'junit'
     )
 
 DEFAULT_SUITE_NAME = 'Unnamed suite'
@@ -202,6 +205,8 @@ class XUnitOutputParser(XmlOutputParser):
 
 
 def parse_xml(xml_file, output_format, db_engine, config, ):
+    if not os.path.exists(xml_file):
+        sys.exit('Could not find input file: ' + xml_file)
     BUFFER_SIZE = 65536
     archiver = Archiver(db_engine, config)
     if output_format.lower() in ('rf', 'robot', 'robotframework'):
@@ -223,6 +228,8 @@ def parse_xml(xml_file, output_format, db_engine, config, ):
         archiver.end_test_run()
 
 if __name__ == '__main__':
+    if sys.version_info[0] < 3:
+        sys.exit('Unsupported Python version (' + str(sys.version_info.major) + '). Please use version 3.')
     parser = argparse.ArgumentParser(description='Parse Robot Framework output.xml files to SQL database.')
     parser.add_argument('output_file')
     parser.add_argument('--config', dest='config_file',

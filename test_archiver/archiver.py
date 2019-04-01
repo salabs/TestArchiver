@@ -165,8 +165,13 @@ class Suite(FingerprintedItem):
     def insert_results(self):
         data = {'suite_id': self.id, 'test_run_id': self.archiver.test_run_id}
         data.update(self.status_and_fingerprint_values())
-        self.archiver.db.insert('suite_result', data)
-        self.insert_metadata()
+        try:
+            self.archiver.db.insert('suite_result', data)
+        except:
+            # Silenty ignore duplicate entries
+            pass
+        else:
+            self.insert_metadata()
 
     def insert_metadata(self):
         for name in self.metadata:
