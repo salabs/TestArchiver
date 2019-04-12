@@ -4,7 +4,7 @@ from datetime import datetime
 
 from database import PostgresqlDatabase, SQLiteDatabase
 
-ARCHIVER_VERSION = "0.3"
+ARCHIVER_VERSION = "0.4"
 
 SUPPORTED_TIMESTAMP_FORMATS = (
         "%Y%m%d %H:%M:%S.%f",
@@ -59,19 +59,28 @@ class TestItem(object):
     def _parent_item(self):
         return self.archiver.stack[-1] if self.archiver.stack else None
 
+    def test_run_id(self):
+        return self.archiver.test_run_id
+
 class FingerprintedItem(TestItem):
     def __init__(self, archiver, name, class_name=None):
         super(FingerprintedItem, self).__init__(archiver)
         self.name = name
         self.parent_item = self._parent_item()
-        parent_prefix = self.parent_item.full_name + '.' if self.parent_item else ''
-        self.full_name = '{}.{}'.format(class_name, name) if class_name else parent_prefix + self.name
+        if class_name:
+            self.full_name = '.'.join([class_name, name])
+        elif not self.parent_item or not self.parent_item.full_name:
+            self.full_name = self.name
+        else:
+            parent_prefix = self.parent_item.full_name + '.' if self.parent_item else ''
+            self.full_name = parent_prefix + self.name
         self.id = None
 
         self.status = None
         self.setup_status = None
         self.execution_status = None
         self.teardown_status = None
+        self.failed_by_teardown = False
 
         self.start_time = None
         self.end_time = None
@@ -83,6 +92,9 @@ class FingerprintedItem(TestItem):
         self.tags = []
         self.metadata = {}
         self._last_metadata_name = None
+
+        self.child_test_ids = []
+        self.child_suite_ids = []
 
         self.subtree_fingerprints = []
         self.fingerprint = None
@@ -153,6 +165,27 @@ class FingerprintedItem(TestItem):
                 'execution_fingerprint': self.execution_fingerprint,
                 'teardown_fingerprint': self.teardown_fingerprint}
 
+    def fail_children(self):
+        for suite_id in self.child_suite_ids:
+            key_values = {'suite_id': suite_id, 'test_run_id': self.test_run_id()}
+            self.archiver.db.update('suite_result', {'status': 'FAIL'}, key_values)
+        for test_id in self.child_test_ids:
+            key_values = {'test_id': test_id, 'test_run_id': self.test_run_id()}
+            self.archiver.db.update('test_result', {'status': 'FAIL'}, key_values)
+
+class TestRun(FingerprintedItem):
+    def __init__(self, archiver, archived_using, generated, generator, rpa, dryrun):
+        super(TestRun, self).__init__(archiver, '')
+        data = {'archived_using': archived_using + ARCHIVER_VERSION,
+                'generated': generated,
+                'generator': generator,
+                'rpa': rpa,
+                'dryrun': dryrun}
+        self.id = self.archiver.db.insert_and_return_id('test_run', data)
+
+    def _item_type(self):
+        return 'test_run'
+
 class Suite(FingerprintedItem):
     def __init__(self, archiver, name, repository):
         super(Suite, self).__init__(archiver, name)
@@ -163,21 +196,26 @@ class Suite(FingerprintedItem):
         return "suite"
 
     def insert_results(self):
-        data = {'suite_id': self.id, 'test_run_id': self.archiver.test_run_id}
+        data = {'suite_id': self.id, 'test_run_id': self.test_run_id()}
         data.update(self.status_and_fingerprint_values())
-        try:
+        if self.id not in self.parent_item.child_suite_ids:
             self.archiver.db.insert('suite_result', data)
-        except:
-            # Silenty ignore duplicate entries
-            pass
-        else:
             self.insert_metadata()
+            if self.failed_by_teardown:
+                self.fail_children()
+            if self.parent_item:
+                self.parent_item.child_suite_ids.append(self.id)
+                self.parent_item.child_suite_ids.extend(self.child_suite_ids)
+                self.parent_item.child_test_ids.extend(self.child_test_ids)
+
+        else:
+            print("WARNING: duplicate results for suite '{}' are ignored".format(self.full_name))
 
     def insert_metadata(self):
         for name in self.metadata:
             content = self.metadata[name]
             data = {'name': name, 'value': content,
-                    'suite_id': self.id, 'test_run_id': self.archiver.test_run_id}
+                    'suite_id': self.id, 'test_run_id': self.test_run_id()}
             self.archiver.db.insert('suite_metadata', data)
             if name.startswith('series'):
                 if '#' in content:
@@ -198,20 +236,24 @@ class Test(FingerprintedItem):
         return "test"
 
     def insert_results(self):
-        data = {'test_id': self.id, 'test_run_id': self.archiver.test_run_id}
-        data.update(self.status_and_fingerprint_values())
-        self.archiver.db.insert('test_result', data)
-        if self.subtree_fingerprints:
-            data = {'fingerprint': self.execution_fingerprint, 'keyword': None, 'library': None,
-                'status': self.execution_status, 'arguments': self.arguments}
-            self.archiver.db.insert_or_ignore('keyword_tree', data, ['fingerprint'])
-        if ARCHIVE_KEYWORDS:
-            self.insert_subtrees()
-        self.insert_tags()
+        if self.id not in self.parent_item.child_test_ids:
+            data = {'test_id': self.id, 'test_run_id': self.test_run_id()}
+            data.update(self.status_and_fingerprint_values())
+            self.archiver.db.insert('test_result', data)
+            if self.subtree_fingerprints:
+                data = {'fingerprint': self.execution_fingerprint, 'keyword': None, 'library': None,
+                    'status': self.execution_status, 'arguments': self.arguments}
+                self.archiver.db.insert_or_ignore('keyword_tree', data, ['fingerprint'])
+            if ARCHIVE_KEYWORDS:
+                self.insert_subtrees()
+            self.insert_tags()
+            self.parent_item.child_test_ids.append(self.id)
+        else:
+            print("WARNING: duplicate results for test '{}' are ignored".format(self.full_name))
 
     def insert_tags(self):
         for tag in self.tags:
-            data = {'tag': tag, 'test_id': self.id, 'test_run_id': self.archiver.test_run_id}
+            data = {'tag': tag, 'test_id': self.id, 'test_run_id': self.test_run_id()}
             self.archiver.db.insert('test_tag', data)
 
     def insert_subtrees(self):
@@ -235,6 +277,8 @@ class Keyword(FingerprintedItem):
         return "keyword"
 
     def insert_results(self):
+        if self.kw_type == 'teardown' and self.status == 'FAIL':
+            self.parent_item.failed_by_teardown = True
         if ARCHIVE_KEYWORDS:
             data = {'fingerprint': self.fingerprint, 'keyword': self.name, 'library': self.library,
                     'status': self.status, 'arguments': self.arguments}
@@ -264,7 +308,7 @@ class LogMessage(TestItem):
 
     def insert(self, content):
         if self.log_level in ARHIVED_LOG_LEVELS:
-            data = {'test_run_id': self.archiver.test_run_id, 'timestamp': self.timestamp,
+            data = {'test_run_id': self.test_run_id(), 'timestamp': self.timestamp,
                     'log_level': self.log_level, 'message': content[:MAX_LOG_MESSAGE_LENGTH],
                     'test_id': self.parent_test().id if self.parent_test() else None,
                     'suite_id': self.parent_suite().id}
@@ -302,14 +346,9 @@ class Archiver(object):
         return self.stack[-1] if self.stack else None
 
     def begin_test_run(self, archived_using, generated, generator, rpa, dryrun):
-        data = {
-                'archived_using': archived_using + ARCHIVER_VERSION,
-                'generated': generated,
-                'generator': generator,
-                'rpa': rpa,
-                'dryrun': dryrun,
-            }
-        self.test_run_id = self.db.insert_and_return_id('test_run', data)
+        test_run = TestRun(self, archived_using, generated, generator, rpa, dryrun)
+        self.test_run_id = test_run.id
+        self.stack.append(test_run)
 
     def update_dryrun_status(self):
         data = {'dryrun': self.output_from_dryrun}

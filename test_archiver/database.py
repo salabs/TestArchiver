@@ -118,7 +118,7 @@ class PostgresqlDatabase(Database):
         sql = "UPDATE {table} SET {updates} WHERE {key_fields};"
         keys = list(data)
         updates = ','.join(['{}=%s'.format(field) for field in data])
-        key_fields = ','.join(['{}=%s'.format(field) for field in key_data])
+        key_fields = ' AND '.join(['{}=%s'.format(field) for field in key_data])
         sql = sql.format(
                 table=table,
                 updates=updates,
@@ -214,7 +214,7 @@ class SQLiteDatabase(Database):
         sql = "UPDATE {table} SET {updates} WHERE {key_fields};"
         keys = list(data)
         updates = ','.join(['{}=?'.format(field) for field in data])
-        key_fields = ','.join(['{}=?'.format(field) for field in key_data])
+        key_fields = ' AND '.join(['{}=?'.format(field) for field in key_data])
         sql = sql.format(
                 table=table,
                 updates=updates,

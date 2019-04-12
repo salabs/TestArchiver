@@ -63,9 +63,10 @@ class RobotFrameworkOutputParser(XmlOutputParser):
         elif name == 'test':
             self.archiver.begin_test(attrs.getValue('name'))
         elif name == 'kw':
+            name = attrs.getValue('name') if 'name' in attrs.getNames() else '${EMPTY}'
             kw_type = attrs.getValue('type') if 'type' in attrs.getNames() else 'Keyword'
             library = attrs.getValue('library') if 'library' in attrs.getNames() else ''
-            self.archiver.begin_keyword(attrs.getValue('name'), library, kw_type)
+            self.archiver.begin_keyword(name, library, kw_type)
         elif name == 'arg':
             pass
         elif name == 'msg':
@@ -222,7 +223,7 @@ def parse_xml(xml_file, output_format, db_engine, config, ):
         while buffer:
             parser.feed(buffer)
             buffer = file.read(BUFFER_SIZE)
-    if len(archiver.stack) != 0:
+    if len(archiver.stack) != 1:
         raise Exception('Output file was not valid xml')
     else:
         archiver.end_test_run()
