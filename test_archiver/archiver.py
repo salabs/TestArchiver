@@ -4,7 +4,7 @@ from datetime import datetime
 
 from database import PostgresqlDatabase, SQLiteDatabase
 
-ARCHIVER_VERSION = "0.4"
+ARCHIVER_VERSION = "0.5"
 
 SUPPORTED_TIMESTAMP_FORMATS = (
         "%Y%m%d %H:%M:%S.%f",
@@ -366,6 +366,7 @@ class Archiver(object):
             self.report_series(name, self.test_series[name])
         if not self.test_series:
             self.report_series('default series', None)
+        self.report_series('All builds', None)
         self.db._connection.commit()
 
     def report_series(self, name, build_number):
