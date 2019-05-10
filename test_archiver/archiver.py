@@ -4,7 +4,7 @@ from datetime import datetime
 
 from database import PostgresqlDatabase, SQLiteDatabase
 
-ARCHIVER_VERSION = "0.6"
+ARCHIVER_VERSION = "0.7"
 
 SUPPORTED_TIMESTAMP_FORMATS = (
         "%Y%m%d %H:%M:%S.%f",
@@ -32,6 +32,7 @@ ARHIVED_LOG_LEVELS = (
     )
 
 ARCHIVE_KEYWORDS = True
+ARCHIVE_KEYWORD_STATISTICS = True
 
 def read_config_file(file_name):
     with open(file_name, 'r') as config_file:
@@ -90,6 +91,7 @@ class FingerprintedItem(TestItem):
         self.elapsed_time_teardown = None
 
         self.kw_type = None
+        self.kw_call_depth = 0
         self.library = None
         self.arguments = []
         self.tags = []
@@ -283,6 +285,7 @@ class Keyword(FingerprintedItem):
         super(Keyword, self).__init__(archiver, name)
         self.library = library
         self.kw_type = kw_type
+        self.kw_call_depth = self.parent_item.kw_call_depth + 1
         if arguments:
             self.arguments.extend(arguments)
 
@@ -297,6 +300,8 @@ class Keyword(FingerprintedItem):
                     'status': self.status, 'arguments': self.arguments}
             self.archiver.db.insert_or_ignore('keyword_tree', data, ['fingerprint'])
             self.insert_subtrees()
+            if ARCHIVE_KEYWORD_STATISTICS:
+                self.update_statistics()
 
     def insert_subtrees(self):
         call_index = 0
@@ -308,6 +313,25 @@ class Keyword(FingerprintedItem):
 
     def _hashing_name(self):
         return self.library + '.' + self.name
+
+    def update_statistics(self):
+        if self.fingerprint in self.archiver.keyword_statistics:
+            stat_object = self.archiver.keyword_statistics[self.fingerprint]
+            stat_object['calls'] += 1
+            stat_object['max_exection_time'] = max(stat_object['max_exection_time'], self.elapsed_time)
+            stat_object['min_exection_time'] = min(stat_object['min_exection_time'], self.elapsed_time)
+            stat_object['cumulative_execution_time'] += self.elapsed_time
+            stat_object['max_call_depth'] = max(stat_object['max_call_depth'], self.kw_call_depth)
+        else:
+            self.archiver.keyword_statistics[self.fingerprint] = {
+                    'fingerprint': self.fingerprint,
+                    'test_run_id': self.test_run_id(),
+                    'calls': 1,
+                    'max_exection_time': self.elapsed_time,
+                    'min_exection_time': self.elapsed_time,
+                    'cumulative_execution_time': self.elapsed_time,
+                    'max_call_depth': self.kw_call_depth,
+                }
 
 
 class LogMessage(TestItem):
@@ -340,6 +364,7 @@ class Archiver(object):
         self.output_from_dryrun = False
         self.db = self._db(db_engine)
         self.stack = []
+        self.keyword_statistics = {}
 
     def _db(self, db_engine):
         if db_engine in ('postgresql', 'postgres'):
@@ -380,6 +405,9 @@ class Archiver(object):
         if not self.test_series:
             self.report_series('default series', None)
         self.report_series('All builds', None)
+        if ARCHIVE_KEYWORDS and ARCHIVE_KEYWORD_STATISTICS:
+            self.report_keyword_statistics()
+
         self.db._connection.commit()
 
     def report_series(self, name, build_number):
@@ -461,6 +489,10 @@ class Archiver(object):
     def end_log_message(self, content):
         self._current_item().insert(content)
         self.stack.pop()
+
+    def report_keyword_statistics(self):
+        for fingerprint in self.keyword_statistics:
+            self.db.insert('keyword_statistics', self.keyword_statistics[fingerprint])
 
 def timestamp_to_datetime(timestamp):
     parsed_datetime = None

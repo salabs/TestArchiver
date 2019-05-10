@@ -120,3 +120,13 @@ CREATE TABLE tree_hierarchy (
     PRIMARY KEY (fingerprint, subtree, call_index)
 );
 
+CREATE TABLE keyword_statistics (
+    test_run_id int REFERENCES test_run(id) ON DELETE CASCADE NOT NULL,
+    fingerprint text REFERENCES keyword_tree(fingerprint),
+    calls int,
+    max_exection_time int,
+    min_exection_time int,
+    cumulative_execution_time int,
+    max_call_depth int,
+    PRIMARY KEY (test_run_id, fingerprint)
+);
