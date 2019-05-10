@@ -40,7 +40,9 @@ CREATE TABLE suite_result (
     teardown_status text,
     start_time timestamp,
     elapsed int,
-
+    setup_elapsed int,
+    execution_elapsed int,
+    teardown_elapsed int,
     fingerprint text,
     setup_fingerprint text,
     execution_fingerprint text,
@@ -66,6 +68,9 @@ CREATE TABLE test_result (
     teardown_status text,
     start_time timestamp,
     elapsed int,
+    setup_elapsed int,
+    execution_elapsed int,
+    teardown_elapsed int,
     critical boolean,
 
     fingerprint text,

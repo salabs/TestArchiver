@@ -4,7 +4,7 @@ from datetime import datetime
 
 from database import PostgresqlDatabase, SQLiteDatabase
 
-ARCHIVER_VERSION = "0.5"
+ARCHIVER_VERSION = "0.6"
 
 SUPPORTED_TIMESTAMP_FORMATS = (
         "%Y%m%d %H:%M:%S.%f",
@@ -85,6 +85,9 @@ class FingerprintedItem(TestItem):
         self.start_time = None
         self.end_time = None
         self.elapsed_time = None
+        self.elapsed_time_setup = None
+        self.elapsed_time_execution = None
+        self.elapsed_time_teardown = None
 
         self.kw_type = None
         self.library = None
@@ -121,7 +124,7 @@ class FingerprintedItem(TestItem):
 
     def finish(self):
         self.calculate_fingerprints()
-        self.propagate_fingerprints_and_status()
+        self.propagate_fingerprints_status_and_elapsed_time()
         self.insert_results()
 
     def calculate_fingerprints(self):
@@ -140,18 +143,25 @@ class FingerprintedItem(TestItem):
         fingerprint.update(str(self.arguments).encode('utf-8'))
         self.fingerprint = fingerprint.hexdigest()
 
-    def propagate_fingerprints_and_status(self):
+    def propagate_fingerprints_status_and_elapsed_time(self):
         if self.kw_type == 'setup':
             self.parent_item.setup_fingerprint = self.fingerprint
             self.parent_item.setup_status = self.status
+            self.parent_item.elapsed_time_setup = self.elapsed_time
         elif self.kw_type == 'teardown':
             self.parent_item.teardown_fingerprint = self.fingerprint
             self.parent_item.teardown_status = self.status
+            self.parent_item.elapsed_time_teardown = self.elapsed_time
         else:
             if self.parent_item:
                 self.parent_item.subtree_fingerprints.append(self.fingerprint)
                 if self.parent_item.execution_status != 'FAIL':
                     self.parent_item.execution_status = self.status
+                if self.elapsed_time:
+                    if self.parent_item.elapsed_time_execution:
+                        self.parent_item.elapsed_time_execution += self.elapsed_time
+                    else:
+                        self.parent_item.elapsed_time_execution = self.elapsed_time
 
     def status_and_fingerprint_values(self):
         return {'status': self.status,
@@ -160,6 +170,9 @@ class FingerprintedItem(TestItem):
                 'teardown_status': self.teardown_status,
                 'start_time': self.start_time,
                 'elapsed': self.elapsed_time,
+                'setup_elapsed': self.elapsed_time_setup,
+                'execution_elapsed': self.elapsed_time_execution,
+                'teardown_elapsed': self.elapsed_time_teardown,
                 'fingerprint': self.fingerprint,
                 'setup_fingerprint': self.setup_fingerprint,
                 'execution_fingerprint': self.execution_fingerprint,
