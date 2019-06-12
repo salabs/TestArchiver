@@ -4,7 +4,7 @@ from datetime import datetime
 
 from database import PostgresqlDatabase, SQLiteDatabase
 
-ARCHIVER_VERSION = "0.7"
+ARCHIVER_VERSION = "0.8"
 
 SUPPORTED_TIMESTAMP_FORMATS = (
         "%Y%m%d %H:%M:%S.%f",
@@ -227,6 +227,11 @@ class Suite(FingerprintedItem):
             print("WARNING: duplicate results for suite '{}' are ignored".format(self.full_name))
 
     def insert_metadata(self):
+        # If the top suite add/override metadata with metadata given to archiver
+        if self.parent_item._item_type() == 'test_run' and self.archiver.config['metadata']:
+            additional_metadata = self.archiver.config['metadata']
+            for name in additional_metadata:
+                self.metadata[name] = additional_metadata[name]
         for name in self.metadata:
             content = self.metadata[name]
             data = {'name': name, 'value': content,

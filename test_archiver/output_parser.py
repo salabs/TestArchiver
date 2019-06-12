@@ -228,6 +228,16 @@ def parse_xml(xml_file, output_format, db_engine, config, ):
     else:
         archiver.end_test_run()
 
+def parse_metadata_args(metadata_args):
+    metadata = {}
+    for item in args.metadata:
+        try:
+            name, value = item.split(':', 1)
+            metadata[name] = value
+        except Exception as e:
+            raise Exception("Unsupported format for metadata: '{}' use NAME:VALUE".format(item))
+    return metadata
+
 if __name__ == '__main__':
     if sys.version_info[0] < 3:
         sys.exit('Unsupported Python version (' + str(sys.version_info.major) + '). Please use version 3.')
@@ -247,6 +257,8 @@ if __name__ == '__main__':
     parser.add_argument('--team', help='Team name for the test series', default=None)
     parser.add_argument('--series', action='append',
                         help="Name of the testseries (and optionally build number 'SERIES_NAME#BUILD_NUM')")
+    parser.add_argument('--metadata', action='append',
+                        help="Adds given metadata to the testrun. expected_format 'NAME:VALUE'")
     args = parser.parse_args()
 
     if args.config_file:
@@ -264,5 +276,7 @@ if __name__ == '__main__':
     config['series'] = args.series
     if args.team:
         config['team'] = args.team
+    if args.metadata:
+        config['metadata'] = parse_metadata_args(args.metadata)
 
     parse_xml(args.output_file, args.format, db_engine, config)
