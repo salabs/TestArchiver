@@ -4,7 +4,7 @@ from datetime import datetime
 
 from database import PostgresqlDatabase, SQLiteDatabase
 
-ARCHIVER_VERSION = "0.8"
+ARCHIVER_VERSION = "0.9"
 
 SUPPORTED_TIMESTAMP_FORMATS = (
         "%Y%m%d %H:%M:%S.%f",
@@ -427,6 +427,11 @@ class Archiver(object):
             previous_build_number = self.db.max_value('test_series_mapping', 'build_number',
                                                       {'series': series_id})
             build_number = previous_build_number + 1 if previous_build_number else 1
+            if 'multirun' in self.config:
+                if series_id in self.config['multirun']:
+                    build_number = self.config['multirun'][series_id]
+                else:
+                    self.config['multirun'][series_id] = build_number
         data = {
                 'series': series_id,
                 'test_run_id': self.test_run_id,

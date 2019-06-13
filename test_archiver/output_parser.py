@@ -242,7 +242,7 @@ if __name__ == '__main__':
     if sys.version_info[0] < 3:
         sys.exit('Unsupported Python version (' + str(sys.version_info.major) + '). Please use version 3.')
     parser = argparse.ArgumentParser(description='Parse Robot Framework output.xml files to SQL database.')
-    parser.add_argument('output_file')
+    parser.add_argument('output_files', nargs='+')
     parser.add_argument('--config', dest='config_file',
                         help='path to JSON config file containing database credentials')
     parser.add_argument('--dbengine', default='sqlite',
@@ -278,5 +278,9 @@ if __name__ == '__main__':
         config['team'] = args.team
     if args.metadata:
         config['metadata'] = parse_metadata_args(args.metadata)
+    if len(args.output_files) > 1:
+        config['multirun'] = {}
 
-    parse_xml(args.output_file, args.format, db_engine, config)
+    for output_file in args.output_files:
+        print("Parsing: '{}'".format(output_file))
+        parse_xml(output_file, args.format, db_engine, config)
