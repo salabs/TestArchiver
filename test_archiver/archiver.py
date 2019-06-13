@@ -228,7 +228,8 @@ class Suite(FingerprintedItem):
 
     def insert_metadata(self):
         # If the top suite add/override metadata with metadata given to archiver
-        if self.parent_item._item_type() == 'test_run' and self.archiver.config['metadata']:
+        if (self.parent_item._item_type() == 'test_run' and 'metadata' in self.archiver.config
+            and self.archiver.config['metadata']):
             additional_metadata = self.archiver.config['metadata']
             for name in additional_metadata:
                 self.metadata[name] = additional_metadata[name]
