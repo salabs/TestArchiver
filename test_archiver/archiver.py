@@ -4,7 +4,7 @@ from datetime import datetime
 
 from database import PostgresqlDatabase, SQLiteDatabase
 
-ARCHIVER_VERSION = "0.9"
+ARCHIVER_VERSION = "0.10"
 
 SUPPORTED_TIMESTAMP_FORMATS = (
         "%Y%m%d %H:%M:%S.%f",
@@ -228,11 +228,9 @@ class Suite(FingerprintedItem):
 
     def insert_metadata(self):
         # If the top suite add/override metadata with metadata given to archiver
-        if (self.parent_item._item_type() == 'test_run' and 'metadata' in self.archiver.config
-            and self.archiver.config['metadata']):
-            additional_metadata = self.archiver.config['metadata']
-            for name in additional_metadata:
-                self.metadata[name] = additional_metadata[name]
+        if self.parent_item._item_type() == 'test_run' and self.archiver.metadata:
+            for name in self.archiver.metadata:
+                self.metadata[name] = self.archiver.metadata[name]
         for name in self.metadata:
             content = self.metadata[name]
             data = {'name': name, 'value': content,
@@ -362,6 +360,7 @@ class LogMessage(TestItem):
 class Archiver(object):
     def __init__(self, db_engine, config):
         self.config = config
+        self.metadata = config['metadata'] if 'metadata' in config else {}
         self.test_run_id = None
         self.test_series = {}
         self.team = config['team'] if 'team' in config else None

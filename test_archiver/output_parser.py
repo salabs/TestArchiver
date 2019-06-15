@@ -5,7 +5,6 @@ import xml.sax
 
 from archiver import Archiver, read_config_file, ARHIVED_LOG_LEVELS
 
-# xunit and junit use the same junit parser
 SUPPORTED_OUTPUT_FORMATS = (
         'robot', 'robotframework',
         'xUnit', 'junit',
@@ -204,6 +203,87 @@ class XUnitOutputParser(XmlOutputParser):
             print("WARNING: ending unknown item '{}'".format(name))
         self._current_content = []
 
+class JUnitOutputParser(XmlOutputParser):
+    def __init__(self, archiver):
+        super(JUnitOutputParser, self).__init__(archiver)
+
+    def _report_test_run(self):
+        self.archiver.begin_test_run('JUnit parser', None, 'JUnit', False, None)
+
+    def startElement(self, name, attrs):
+        if name in []:
+            self.excluding = True
+        elif self.excluding:
+            self.skipping_content = True
+        elif name == 'testrun':
+            self._report_test_run()
+            if 'project' in attrs.getNames():
+                self.archiver.metadata['project'] = attrs.getValue('project')
+            if 'name' in attrs.getNames():
+                self.archiver.metadata['test run name'] = attrs.getValue('name')
+        elif name in ('testsuite', 'testsuites'):
+            if not self.archiver.test_run_id:
+                self._report_test_run()
+            suite_name = attrs.getValue('name') if 'name' in attrs.getNames() else DEFAULT_SUITE_NAME
+            self.archiver.begin_suite(suite_name)
+            errors = int(attrs.getValue('errors')) if 'errors' in attrs.getNames() else 0
+            failures = int(attrs.getValue('failures')) if 'failures' in attrs.getNames() else 0
+            suite_status = 'PASS' if errors + failures == 0 else 'FAIL'
+            elapsed = int(float(attrs.getValue('time'))*1000) if 'time' in attrs.getNames() else None
+            timestamp = attrs.getValue('timestamp') if 'timestamp' in attrs.getNames() else None
+            self.archiver.begin_status(suite_status, start_time=timestamp, elapsed=elapsed)
+        elif name == 'testcase':
+            class_name = attrs.getValue('classname')
+            self.archiver.begin_test(attrs.getValue('name'), class_name)
+            elapsed = int(float(attrs.getValue('time'))*1000)
+            status = attrs.getValue('status') if 'status' in attrs.getNames() else 'PASS'
+            self.archiver.begin_status('PASS', elapsed=elapsed)
+        elif name == 'failure':
+            self.archiver.update_status('FAIL')
+            self.archiver.log_message('FAIL', attrs.getValue('message'))
+        elif name == 'error':
+            self.archiver.update_status('FAIL')
+            self.archiver.log_message('ERROR', attrs.getValue('message'))
+        elif name == 'skipped':
+            self.archiver.update_status('SKIPPED')
+            if 'message' in attrs.getNames():
+                self.archiver.log_message('INFO', attrs.getValue('message'))
+        elif name in ('system-out', 'system-err'):
+            pass
+        elif name == 'properties':
+            pass
+        elif name == 'property':
+            self.archiver.metadata(attrs.getValue('name'), attrs.getValue('value'))
+        else:
+            print("WARNING: begin unknown item '{}'".format(name))
+
+    def endElement(self, name):
+        if name in []:
+            self.excluding = False
+        elif self.excluding:
+            self.skipping_content = False
+        elif name == 'testrun':
+            pass
+        elif name in ('testsuite', 'testsuites'):
+            self.archiver.end_suite()
+        elif name == 'testcase':
+            self.archiver.end_test()
+        elif name == 'failure':
+            self.archiver.log_message('FAIL', self.content())
+        elif name == 'error':
+            self.archiver.log_message('ERROR', self.content())
+        elif name == 'system-out':
+            self.archiver.log_message('INFO', self.content())
+        elif name == 'system-err':
+            self.archiver.log_message('ERROR', self.content())
+        elif name in ('properties', 'property'):
+            pass
+        elif name == 'skipped':
+            pass
+        else:
+            print("WARNING: ending unknown item '{}'".format(name))
+        self._current_content = []
+
 
 def parse_xml(xml_file, output_format, db_engine, config, ):
     if not os.path.exists(xml_file):
@@ -212,8 +292,10 @@ def parse_xml(xml_file, output_format, db_engine, config, ):
     archiver = Archiver(db_engine, config)
     if output_format.lower() in ('rf', 'robot', 'robotframework'):
         handler = RobotFrameworkOutputParser(archiver)
-    elif output_format.lower() in ('xunit', 'junit'):
+    elif output_format.lower() in ('xunit'):
         handler = XUnitOutputParser(archiver)
+    elif output_format.lower() in ('junit'):
+        handler = JUnitOutputParser(archiver)
     else:
         raise Exception("Unsupported report format '{}'".format(output_format))
     parser = xml.sax.make_parser()
@@ -230,12 +312,13 @@ def parse_xml(xml_file, output_format, db_engine, config, ):
 
 def parse_metadata_args(metadata_args):
     metadata = {}
-    for item in args.metadata:
-        try:
-            name, value = item.split(':', 1)
-            metadata[name] = value
-        except Exception as e:
-            raise Exception("Unsupported format for metadata: '{}' use NAME:VALUE".format(item))
+    if metadata_args:
+        for item in metadata_args:
+            try:
+                name, value = item.split(':', 1)
+                metadata[name] = value
+            except Exception as e:
+                raise Exception("Unsupported format for metadata: '{}' use NAME:VALUE".format(item))
     return metadata
 
 if __name__ == '__main__':
@@ -276,10 +359,14 @@ if __name__ == '__main__':
     config['series'] = args.series
     if args.team:
         config['team'] = args.team
-    if args.metadata:
-        config['metadata'] = parse_metadata_args(args.metadata)
+    metadata = parse_metadata_args(args.metadata)
+    if 'metadata' in config:
+        config['metadata'].update(metadata)
+    else:
+        config['metadata'] = metadata
     if len(args.output_files) > 1:
         config['multirun'] = {}
+
 
     for output_file in args.output_files:
         print("Parsing: '{}'".format(output_file))
