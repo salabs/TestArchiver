@@ -1,6 +1,7 @@
 from archiver import Archiver, read_config_file
 
-class ArchiverListener():
+
+class ArchiverListener:
     ROBOT_LISTENER_API_VERSION = 2
 
     def __init__(self, config_file_or_database,
@@ -55,7 +56,6 @@ class ArchiverListener():
             self.generator = message['message']
         elif message['message'].startswith('Settings:'):
             self.process_settings(message['message'])
-
 
     def process_settings(self, settings):
         settings = dict([row.split(':', 1) for row in settings.split('\n')])
