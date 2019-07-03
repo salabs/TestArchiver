@@ -38,7 +38,7 @@ def read_config_file(file_name):
     with open(file_name, 'r') as config_file:
         return json.load(config_file)
 
-class TestItem(object):
+class TestItem():
     def __init__(self, archiver):
         self.archiver = archiver
 
@@ -118,7 +118,7 @@ class FingerprintedItem(TestItem):
             start = timestamp_to_datetime(self.start_time)
             end = timestamp_to_datetime(self.end_time)
             self.elapsed_time = int((end - start).total_seconds()*1000)
-        elif elapsed != None:
+        elif elapsed is not None:
             self.elapsed_time = elapsed
 
     def _hashing_name(self):
@@ -261,7 +261,7 @@ class Test(FingerprintedItem):
             self.archiver.db.insert('test_result', data)
             if self.subtree_fingerprints:
                 data = {'fingerprint': self.execution_fingerprint, 'keyword': None, 'library': None,
-                    'status': self.execution_status, 'arguments': self.arguments}
+                        'status': self.execution_status, 'arguments': self.arguments}
                 self.archiver.db.insert_or_ignore('keyword_tree', data, ['fingerprint'])
             if ARCHIVE_KEYWORDS:
                 self.insert_subtrees()
@@ -278,7 +278,10 @@ class Test(FingerprintedItem):
     def insert_subtrees(self):
         call_index = 0
         for subtree in self.subtree_fingerprints:
-            data = {'fingerprint': self.execution_fingerprint, 'subtree': subtree, 'call_index': call_index}
+            data = {'fingerprint': self.execution_fingerprint,
+                    'subtree': subtree,
+                    'call_index': call_index
+                    }
             key_values = ['fingerprint', 'subtree', 'call_index']
             self.archiver.db.insert_or_ignore('tree_hierarchy', data, key_values)
             call_index += 1
@@ -328,13 +331,13 @@ class Keyword(FingerprintedItem):
             stat_object['max_call_depth'] = max(stat_object['max_call_depth'], self.kw_call_depth)
         else:
             self.archiver.keyword_statistics[self.fingerprint] = {
-                    'fingerprint': self.fingerprint,
-                    'test_run_id': self.test_run_id(),
-                    'calls': 1,
-                    'max_exection_time': self.elapsed_time,
-                    'min_exection_time': self.elapsed_time,
-                    'cumulative_execution_time': self.elapsed_time,
-                    'max_call_depth': self.kw_call_depth,
+                'fingerprint': self.fingerprint,
+                'test_run_id': self.test_run_id(),
+                'calls': 1,
+                'max_exection_time': self.elapsed_time,
+                'min_exection_time': self.elapsed_time,
+                'cumulative_execution_time': self.elapsed_time,
+                'max_call_depth': self.kw_call_depth,
                 }
 
 
@@ -357,7 +360,7 @@ class LogMessage(TestItem):
 
 
 
-class Archiver(object):
+class Archiver():
     def __init__(self, db_engine, config):
         self.config = config
         self.additional_metadata = config['metadata'] if 'metadata' in config else {}
@@ -374,11 +377,11 @@ class Archiver(object):
     def _db(self, db_engine):
         if db_engine in ('postgresql', 'postgres'):
             return PostgresqlDatabase(
-                    self.config['database'],
-                    self.config['host'],
-                    self.config['port'],
-                    self.config['user'],
-                    self.config['password'],
+                self.config['database'],
+                self.config['host'],
+                self.config['port'],
+                self.config['user'],
+                self.config['password'],
                 )
         elif db_engine in ('sqlite', 'sqlite3'):
             return SQLiteDatabase(self.config['database'])
@@ -417,8 +420,8 @@ class Archiver(object):
 
     def report_series(self, name, build_number):
         data = {
-                'team': self.team if self.team else 'No team',
-                'name': name,
+            'team': self.team if self.team else 'No team',
+            'name': name,
             }
         series_id = self.db.insert_and_return_id('test_series', data, ['team', 'name'])
 
@@ -432,9 +435,9 @@ class Archiver(object):
                 else:
                     self.config['multirun'][series_id] = build_number
         data = {
-                'series': series_id,
-                'test_run_id': self.test_run_id,
-                'build_number': build_number,
+            'series': series_id,
+            'test_run_id': self.test_run_id,
+            'build_number': build_number,
             }
         self.db.insert('test_series_mapping', data)
 

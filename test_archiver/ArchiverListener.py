@@ -1,9 +1,10 @@
 from archiver import Archiver, read_config_file
 
-class ArchiverListener(object):
+class ArchiverListener():
     ROBOT_LISTENER_API_VERSION = 2
 
-    def __init__(self, config_file_or_database, db_engine=None, user=None, pw=None, host=None, port=5432):
+    def __init__(self, config_file_or_database,
+                 db_engine=None, user=None, pw=None, host=None, port=5432):
         if not db_engine:
             config = read_config_file(config_file_or_database)
             db_engine = config['db_engine'] if 'db_engine' in config else db_engine
@@ -22,7 +23,12 @@ class ArchiverListener(object):
 
     def start_suite(self, name, attrs):
         if not self.archiver.test_run_id:
-            self.archiver.begin_test_run('ArchiverListener', None, self.generator, self.rpa, self.dry_run)
+            self.archiver.begin_test_run('ArchiverListener',
+                                         None,
+                                         self.generator,
+                                         self.rpa,
+                                         self.dry_run
+                                         )
         self.archiver.begin_suite(name)
 
     def end_suite(self, name, attrs):
@@ -54,8 +60,8 @@ class ArchiverListener(object):
     def process_settings(self, settings):
         settings = dict([row.split(':', 1) for row in settings.split('\n')])
 
-        self.rpa = True if 'RPA' in settings and settings['RPA'].strip() == 'True' else False
-        self.dry_run = True if settings['DryRun'].strip() == 'True' else False
+        self.rpa = bool('RPA' in settings and settings['RPA'].strip() == 'True')
+        self.dry_run = bool(settings['DryRun'].strip() == 'True')
 
     def close(self):
         self.archiver.end_test_run()

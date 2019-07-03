@@ -52,11 +52,11 @@ class RobotFrameworkOutputParser(XmlOutputParser):
             self.skipping_content = True
         elif name == 'robot':
             self.archiver.begin_test_run('RF parser',
-                    attrs.get('generated'),
-                    attrs.get('generator'),
-                    attrs.get('rpa') if 'rpa' in attrs.getNames() else False,
-                    None,
-                )
+                                         attrs.get('generated'),
+                                         attrs.get('generator'),
+                                         attrs.get('rpa') if 'rpa' in attrs.getNames() else False,
+                                         None,
+                                         )
         elif name == 'suite':
             self.archiver.begin_suite(attrs.getValue('name'))
         elif name == 'test':
@@ -143,7 +143,7 @@ class XUnitOutputParser(XmlOutputParser):
         elif name in ('testsuite', 'testsuites'):
             if not self.archiver.test_run_id:
                 self.archiver.begin_test_run(
-                        'xUnit parser', None, 'xUnit', False, None
+                    'xUnit parser', None, 'xUnit', False, None
                     )
             suite_name = attrs.getValue('name') if 'name' in attrs.getNames() else DEFAULT_SUITE_NAME
             self.archiver.begin_suite(suite_name)
@@ -292,9 +292,9 @@ def parse_xml(xml_file, output_format, db_engine, config, ):
     archiver = Archiver(db_engine, config)
     if output_format.lower() in ('rf', 'robot', 'robotframework'):
         handler = RobotFrameworkOutputParser(archiver)
-    elif output_format.lower() in ('xunit'):
+    elif output_format.lower() in 'xunit':
         handler = XUnitOutputParser(archiver)
-    elif output_format.lower() in ('junit'):
+    elif output_format.lower() in 'junit':
         handler = JUnitOutputParser(archiver)
     else:
         raise Exception("Unsupported report format '{}'".format(output_format))
@@ -350,11 +350,11 @@ if __name__ == '__main__':
     else:
         db_engine = args.dbengine
         config = {
-                'database': args.database,
-                'user': args.user,
-                'password': args.pw,
-                'host': args.host,
-                'port': args.port,
+            'database': args.database,
+            'user': args.user,
+            'password': args.pw,
+            'host': args.host,
+            'port': args.port,
             }
     config['series'] = args.series
     if args.team:
