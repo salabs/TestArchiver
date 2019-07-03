@@ -22,7 +22,7 @@ SUPPORTED_TIMESTAMP_FORMATS = (
 
 MAX_LOG_MESSAGE_LENGTH = 2000
 
-ARHIVED_LOG_LEVELS = (
+ARCHIVED_LOG_LEVELS = (
         "TRACE",
         "DEBUG",
         "INFO",
@@ -34,11 +34,13 @@ ARHIVED_LOG_LEVELS = (
 ARCHIVE_KEYWORDS = True
 ARCHIVE_KEYWORD_STATISTICS = True
 
+
 def read_config_file(file_name):
     with open(file_name, 'r') as config_file:
         return json.load(config_file)
 
-class TestItem():
+
+class TestItem:
     def __init__(self, archiver):
         self.archiver = archiver
 
@@ -62,6 +64,7 @@ class TestItem():
 
     def test_run_id(self):
         return self.archiver.test_run_id
+
 
 class FingerprintedItem(TestItem):
     def __init__(self, archiver, name, class_name=None):
@@ -188,6 +191,7 @@ class FingerprintedItem(TestItem):
             key_values = {'test_id': test_id, 'test_run_id': self.test_run_id()}
             self.archiver.db.update('test_result', {'status': 'FAIL'}, key_values)
 
+
 class TestRun(FingerprintedItem):
     def __init__(self, archiver, archived_using, generated, generator, rpa, dryrun):
         super(TestRun, self).__init__(archiver, '')
@@ -200,6 +204,7 @@ class TestRun(FingerprintedItem):
 
     def _item_type(self):
         return 'test_run'
+
 
 class Suite(FingerprintedItem):
     def __init__(self, archiver, name, repository):
@@ -244,6 +249,7 @@ class Suite(FingerprintedItem):
                 self.archiver.test_series[series_name] = build_number
             elif name == 'team':
                 self.archiver.team = content
+
 
 class Test(FingerprintedItem):
     def __init__(self, archiver, name, class_name):
@@ -351,7 +357,7 @@ class LogMessage(TestItem):
         return "log_message"
 
     def insert(self, content):
-        if self.log_level in ARHIVED_LOG_LEVELS:
+        if self.log_level in ARCHIVED_LOG_LEVELS:
             data = {'test_run_id': self.test_run_id(), 'timestamp': self.timestamp,
                     'log_level': self.log_level, 'message': content[:MAX_LOG_MESSAGE_LENGTH],
                     'test_id': self.parent_test().id if self.parent_test() else None,
@@ -359,8 +365,7 @@ class LogMessage(TestItem):
             self.id = self.archiver.db.insert('log_message', data)
 
 
-
-class Archiver():
+class Archiver:
     def __init__(self, db_engine, config):
         self.config = config
         self.additional_metadata = config['metadata'] if 'metadata' in config else {}
@@ -476,7 +481,7 @@ class Archiver():
                                                attributes['endtime'])
         self.stack.pop().finish()
 
-    def update_argumets(self, argument):
+    def update_arguments(self, argument):
         self._current_item().arguments.append(argument)
 
     def update_tags(self, tag):
@@ -507,6 +512,7 @@ class Archiver():
         for fingerprint in self.keyword_statistics:
             self.db.insert('keyword_statistics', self.keyword_statistics[fingerprint])
 
+
 def timestamp_to_datetime(timestamp):
     parsed_datetime = None
     for timestamp_format in SUPPORTED_TIMESTAMP_FORMATS:
@@ -515,4 +521,4 @@ def timestamp_to_datetime(timestamp):
             return parsed_datetime
         except Exception as e:
             pass
-    raise Exception("timestamp: '{}' is in unsopported format".format(timestamp))
+    raise Exception("timestamp: '{}' is in unsupported format".format(timestamp))

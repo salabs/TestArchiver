@@ -1,6 +1,7 @@
 import os
 
-class Database():
+
+class Database:
     def __init__(self, db_name, db_host, db_port, db_user, db_password):
         self.database = db_name
         self.host = db_host
@@ -113,7 +114,6 @@ class PostgresqlDatabase(Database):
             )
         self._execute(sql, [data[key] for key in keys])
 
-
     def update(self, table, data, key_data):
         sql = "UPDATE {table} SET {updates} WHERE {key_fields};"
         keys = list(data)
@@ -167,7 +167,7 @@ class SQLiteDatabase(Database):
     def _handle_values(self, values):
         handled_values = []
         for value in values:
-            if isinstance(value) == list:
+            if type(value) == list:
                 handled_values.append(str(value))
             else:
                 handled_values.append(value)
@@ -208,7 +208,6 @@ class SQLiteDatabase(Database):
             value_placeholders=','.join(['?' for _ in keys]),
             )
         self._execute(sql, [data[key] for key in keys])
-
 
     def update(self, table, data, key_data):
         sql = "UPDATE {table} SET {updates} WHERE {key_fields};"

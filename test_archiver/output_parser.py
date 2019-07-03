@@ -3,7 +3,7 @@ import os.path
 import sys
 import xml.sax
 
-from archiver import Archiver, read_config_file, ARHIVED_LOG_LEVELS
+from archiver import Archiver, read_config_file, ARCHIVED_LOG_LEVELS
 
 SUPPORTED_OUTPUT_FORMATS = (
         'robot', 'robotframework',
@@ -12,6 +12,7 @@ SUPPORTED_OUTPUT_FORMATS = (
     )
 
 DEFAULT_SUITE_NAME = 'Unnamed suite'
+
 
 class XmlOutputParser(xml.sax.handler.ContentHandler):
     def __init__(self, archiver):
@@ -36,7 +37,6 @@ class XmlOutputParser(xml.sax.handler.ContentHandler):
         if not self.skipping_content:
             if content.strip('\n'):
                 self._current_content.append(content)
-
 
 
 class RobotFrameworkOutputParser(XmlOutputParser):
@@ -70,7 +70,7 @@ class RobotFrameworkOutputParser(XmlOutputParser):
             pass
         elif name == 'msg':
             self.archiver.begin_log_message(attrs.getValue('level'), attrs.getValue('timestamp'))
-            if attrs.getValue('level') not in ARHIVED_LOG_LEVELS:
+            if attrs.getValue('level') not in ARCHIVED_LOG_LEVELS:
                 self.skipping_content = True
         elif name == 'status':
             self.archiver.begin_status(attrs.getValue('status'), attrs.getValue('starttime'),
@@ -83,7 +83,7 @@ class RobotFrameworkOutputParser(XmlOutputParser):
             pass
         elif name == 'tag':
             pass
-        elif name == 'item':# metadata item
+        elif name == 'item':  # metadata item
             self.archiver.begin_metadata(attrs.getValue('name'))
         elif name == 'doc':
             pass
@@ -106,7 +106,7 @@ class RobotFrameworkOutputParser(XmlOutputParser):
         elif name == 'kw':
             self.archiver.end_keyword()
         elif name == 'arg':
-            self.archiver.update_argumets(self.content())
+            self.archiver.update_arguments(self.content())
         elif name == 'msg':
             self.archiver.end_log_message(self.content())
             self.skipping_content = False
@@ -120,7 +120,7 @@ class RobotFrameworkOutputParser(XmlOutputParser):
             pass
         elif name == 'tag':
             self.archiver.update_tags(self.content())
-        elif name == 'item':# metadata item
+        elif name == 'item':  # metadata item
             self.archiver.end_metadata(self.content())
         elif name == 'doc':
             pass
@@ -202,6 +202,7 @@ class XUnitOutputParser(XmlOutputParser):
         else:
             print("WARNING: ending unknown item '{}'".format(name))
         self._current_content = []
+
 
 class JUnitOutputParser(XmlOutputParser):
     def __init__(self, archiver):
@@ -310,6 +311,7 @@ def parse_xml(xml_file, output_format, db_engine, config, ):
     else:
         archiver.end_test_run()
 
+
 def parse_metadata_args(metadata_args):
     metadata = {}
     if metadata_args:
@@ -320,6 +322,7 @@ def parse_metadata_args(metadata_args):
             except Exception as e:
                 raise Exception("Unsupported format for metadata: '{}' use NAME:VALUE".format(item))
     return metadata
+
 
 if __name__ == '__main__':
     if sys.version_info[0] < 3:
@@ -366,7 +369,6 @@ if __name__ == '__main__':
         config['metadata'] = metadata
     if len(args.output_files) > 1:
         config['multirun'] = {}
-
 
     for output_file in args.output_files:
         print("Parsing: '{}'".format(output_file))
