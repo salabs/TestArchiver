@@ -63,6 +63,7 @@ class PostgresqlDatabase(Database):
             database=self.database,
             user=self.user,
             password=self.password,
+            sslmode='require',
         )
         try:
             self._execute('SELECT 1 FROM keyword_statistics;')
