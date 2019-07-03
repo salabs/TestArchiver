@@ -518,6 +518,6 @@ def timestamp_to_datetime(timestamp):
         try:
             parsed_datetime = datetime.strptime(timestamp, timestamp_format)
             return parsed_datetime
-        except ValueError as e:
+        except ValueError:
             pass
     raise Exception("timestamp: '{}' is in unsupported format".format(timestamp))

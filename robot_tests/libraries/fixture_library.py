@@ -6,5 +6,6 @@ class Interactions(object):
     def __init__(self):
         self.mode = None
 
-    def interact_with_sut(self):
+    @staticmethod
+    def interact_with_sut():
         return "foo"

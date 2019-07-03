@@ -319,7 +319,7 @@ def parse_metadata_args(metadata_args):
             try:
                 name, value = item.split(':', 1)
                 metadata[name] = value
-            except Exception as e:
+            except Exception:
                 raise Exception("Unsupported format for metadata: '{}' use NAME:VALUE".format(item))
     return metadata
 

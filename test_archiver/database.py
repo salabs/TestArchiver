@@ -67,7 +67,7 @@ class PostgresqlDatabase(Database):
         )
         try:
             self._execute('SELECT 1 FROM keyword_statistics;')
-        except psycopg2.ProgrammingError as e:
+        except psycopg2.ProgrammingError:
             self._connection.rollback()
             schema_file = os.path.join(os.path.dirname(__file__), 'schemas/schema_postgres.sql')
             with open(schema_file) as schema:
@@ -159,7 +159,7 @@ class SQLiteDatabase(Database):
         self._connection = sqlite3.connect(self.database)
         try:
             self._execute('SELECT 1 FROM keyword_statistics;')
-        except sqlite3.OperationalError as e:
+        except sqlite3.OperationalError:
             schema_file = os.path.join(os.path.dirname(__file__), 'schemas/schema_sqlite.sql')
             with open(schema_file) as schema:
                 self._connection.executescript(schema.read())
