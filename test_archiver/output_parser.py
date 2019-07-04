@@ -293,9 +293,9 @@ def parse_xml(xml_file, output_format, db_engine, config, ):
     archiver = Archiver(db_engine, config)
     if output_format.lower() in ('rf', 'robot', 'robotframework'):
         handler = RobotFrameworkOutputParser(archiver)
-    elif output_format.lower() in 'xunit':
+    elif output_format.lower() == 'xunit':
         handler = XUnitOutputParser(archiver)
-    elif output_format.lower() in 'junit':
+    elif output_format.lower() == 'junit':
         handler = JUnitOutputParser(archiver)
     else:
         raise Exception("Unsupported report format '{}'".format(output_format))
