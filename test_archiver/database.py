@@ -1,6 +1,7 @@
 import os
 
-class Database(object):
+
+class Database:
     def __init__(self, db_name, db_host, db_port, db_user, db_password):
         self.database = db_name
         self.host = db_host
@@ -13,6 +14,7 @@ class Database(object):
     def _connect(self):
         raise NotImplementedError()
 
+    # Current iteration logic depends on values=[]
     def _execute(self, sql, values=[]):
         values = self._handle_values(values)
         cursor = self._connection.cursor()
@@ -21,6 +23,7 @@ class Database(object):
         finally:
             cursor.close()
 
+    # Current iteration logic depends on values=[]
     def _execute_and_fetchone(self, sql, values=[]):
         values = self._handle_values(values)
         cursor = self._connection.cursor()
@@ -67,7 +70,7 @@ class PostgresqlDatabase(Database):
         )
         try:
             self._execute('SELECT 1 FROM keyword_statistics;')
-        except psycopg2.ProgrammingError as e:
+        except psycopg2.ProgrammingError:
             self._connection.rollback()
             schema_file = os.path.join(os.path.dirname(__file__), 'schemas/schema_postgres.sql')
             with open(schema_file) as schema:
@@ -79,8 +82,8 @@ class PostgresqlDatabase(Database):
     def _fetch_id(self, table, data, key_fields):
         sql = "SELECT id FROM {table} WHERE {key_placeholders}"
         sql = sql.format(
-                table=table,
-                key_placeholders=' AND '.join(['{}=%s'.format(key) for key in key_fields])
+            table=table,
+            key_placeholders=' AND '.join(['{}=%s'.format(key) for key in key_fields])
             )
         (row_id, ) = self._execute_and_fetchone(sql, [data[key] for key in key_fields])
         return row_id
@@ -90,10 +93,10 @@ class PostgresqlDatabase(Database):
         keys = list(data)
         on_conflict = ' ON CONFLICT ({}) DO NOTHING '.format(','.join(key_fields)) if key_fields else ''
         sql = sql.format(
-                table=table,
-                fields=','.join(keys),
-                value_placeholders=','.join(['%s' for _ in keys]),
-                conflict_statement=on_conflict,
+            table=table,
+            fields=','.join(keys),
+            value_placeholders=','.join(['%s' for _ in keys]),
+            conflict_statement=on_conflict,
             )
         row = self._execute_and_fetchone(sql, [data[key] for key in keys])
         if row:
@@ -107,13 +110,12 @@ class PostgresqlDatabase(Database):
         keys = list(data)
         on_conflict = ' ON CONFLICT ({}) DO NOTHING '.format(','.join(key_fields)) if key_fields else ''
         sql = sql.format(
-                table=table,
-                fields=','.join(keys),
-                value_placeholders=','.join(['%s' for _ in keys]),
-                conflict_statement=on_conflict,
+            table=table,
+            fields=','.join(keys),
+            value_placeholders=','.join(['%s' for _ in keys]),
+            conflict_statement=on_conflict,
             )
         self._execute(sql, [data[key] for key in keys])
-
 
     def update(self, table, data, key_data):
         sql = "UPDATE {table} SET {updates} WHERE {key_fields};"
@@ -121,9 +123,9 @@ class PostgresqlDatabase(Database):
         updates = ','.join(['{}=%s'.format(field) for field in data])
         key_fields = ' AND '.join(['{}=%s'.format(field) for field in key_data])
         sql = sql.format(
-                table=table,
-                updates=updates,
-                key_fields=key_fields,
+            table=table,
+            updates=updates,
+            key_fields=key_fields,
             )
         values = [data[key] for key in keys]
         values.extend([key_data[key] for key in key_data])
@@ -133,18 +135,18 @@ class PostgresqlDatabase(Database):
         sql = "INSERT INTO {table}({fields}) VALUES ({value_placeholders});"
         keys = list(data)
         sql = sql.format(
-                table=table,
-                fields=','.join(keys),
-                value_placeholders=','.join(['%s' for _ in keys]),
+            table=table,
+            fields=','.join(keys),
+            value_placeholders=','.join(['%s' for _ in keys]),
             )
         self._execute(sql, [data[key] for key in keys])
 
     def max_value(self, table, column, where_data):
         sql = "SELECT max({column}) FROM {table} WHERE {where};"
         sql = sql.format(
-                table=table,
-                column=column,
-                where=' AND '.join(['{}=%s'.format(col) for col in where_data]),
+            table=table,
+            column=column,
+            where=' AND '.join(['{}=%s'.format(col) for col in where_data]),
             )
         (value, ) = self._execute_and_fetchone(sql, [where_data[key] for key in where_data])
         return value
@@ -160,7 +162,7 @@ class SQLiteDatabase(Database):
         self._connection = sqlite3.connect(self.database)
         try:
             self._execute('SELECT 1 FROM keyword_statistics;')
-        except sqlite3.OperationalError as e:
+        except sqlite3.OperationalError:
             schema_file = os.path.join(os.path.dirname(__file__), 'schemas/schema_sqlite.sql')
             with open(schema_file) as schema:
                 self._connection.executescript(schema.read())
@@ -182,8 +184,8 @@ class SQLiteDatabase(Database):
         else:
             sql = "SELECT id FROM {table} WHERE {key_placeholders}"
             sql = sql.format(
-                    table=table,
-                    key_placeholders=' AND '.join(['{}=?'.format(key) for key in key_fields])
+                table=table,
+                key_placeholders=' AND '.join(['{}=?'.format(key) for key in key_fields])
                 )
             (row_id, ) = self._execute_and_fetchone(sql, [data[key] for key in key_fields])
         return row_id
@@ -192,9 +194,9 @@ class SQLiteDatabase(Database):
         sql = "INSERT OR IGNORE INTO {table}({fields}) VALUES ({value_placeholders});"
         keys = list(data)
         sql = sql.format(
-                table=table,
-                fields=','.join(keys),
-                value_placeholders=','.join(['?' for _ in keys]),
+            table=table,
+            fields=','.join(keys),
+            value_placeholders=','.join(['?' for _ in keys]),
             )
         self._execute(sql, [data[key] for key in keys])
         row_id = self._fetch_id(table, data, key_fields)
@@ -204,12 +206,11 @@ class SQLiteDatabase(Database):
         sql = "INSERT OR IGNORE INTO {table}({fields}) VALUES ({value_placeholders});"
         keys = list(data)
         sql = sql.format(
-                table=table,
-                fields=','.join(keys),
-                value_placeholders=','.join(['?' for _ in keys]),
+            table=table,
+            fields=','.join(keys),
+            value_placeholders=','.join(['?' for _ in keys]),
             )
         self._execute(sql, [data[key] for key in keys])
-
 
     def update(self, table, data, key_data):
         sql = "UPDATE {table} SET {updates} WHERE {key_fields};"
@@ -217,9 +218,9 @@ class SQLiteDatabase(Database):
         updates = ','.join(['{}=?'.format(field) for field in data])
         key_fields = ' AND '.join(['{}=?'.format(field) for field in key_data])
         sql = sql.format(
-                table=table,
-                updates=updates,
-                key_fields=key_fields,
+            table=table,
+            updates=updates,
+            key_fields=key_fields,
             )
         values = [data[key] for key in keys]
         values.extend([key_data[key] for key in key_data])
@@ -229,18 +230,18 @@ class SQLiteDatabase(Database):
         sql = "INSERT INTO {table}({fields}) VALUES ({value_placeholders});"
         keys = list(data)
         sql = sql.format(
-                table=table,
-                fields=','.join(keys),
-                value_placeholders=','.join(['?' for _ in keys]),
+            table=table,
+            fields=','.join(keys),
+            value_placeholders=','.join(['?' for _ in keys]),
             )
         self._execute(sql, [data[key] for key in keys])
 
     def max_value(self, table, column, where_data):
         sql = "SELECT max({column}) FROM {table} WHERE {where};"
         sql = sql.format(
-                table=table,
-                column=column,
-                where=' AND '.join(['{}=?'.format(col) for col in where_data]),
+            table=table,
+            column=column,
+            where=' AND '.join(['{}=?'.format(col) for col in where_data]),
             )
         (value, ) = self._execute_and_fetchone(sql, [where_data[key] for key in where_data])
         return value

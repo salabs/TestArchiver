@@ -1,9 +1,9 @@
-import sys
 import re
 
 CONTEXT_SEPARATOR = '|-|'
 FILE_PATTERN = r"^diff --git a/(.+) b/(.+)$"
 BLOCK_PATTERN = r"^@@ [-\+0-9,]+ [-\+0-9,]+ @@ (.+)$"
+
 
 def main():
     changes = set()
@@ -30,6 +30,7 @@ def main():
 
     for change in sorted(list(changes)):
         print(change)
+
 
 if __name__ == '__main__':
     main()
