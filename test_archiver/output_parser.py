@@ -307,7 +307,7 @@ def parse_xml(xml_file, output_format, db_engine, config, ):
             parser.feed(buffer)
             buffer = file.read(BUFFER_SIZE)
     if len(archiver.stack) != 1:
-        raise Exception('Output file was not valid xml')
+        raise Exception('File parse error. Please check you used proper output format (default: robotframework).')
     else:
         archiver.end_test_run()
 
