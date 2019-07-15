@@ -8,7 +8,8 @@ from archiver import Archiver, read_config_file, ARCHIVED_LOG_LEVELS
 SUPPORTED_OUTPUT_FORMATS = (
         'robot', 'robotframework',
         'xUnit', 'junit',
-        'xunit', 'junit'
+        'xunit', 'junit',
+        'mocha-junit', 'mocha-junit'
     )
 
 DEFAULT_SUITE_NAME = 'Unnamed suite'
@@ -286,6 +287,105 @@ class JUnitOutputParser(XmlOutputParser):
         self._current_content = []
 
 
+class MochaJUnitOutputParser(XmlOutputParser):
+    def __init__(self, archiver):
+        super(MochaJUnitOutputParser, self).__init__(archiver)
+
+    def _report_test_run(self):
+        self.archiver.begin_test_run('Mocha-JUnit parser', None, 'JUnit', False, None)
+
+    def startElement(self, name, attrs):
+        if name in []:
+            self.excluding = True
+        elif self.excluding:
+            self.skipping_content = True
+        elif name == 'testrun':
+            self._report_test_run()
+            if 'project' in attrs.getNames():
+                self.archiver.metadata['project'] = attrs.getValue('project')
+            if 'name' in attrs.getNames():
+                self.archiver.metadata['test run name'] = attrs.getValue('name')
+        elif name in ('testsuite', 'testsuites'):
+            if not self.archiver.test_run_id:
+                self._report_test_run()
+            suite_name = attrs.getValue('name') if 'name' in attrs.getNames() else DEFAULT_SUITE_NAME
+            self.archiver.begin_suite(suite_name)
+            errors = int(attrs.getValue('errors')) if 'errors' in attrs.getNames() else 0
+            failures = int(attrs.getValue('failures')) if 'failures' in attrs.getNames() else 0
+            suite_status = 'PASS' if errors + failures == 0 else 'FAIL'
+            elapsed = int(float(attrs.getValue('time'))*1000) if 'time' in attrs.getNames() else None
+            timestamp = attrs.getValue('timestamp') if 'timestamp' in attrs.getNames() else None
+            self.archiver.begin_status(suite_status, start_time=timestamp, elapsed=elapsed)
+        elif name == 'testcase':
+            class_name = attrs.getValue('classname')
+            # If test name contains substring "hook for" it is a setup/teardown phase for another test
+            if "hook for" in str(class_name):
+                print("----")
+                print("Testcase <" + class_name + "> is hook for another testcase")
+                hook_prefix = class_name.split(" hook for ")[0]
+                hook_postfix = class_name.split(" hook for ")[1]
+                print("hook_prefix: <" + hook_prefix + ">")
+                print("hook_postfix: <" + hook_postfix + ">")
+                # TODO: append setup/teardown metadata to another test
+                # We may have to save these data temprorily somewhere
+                if "before all" in hook_prefix:
+                    hooked_testname = hook_postfix
+                    print("Should append 'setup' info for test <" + hooked_testname + ">")
+                if "after each" in hook_prefix:
+                    hooked_testname = str(hook_prefix.split("after each")[0][:-2])
+                    print("Should append 'teardown' info for test <" + hooked_testname + ">")
+                print("----")
+            self.archiver.begin_test(attrs.getValue('name'), class_name)
+            elapsed = int(float(attrs.getValue('time'))*1000)
+            status = attrs.getValue('status') if 'status' in attrs.getNames() else 'PASS'
+            self.archiver.begin_status('PASS', elapsed=elapsed)
+        elif name == 'failure':
+            self.archiver.update_status('FAIL')
+            self.archiver.log_message('FAIL', attrs.getValue('message'))
+        elif name == 'error':
+            self.archiver.update_status('FAIL')
+            self.archiver.log_message('ERROR', attrs.getValue('message'))
+        elif name == 'skipped':
+            self.archiver.update_status('SKIPPED')
+            if 'message' in attrs.getNames():
+                self.archiver.log_message('INFO', attrs.getValue('message'))
+        elif name in ('system-out', 'system-err'):
+            pass
+        elif name == 'properties':
+            pass
+        elif name == 'property':
+            self.archiver.metadata(attrs.getValue('name'), attrs.getValue('value'))
+        else:
+            print("WARNING: begin unknown item '{}'".format(name))
+
+    def endElement(self, name):
+        if name in []:
+            self.excluding = False
+        elif self.excluding:
+            self.skipping_content = False
+        elif name == 'testrun':
+            pass
+        elif name in ('testsuite', 'testsuites'):
+            self.archiver.end_suite()
+        elif name == 'testcase':
+            self.archiver.end_test()
+        elif name == 'failure':
+            self.archiver.log_message('FAIL', self.content())
+        elif name == 'error':
+            self.archiver.log_message('ERROR', self.content())
+        elif name == 'system-out':
+            self.archiver.log_message('INFO', self.content())
+        elif name == 'system-err':
+            self.archiver.log_message('ERROR', self.content())
+        elif name in ('properties', 'property'):
+            pass
+        elif name == 'skipped':
+            pass
+        else:
+            print("WARNING: ending unknown item '{}'".format(name))
+        self._current_content = []
+
+
 def parse_xml(xml_file, output_format, db_engine, config, ):
     if not os.path.exists(xml_file):
         sys.exit('Could not find input file: ' + xml_file)
@@ -297,6 +397,8 @@ def parse_xml(xml_file, output_format, db_engine, config, ):
         handler = XUnitOutputParser(archiver)
     elif output_format.lower() == 'junit':
         handler = JUnitOutputParser(archiver)
+    elif output_format.lower() == 'mocha-junit':
+        handler = MochaJUnitOutputParser(archiver)
     else:
         raise Exception("Unsupported report format '{}'".format(output_format))
     parser = xml.sax.make_parser()
