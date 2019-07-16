@@ -244,7 +244,13 @@ class JUnitOutputParser(XmlOutputParser):
             self.archiver.begin_status('PASS', elapsed=elapsed)
         elif name == 'failure':
             self.archiver.update_status('FAIL')
-            self.archiver.log_message('FAIL', attrs.getValue('message'))
+            try:
+                self.archiver.log_message('FAIL', attrs.getValue('message'))
+            except KeyError:
+                print("Ignoring empty message attribute in failure element")
+                # jest-junit does not add 'message' attribute to 'failure' xml element
+                # https://github.com/jest-community/jest-junit
+                pass
         elif name == 'error':
             self.archiver.update_status('FAIL')
             self.archiver.log_message('ERROR', attrs.getValue('message'))
