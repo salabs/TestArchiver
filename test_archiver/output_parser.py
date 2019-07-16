@@ -7,9 +7,9 @@ from archiver import Archiver, read_config_file, ARCHIVED_LOG_LEVELS
 
 SUPPORTED_OUTPUT_FORMATS = (
         'robot', 'robotframework',
-        'xUnit', 'junit',
-        'xunit', 'junit',
-        'mocha-junit', 'mocha-junit'
+        'xunit',
+        'junit',
+        'mocha-junit',
     )
 
 DEFAULT_SUITE_NAME = 'Unnamed suite'
@@ -290,9 +290,14 @@ class JUnitOutputParser(XmlOutputParser):
 class MochaJUnitOutputParser(XmlOutputParser):
     def __init__(self, archiver):
         super(MochaJUnitOutputParser, self).__init__(archiver)
+        self.in_setup_or_teardown = False
 
     def _report_test_run(self):
         self.archiver.begin_test_run('Mocha-JUnit parser', None, 'JUnit', False, None)
+
+    def _end_previous_test(self):
+        if self.archiver.stack[-1]._item_type() == 'test':
+            self.archiver.end_test()
 
     def startElement(self, name, attrs):
         if name in []:
@@ -318,31 +323,31 @@ class MochaJUnitOutputParser(XmlOutputParser):
             self.archiver.begin_status(suite_status, start_time=timestamp, elapsed=elapsed)
         elif name == 'testcase':
             class_name = attrs.getValue('classname')
+            elapsed = int(float(attrs.getValue('time'))*1000)
             # If test name contains substring "hook for" it is a setup/teardown phase for another test
             if "hook for" in str(class_name):
-                print("----")
-                print("Testcase <" + class_name + "> is hook for another testcase")
+                self.in_setup_or_teardown = True
                 hook_prefix = class_name.split(" hook for ")[0]
                 hook_postfix = class_name.split(" hook for ")[1]
-                print("hook_prefix: <" + hook_prefix + ">")
-                print("hook_postfix: <" + hook_postfix + ">")
-                # TODO: append setup/teardown metadata to another test
-                # We may have to save these data temprorily somewhere
                 if "before all" in hook_prefix:
-                    hooked_testname = hook_postfix
-                    print("Should append 'setup' info for test <" + hooked_testname + ">")
+                    hooked_testname = hook_postfix.strip('"')
+                    self.archiver.begin_test(hooked_testname, class_name)
+                    self.archiver.begin_status('FAIL', elapsed=elapsed)
+                    self.archiver.begin_keyword('before all hook', 'mocha hook', 'setup')
                 if "after each" in hook_prefix:
                     hooked_testname = str(hook_prefix.split("after each")[0][:-2])
-                    print("Should append 'teardown' info for test <" + hooked_testname + ">")
-                print("----")
-            self.archiver.begin_test(attrs.getValue('name'), class_name)
-            elapsed = int(float(attrs.getValue('time'))*1000)
-            status = attrs.getValue('status') if 'status' in attrs.getNames() else 'PASS'
-            self.archiver.begin_status('PASS', elapsed=elapsed)
+                    self.archiver.begin_keyword('after each hook', 'mocha hook', 'teardown')
+            else:
+                self._end_previous_test()
+                self.archiver.begin_test(attrs.getValue('name'), class_name)
+                status = attrs.getValue('status') if 'status' in attrs.getNames() else 'PASS'
+                self.archiver.begin_status('PASS', elapsed=elapsed)
         elif name == 'failure':
+            self.archiver.begin_keyword(attrs.getValue('type'), 'failure', 'failure')
             self.archiver.update_status('FAIL')
             self.archiver.log_message('FAIL', attrs.getValue('message'))
         elif name == 'error':
+            self.archiver.begin_keyword(attrs.getValue('type'), 'error', 'error')
             self.archiver.update_status('FAIL')
             self.archiver.log_message('ERROR', attrs.getValue('message'))
         elif name == 'skipped':
@@ -366,13 +371,23 @@ class MochaJUnitOutputParser(XmlOutputParser):
         elif name == 'testrun':
             pass
         elif name in ('testsuite', 'testsuites'):
+            self._end_previous_test()
             self.archiver.end_suite()
         elif name == 'testcase':
-            self.archiver.end_test()
+            if self.in_setup_or_teardown:
+                self.in_setup_or_teardown = False
+                self.archiver.end_keyword()
+                self._end_previous_test()
+            # Since next test case could be a teardown for the previous test
+            # the test is not ended here
         elif name == 'failure':
             self.archiver.log_message('FAIL', self.content())
+            self.archiver.end_keyword()
+            self.archiver.update_status('FAIL')
         elif name == 'error':
             self.archiver.log_message('ERROR', self.content())
+            self.archiver.end_keyword()
+            self.archiver.update_status('FAIL')
         elif name == 'system-out':
             self.archiver.log_message('INFO', self.content())
         elif name == 'system-err':
@@ -386,7 +401,7 @@ class MochaJUnitOutputParser(XmlOutputParser):
         self._current_content = []
 
 
-def parse_xml(xml_file, output_format, db_engine, config, ):
+def parse_xml(xml_file, output_format, db_engine, config):
     if not os.path.exists(xml_file):
         sys.exit('Could not find input file: ' + xml_file)
     BUFFER_SIZE = 65536
