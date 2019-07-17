@@ -331,9 +331,13 @@ class Keyword(FingerprintedItem):
         if self.fingerprint in self.archiver.keyword_statistics:
             stat_object = self.archiver.keyword_statistics[self.fingerprint]
             stat_object['calls'] += 1
-            stat_object['max_exection_time'] = max(stat_object['max_exection_time'], self.elapsed_time)
-            stat_object['min_exection_time'] = min(stat_object['min_exection_time'], self.elapsed_time)
-            stat_object['cumulative_execution_time'] += self.elapsed_time
+            # TODO: Investigate why times can both be None in some cases with mocha-junit parser
+            if stat_object['max_exection_time'] is not None and self.elapsed_time is not None:
+                stat_object['max_exection_time'] = max(stat_object['max_exection_time'], self.elapsed_time)
+                stat_object['min_exection_time'] = min(stat_object['min_exection_time'], self.elapsed_time)
+                stat_object['cumulative_execution_time'] += self.elapsed_time
+            else:
+                print("Error updating execution times: max_exection_time and elapsed_time are both None")
             stat_object['max_call_depth'] = max(stat_object['max_call_depth'], self.kw_call_depth)
         else:
             self.archiver.keyword_statistics[self.fingerprint] = {
