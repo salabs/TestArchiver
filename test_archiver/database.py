@@ -43,6 +43,9 @@ class Database:
     def _fetch_id(self, table, data, key_fields):
         raise NotImplementedError()
 
+    def return_id_or_insert_and_return_id(self, table, data, key_fields):
+        raise NotImplementedError()
+
     def insert_and_return_id(self, table, data, key_fields=None):
         raise NotImplementedError()
 
@@ -87,7 +90,26 @@ class PostgresqlDatabase(Database):
             table=table,
             key_placeholders=' AND '.join(['{}=%s'.format(key) for key in key_fields])
             )
-        (row_id, ) = self._execute_and_fetchone(sql, [data[key] for key in key_fields])
+        row = self._execute_and_fetchone(sql, [data[key] for key in key_fields])
+        if row:
+            return row[0]
+        else:
+            return None
+
+    def return_id_or_insert_and_return_id(self, table, data, key_fields):
+        row_id = self._fetch_id(table, data, key_fields)
+        if not row_id:
+            sql = "INSERT INTO {table}({fields}) VALUES ({value_placeholders}) {conflict_statement} RETURNING id;"
+            keys = list(data)
+            on_conflict = ' ON CONFLICT ({}) DO NOTHING '.format(','.join(key_fields)) if key_fields else ''
+            sql = sql.format(
+                table=table,
+                fields=','.join(keys),
+                value_placeholders=','.join(['%s' for _ in keys]),
+                conflict_statement=on_conflict,
+                )
+            row = self._execute_and_fetchone(sql, [data[key] for key in keys])
+            (row_id, ) = row
         return row_id
 
     def insert_and_return_id(self, table, data, key_fields=None):
@@ -189,7 +211,23 @@ class SQLiteDatabase(Database):
                 table=table,
                 key_placeholders=' AND '.join(['{}=?'.format(key) for key in key_fields])
                 )
-            (row_id, ) = self._execute_and_fetchone(sql, [data[key] for key in key_fields])
+            row = self._execute_and_fetchone(sql, [data[key] for key in key_fields])
+            if row:
+                row_id = row[0]
+        return row_id
+
+    def return_id_or_insert_and_return_id(self, table, data, key_fields):
+        row_id = self._fetch_id(table, data, key_fields)
+        if not row_id:
+            sql = "INSERT OR IGNORE INTO {table}({fields}) VALUES ({value_placeholders});"
+            keys = list(data)
+            sql = sql.format(
+                table=table,
+                fields=','.join(keys),
+                value_placeholders=','.join(['?' for _ in keys]),
+                )
+            self._execute(sql, [data[key] for key in keys])
+            row_id = self._fetch_id(table, data, key_fields)
         return row_id
 
     def insert_and_return_id(self, table, data, key_fields=None):

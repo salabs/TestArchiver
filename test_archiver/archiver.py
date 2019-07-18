@@ -4,7 +4,7 @@ from datetime import datetime
 
 from database import PostgresqlDatabase, SQLiteDatabase
 
-ARCHIVER_VERSION = "0.12"
+ARCHIVER_VERSION = "0.13"
 
 SUPPORTED_TIMESTAMP_FORMATS = (
         "%Y%m%d %H:%M:%S.%f",
@@ -210,7 +210,8 @@ class Suite(FingerprintedItem):
     def __init__(self, archiver, name, repository):
         super(Suite, self).__init__(archiver, name)
         data = {'full_name': self.full_name, 'name': name, 'repository': repository}
-        self.id = self.archiver.db.insert_and_return_id('suite', data, ['repository', 'full_name'])
+        self.id = self.archiver.db.return_id_or_insert_and_return_id('suite', data,
+                                                                     ['repository', 'full_name'])
 
     def _item_type(self):
         return "suite"
@@ -255,7 +256,8 @@ class Test(FingerprintedItem):
     def __init__(self, archiver, name, class_name):
         super(Test, self).__init__(archiver, name, class_name)
         data = {'full_name': self.full_name, 'name': name, 'suite_id': self.parent_item.id}
-        self.id = self.archiver.db.insert_and_return_id('test_case', data, ['suite_id', 'full_name'])
+        self.id = self.archiver.db.return_id_or_insert_and_return_id('test_case', data,
+                                                                     ['suite_id', 'full_name'])
 
     def _item_type(self):
         return "test"
@@ -394,8 +396,17 @@ class Archiver:
         else:
             raise Exception("Unsupported database type '{}'".format(db_engine))
 
-    def _current_item(self):
-        return self.stack[-1] if self.stack else None
+    def _current_item(self, expected_type=None):
+        item = self.stack[-1] if self.stack else None
+        if expected_type:
+            if item._item_type() != expected_type:
+                for item in self.stack:
+                    print(item._item_type())
+                raise Exception("Expected to end '{}' but '{}' currently in stack".format(
+                    expected_type,
+                    item._item_type()),
+                    )
+        return item
 
     def current_suite(self):
         if self._current_item():
@@ -457,9 +468,9 @@ class Archiver:
 
     def end_suite(self, attributes=None):
         if attributes:
-            self._current_item().update_status(attributes['status'], attributes['starttime'],
+            self._current_item('suite').update_status(attributes['status'], attributes['starttime'],
                                                attributes['endtime'])
-            self._current_item().metadata = attributes['metadata']
+            self._current_item('suite').metadata = attributes['metadata']
         self.stack.pop().finish()
 
     def begin_test(self, name, class_name=None):
@@ -467,9 +478,9 @@ class Archiver:
 
     def end_test(self, attributes=None):
         if attributes:
-            self._current_item().update_status(attributes['status'], attributes['starttime'],
+            self._current_item('test').update_status(attributes['status'], attributes['starttime'],
                                                attributes['endtime'])
-            self._current_item().tags = attributes['tags']
+            self._current_item('test').tags = attributes['tags']
         self.stack.pop().finish()
 
     def begin_status(self, status, start_time=None, end_time=None, elapsed=None):
@@ -483,7 +494,7 @@ class Archiver:
 
     def end_keyword(self, attributes=None):
         if attributes:
-            self._current_item().update_status(attributes['status'], attributes['starttime'],
+            self._current_item('keyword').update_status(attributes['status'], attributes['starttime'],
                                                attributes['endtime'])
         self.stack.pop().finish()
 
@@ -493,20 +504,20 @@ class Archiver:
         self.end_keyword()
 
     def update_arguments(self, argument):
-        self._current_item().arguments.append(argument)
+        self._current_item('keyword').arguments.append(argument)
 
     def update_tags(self, tag):
-        self._current_item().tags.append(tag)
+        self._current_item('test').tags.append(tag)
 
     def metadata(self, name, content):
         self.begin_metadata(name)
         self.end_metadata(content)
 
     def begin_metadata(self, name):
-        self._current_item()._last_metadata_name = name
+        self._current_item('suite')._last_metadata_name = name
 
     def end_metadata(self, content):
-        self._current_item().metadata[self._current_item()._last_metadata_name] = content
+        self._current_item('suite').metadata[self._current_item()._last_metadata_name] = content
 
     def log_message(self, level, content, timestamp=None):
         self.begin_log_message(level, timestamp)
@@ -516,7 +527,7 @@ class Archiver:
         self.stack.append(LogMessage(self, level, timestamp))
 
     def end_log_message(self, content):
-        self._current_item().insert(content)
+        self._current_item('log_message').insert(content)
         self.stack.pop()
 
     def report_keyword_statistics(self):
