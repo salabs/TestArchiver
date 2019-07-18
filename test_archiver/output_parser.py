@@ -341,6 +341,7 @@ class MochaJUnitOutputParser(XmlOutputParser):
                     self.archiver.begin_keyword('after all hook', 'mocha', 'teardown')
                 if "before each" in hook_prefix:
                     hooked_testname = hook_postfix.strip('"')
+                    self._end_previous_test()
                     self.archiver.begin_test(hooked_testname)
                     self.archiver.update_status('FAIL')
                     self.archiver.begin_keyword('before each hook', 'mocha', 'setup')
