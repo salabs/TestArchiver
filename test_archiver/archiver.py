@@ -4,7 +4,7 @@ from datetime import datetime
 
 from database import PostgresqlDatabase, SQLiteDatabase
 
-ARCHIVER_VERSION = "0.11"
+ARCHIVER_VERSION = "0.12"
 
 SUPPORTED_TIMESTAMP_FORMATS = (
         "%Y%m%d %H:%M:%S.%f",
@@ -397,6 +397,11 @@ class Archiver:
     def _current_item(self):
         return self.stack[-1] if self.stack else None
 
+    def current_suite(self):
+        if self._current_item():
+            return self._current_item().parent_suite()
+        return None
+
     def begin_test_run(self, archived_using, generated, generator, rpa, dryrun):
         test_run = TestRun(self, archived_using, generated, generator, rpa, dryrun)
         self.test_run_id = test_run.id
@@ -481,6 +486,11 @@ class Archiver:
             self._current_item().update_status(attributes['status'], attributes['starttime'],
                                                attributes['endtime'])
         self.stack.pop().finish()
+
+    def keyword(self, name, library, kw_type, status, arguments=None):
+        self.begin_keyword(name, library, kw_type, arguments)
+        self.update_status(status)
+        self.end_keyword()
 
     def update_arguments(self, argument):
         self._current_item().arguments.append(argument)

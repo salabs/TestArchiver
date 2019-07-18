@@ -287,65 +287,71 @@ class JUnitOutputParser(XmlOutputParser):
         self._current_content = []
 
 
+
 class MochaJUnitOutputParser(XmlOutputParser):
     def __init__(self, archiver):
         super(MochaJUnitOutputParser, self).__init__(archiver)
         self.in_setup_or_teardown = False
 
-    def _report_test_run(self):
-        self.archiver.begin_test_run('Mocha-JUnit parser', None, 'JUnit', False, None)
-
     def _end_previous_test(self):
-        if self.archiver.stack[-1]._item_type() == 'test':
+        if self.archiver._current_item()._item_type() == 'test':
             self.archiver.end_test()
 
+    def _end_suite(self):
+        suite = self.archiver.current_suite()
+        if suite.execution_status and suite.execution_status != 'PASS':
+            self.archiver.update_status('FAIL')
+        self.archiver.end_suite()
+
     def startElement(self, name, attrs):
-        if name in []:
-            self.excluding = True
-        elif self.excluding:
-            self.skipping_content = True
-        elif name == 'testrun':
-            self._report_test_run()
-            if 'project' in attrs.getNames():
-                self.archiver.metadata['project'] = attrs.getValue('project')
-            if 'name' in attrs.getNames():
-                self.archiver.metadata['test run name'] = attrs.getValue('name')
-        elif name in ('testsuite', 'testsuites'):
-            if not self.archiver.test_run_id:
-                self._report_test_run()
-            suite_name = attrs.getValue('name') if 'name' in attrs.getNames() else DEFAULT_SUITE_NAME
+        if name == 'testsuites':
+            self.archiver.begin_test_run('Mocha-JUnit parser', None, attrs.getValue('name'), False, None)
+            #self.archiver.begin_suite(attrs.getValue('name'))
+        elif name == 'testsuite':
+            suite_name = attrs.getValue('name')
+            if not suite_name:
+                # The root suite name can be overridden in the reporter options
+                # but then the full suite hierarchy will break in the top
+                suite_name = "Root Suite"
+            while (self.archiver.current_suite()
+                   and not suite_name.startswith(self.archiver.current_suite().full_name + '.')):
+                self._end_suite()
+            parent_suite = self.archiver.current_suite()
+            if parent_suite:
+                suite_name = suite_name.split('.')[-1]
             self.archiver.begin_suite(suite_name)
-            errors = int(attrs.getValue('errors')) if 'errors' in attrs.getNames() else 0
-            failures = int(attrs.getValue('failures')) if 'failures' in attrs.getNames() else 0
-            suite_status = 'PASS' if errors + failures == 0 else 'FAIL'
             elapsed = int(float(attrs.getValue('time'))*1000) if 'time' in attrs.getNames() else None
             timestamp = attrs.getValue('timestamp') if 'timestamp' in attrs.getNames() else None
-            self.archiver.begin_status(suite_status, start_time=timestamp, elapsed=elapsed)
+            self.archiver.begin_status('PASS', start_time=timestamp, elapsed=elapsed)
         elif name == 'testcase':
             class_name = attrs.getValue('classname')
             elapsed = int(float(attrs.getValue('time'))*1000)
-            # If test name contains substring "hook for" it is a setup/teardown phase for another test
+            # If test name contains substring "hook for" it is actually a setup/teardown phase
+            # for another test or suite
             if "hook for" in str(class_name):
                 self.in_setup_or_teardown = True
                 hook_prefix = class_name.split(" hook for ")[0]
                 hook_postfix = class_name.split(" hook for ")[1]
                 if "before all" in hook_prefix:
-                    hooked_testname = hook_postfix.strip('"')
-                    self.archiver.begin_test(hooked_testname, class_name)
-                    self.archiver.begin_status('FAIL', elapsed=elapsed)
-                    self.archiver.begin_keyword('before all hook', 'mocha hook', 'setup')
+                    self.archiver.update_status('FAIL')
+                    self.archiver.begin_keyword('before all hook', 'mocha', 'setup')
+                if "after all" in hook_prefix:
+                    self._end_previous_test()
+                    self.archiver.update_status('FAIL')
+                    self.archiver.begin_keyword('after all hook', 'mocha', 'teardown')
                 if "before each" in hook_prefix:
                     hooked_testname = hook_postfix.strip('"')
-                    self.archiver.begin_test(hooked_testname, class_name)
-                    self.archiver.begin_status('FAIL', elapsed=elapsed)
-                    self.archiver.begin_keyword('before each hook', 'mocha hook', 'setup')
+                    self.archiver.begin_test(hooked_testname)
+                    self.archiver.update_status('FAIL')
+                    self.archiver.begin_keyword('before each hook', 'mocha', 'setup')
                 if "after each" in hook_prefix:
                     hooked_testname = str(hook_prefix.split("after each")[0][:-2])
-                    self.archiver.begin_keyword('after each hook', 'mocha hook', 'teardown')
+                    self.archiver.update_status('FAIL')
+                    self.archiver.begin_keyword('after each hook', 'mocha', 'teardown')
             else:
                 self._end_previous_test()
-                self.archiver.begin_test(attrs.getValue('name'), class_name)
-                status = attrs.getValue('status') if 'status' in attrs.getNames() else 'PASS'
+                self.archiver.begin_test(attrs.getValue('name'))
+                self.archiver.keyword('Passing execution', 'mocha', 'kw', 'PASS')
                 self.archiver.begin_status('PASS', elapsed=elapsed)
         elif name == 'failure':
             self.archiver.begin_keyword(attrs.getValue('type'), 'failure', 'failure')
@@ -369,22 +375,16 @@ class MochaJUnitOutputParser(XmlOutputParser):
             print("WARNING: begin unknown item '{}'".format(name))
 
     def endElement(self, name):
-        if name in []:
-            self.excluding = False
-        elif self.excluding:
-            self.skipping_content = False
-        elif name == 'testrun':
-            pass
-        elif name in ('testsuite', 'testsuites'):
+        if name == 'testsuites':
+            while self.archiver._current_item()._item_type() == 'suite':
+                self._end_suite()
+        elif name == 'testsuite':
             self._end_previous_test()
-            self.archiver.end_suite()
         elif name == 'testcase':
             if self.in_setup_or_teardown:
                 self.in_setup_or_teardown = False
                 self.archiver.end_keyword()
                 self._end_previous_test()
-            # Since next test case could be a teardown for the previous test
-            # the test is not ended here
         elif name == 'failure':
             self.archiver.log_message('FAIL', self.content())
             self.archiver.end_keyword()
