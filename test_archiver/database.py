@@ -14,8 +14,9 @@ class Database:
     def _connect(self):
         raise NotImplementedError()
 
-    # Current iteration logic depends on values=[]
-    def _execute(self, sql, values=[]):
+    def _execute(self, sql, values=None):
+        if values is None:
+            values = []
         values = self._handle_values(values)
         cursor = self._connection.cursor()
         try:
@@ -23,8 +24,9 @@ class Database:
         finally:
             cursor.close()
 
-    # Current iteration logic depends on values=[]
-    def _execute_and_fetchone(self, sql, values=[]):
+    def _execute_and_fetchone(self, sql, values=None):
+        if values is None:
+            values = []
         values = self._handle_values(values)
         cursor = self._connection.cursor()
         row = None
