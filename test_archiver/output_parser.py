@@ -10,6 +10,7 @@ SUPPORTED_OUTPUT_FORMATS = (
         'xunit',
         'junit',
         'mocha-junit',
+        'mstest',
     )
 
 DEFAULT_SUITE_NAME = 'Unnamed suite'
@@ -407,6 +408,84 @@ class MochaJUnitOutputParser(XmlOutputParser):
         self._current_content = []
 
 
+class MSTestOutputParser(XmlOutputParser):
+    # Currently only inital support for unittests
+
+    EXCLUDED_SECTIONS = ('TestSettings', 'ResultSummary', 'TestDefinitions', 'TestLists', 'TestEntries')
+    STATUS_MAPPING = {
+        'Passed': 'PASS',
+        'Failed': 'FAIL',
+        }
+
+    def __init__(self, archiver):
+        super(MSTestOutputParser, self).__init__(archiver)
+
+    def _report_test_run(self):
+        self.archiver.begin_test_run('JUnit parser', None, 'JUnit', False, None)
+
+    def _sanitise_timestamp_format(self, timestamp):
+        # MSTest output timestamps use 7 digits for second fractions while python
+        # only parses up to 6. Leaving out the last digit and colon in the timezone
+        return timestamp[:26] + timestamp[27:30] + timestamp[31:]
+
+    def startElement(self, name, attrs):
+        if name in MSTestOutputParser.EXCLUDED_SECTIONS:
+            self.excluding = True
+        elif self.excluding:
+            self.skipping_content = True
+        elif name == 'TestRun':
+            self.archiver.begin_test_run('MSTest parser', None, attrs.getValue('name'), False, None)
+            self.archiver.begin_suite('Root suite')
+        elif name == 'Times':
+            start = self._sanitise_timestamp_format(attrs.getValue('start'))
+            end = self._sanitise_timestamp_format(attrs.getValue('finish'))
+            self.archiver.begin_status('PASS', start, end)
+        elif name == 'UnitTestResult':
+            self.archiver.begin_test(attrs.getValue('testName'))
+            start = self._sanitise_timestamp_format(attrs.getValue('startTime'))
+            end = self._sanitise_timestamp_format(attrs.getValue('endTime'))
+            status = MSTestOutputParser.STATUS_MAPPING[attrs.getValue('outcome')]
+            self.archiver.begin_status(status, start, end)
+        elif name == 'StdOut':
+            self.archiver.begin_log_message('INFO')
+        elif name == 'DebugTrace':
+            self.archiver.begin_log_message('DEBUG')
+        elif name == 'TraceInfo':
+            self.archiver.begin_log_message('TRACE')
+        elif name in ('StdErr', 'Message', 'StackTrace'):
+            self.archiver.begin_log_message('ERROR')
+        elif name in ('Results', 'Output', 'ErrorInfo'):
+            pass
+        else:
+            print("WARNING: begin unknown item '{}'".format(name))
+
+    def endElement(self, name):
+        if name in MSTestOutputParser.EXCLUDED_SECTIONS:
+            self.excluding = False
+        elif self.excluding:
+            self.skipping_content = False
+        elif name == 'TestRun':
+            self.archiver.end_suite()
+            self.archiver.end_test_run()
+        elif name == 'Times':
+            pass
+        elif name == 'UnitTestResult':
+            self.archiver.end_test()
+        elif name == 'StdOut':
+            self.archiver.end_log_message(self.content())
+        elif name == 'DebugTrace':
+            self.archiver.end_log_message(self.content())
+        elif name == 'TraceInfo':
+            self.archiver.end_log_message(self.content())
+        elif name in ('StdErr', 'Message', 'StackTrace'):
+            self.archiver.end_log_message(self.content())
+        elif name in ('Results', 'Output', 'ErrorInfo'):
+            pass
+        else:
+            print("WARNING: ending unknown item '{}'".format(name))
+        self._current_content = []
+
+
 def parse_xml(xml_file, output_format, db_engine, config):
     if not os.path.exists(xml_file):
         sys.exit('Could not find input file: ' + xml_file)
@@ -420,6 +499,8 @@ def parse_xml(xml_file, output_format, db_engine, config):
         handler = JUnitOutputParser(archiver)
     elif output_format.lower() == 'mocha-junit':
         handler = MochaJUnitOutputParser(archiver)
+    elif output_format.lower() == 'mstest':
+        handler = MSTestOutputParser(archiver)
     else:
         raise Exception("Unsupported report format '{}'".format(output_format))
     parser = xml.sax.make_parser()
