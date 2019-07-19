@@ -217,18 +217,15 @@ class SQLiteDatabase(Database):
         return row_id
 
     def return_id_or_insert_and_return_id(self, table, data, key_fields):
-        row_id = self._fetch_id(table, data, key_fields)
-        if not row_id:
-            sql = "INSERT OR IGNORE INTO {table}({fields}) VALUES ({value_placeholders});"
-            keys = list(data)
-            sql = sql.format(
-                table=table,
-                fields=','.join(keys),
-                value_placeholders=','.join(['?' for _ in keys]),
-                )
-            self._execute(sql, [data[key] for key in keys])
-            row_id = self._fetch_id(table, data, key_fields)
-        return row_id
+        sql = "INSERT OR IGNORE INTO {table}({fields}) VALUES ({value_placeholders});"
+        keys = list(data)
+        sql = sql.format(
+            table=table,
+            fields=','.join(keys),
+            value_placeholders=','.join(['?' for _ in keys]),
+            )
+        self._execute(sql, [data[key] for key in keys])
+        return self._fetch_id(table, data, key_fields)
 
     def insert_and_return_id(self, table, data, key_fields=None):
         sql = "INSERT OR IGNORE INTO {table}({fields}) VALUES ({value_placeholders});"
