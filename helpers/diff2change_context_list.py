@@ -9,7 +9,7 @@ def main():
     changes = set()
     current_file = None
 
-    line = raw_input()
+    line = input()
     while True:
         m = re.search(FILE_PATTERN, line)
         if m:
@@ -24,7 +24,7 @@ def main():
                 changes.add('{}{}{}'.format(current_file, CONTEXT_SEPARATOR, context))
 
         try:
-            line = raw_input()
+            line = input()
         except EOFError:
             break
 
