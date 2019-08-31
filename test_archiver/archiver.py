@@ -4,7 +4,7 @@ from datetime import datetime
 
 from database import PostgresqlDatabase, SQLiteDatabase
 
-ARCHIVER_VERSION = "0.14"
+ARCHIVER_VERSION = "0.14.1"
 
 SUPPORTED_TIMESTAMP_FORMATS = (
         "%Y%m%d %H:%M:%S.%f",
@@ -401,6 +401,7 @@ class Archiver:
         item = self.stack[-1] if self.stack else None
         if expected_type:
             if item._item_type() != expected_type:
+                print("PARSING ERROR - printing current stack:")
                 for item in self.stack:
                     print(item._item_type())
                 raise Exception("Expected to end '{}' but '{}' currently in stack".format(

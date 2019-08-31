@@ -121,7 +121,8 @@ class RobotFrameworkOutputParser(XmlOutputParser):
         elif name == 'timeout':
             pass
         elif name == 'tag':
-            self.archiver.update_tags(self.content())
+            if self.archiver._current_item()._item_type() == 'test':
+                self.archiver.update_tags(self.content())
         elif name == 'item':  # metadata item
             self.archiver.end_metadata(self.content())
         elif name == 'doc':
