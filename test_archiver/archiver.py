@@ -4,7 +4,7 @@ from datetime import datetime
 
 from database import PostgresqlDatabase, SQLiteDatabase
 
-ARCHIVER_VERSION = "0.14.2"
+ARCHIVER_VERSION = "0.15.0"
 
 SUPPORTED_TIMESTAMP_FORMATS = (
         "%Y%m%d %H:%M:%S.%f",
@@ -442,14 +442,18 @@ class Archiver:
 
         self.db._connection.commit()
 
-    def report_series(self, name, build_number):
+    def report_series(self, name, build_id):
         data = {
             'team': self.team if self.team else 'No team',
             'name': name,
             }
         series_id = self.db.return_id_or_insert_and_return_id('test_series', data, ['team', 'name'])
-
-        if not build_number:
+        if build_id:
+            try:
+                build_number = int(build_id)
+            except ValueError:
+                build_number = self._build_number_by_id(series_id, build_id)
+        else:
             previous_build_number = self.db.max_value('test_series_mapping', 'build_number',
                                                       {'series': series_id})
             build_number = previous_build_number + 1 if previous_build_number else 1
@@ -462,8 +466,18 @@ class Archiver:
             'series': series_id,
             'test_run_id': self.test_run_id,
             'build_number': build_number,
+            'build_id': build_id,
             }
         self.db.insert('test_series_mapping', data)
+
+    def _build_number_by_id(self, series_id, build_id):
+        build_number = self.db.fetch_one_value('test_series_mapping', 'build_number',
+                                               {'build_id': build_id, 'series': series_id})
+        if not build_number:
+            previous_build_number = self.db.max_value('test_series_mapping', 'build_number',
+                                                      {'series': series_id})
+            build_number = previous_build_number + 1 if previous_build_number else 1
+        return build_number
 
     def begin_suite(self, name):
         self.stack.append(Suite(self, name, 'repo'))

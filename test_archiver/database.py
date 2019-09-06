@@ -61,6 +61,9 @@ class Database:
     def max_value(self, table, column, where_data):
         raise NotImplementedError()
 
+    def fetch_one_value(self):
+        raise NotImplementedError()
+
 
 class PostgresqlDatabase(Database):
 
@@ -175,6 +178,20 @@ class PostgresqlDatabase(Database):
         (value, ) = self._execute_and_fetchone(sql, [where_data[key] for key in where_data])
         return value
 
+    def fetch_one_value(self, table, column, where_data):
+        sql = "SELECT {column} FROM {table} WHERE {where};"
+        sql = sql.format(
+            table=table,
+            column=column,
+            where=' AND '.join(['{}=%s'.format(col) for col in where_data]),
+            )
+        row = self._execute_and_fetchone(sql, [where_data[key] for key in where_data])
+        if row:
+            (value, ) = row
+            return value
+        else:
+            return None
+
 
 class SQLiteDatabase(Database):
 
@@ -282,3 +299,17 @@ class SQLiteDatabase(Database):
             )
         (value, ) = self._execute_and_fetchone(sql, [where_data[key] for key in where_data])
         return value
+
+    def fetch_one_value(self, table, column, where_data):
+        sql = "SELECT max({column}) FROM {table} WHERE {where};"
+        sql = sql.format(
+            table=table,
+            column=column,
+            where=' AND '.join(['{}=?'.format(col) for col in where_data]),
+            )
+        row = self._execute_and_fetchone(sql, [where_data[key] for key in where_data])
+        if row:
+            (value, ) = row
+            return value
+        else:
+            return None

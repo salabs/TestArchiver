@@ -20,6 +20,7 @@ CREATE TABLE test_series_mapping (
     series int REFERENCES test_series(id),
     test_run_id int REFERENCES test_run(id),
     build_number int NOT NULL,
+    build_id text,
     PRIMARY KEY (series, test_run_id, build_number)
 );
 
