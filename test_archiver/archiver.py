@@ -35,12 +35,6 @@ ARCHIVED_LOG_LEVELS = (
 ARCHIVE_KEYWORDS = True
 ARCHIVE_KEYWORD_STATISTICS = True
 
-
-def read_config_file(file_name):
-    with open(file_name, 'r') as config_file:
-        return json.load(config_file)
-
-
 class TestItem:
     def __init__(self, archiver):
         self.archiver = archiver

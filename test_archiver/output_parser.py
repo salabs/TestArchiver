@@ -1,9 +1,8 @@
-import argparse
 import os.path
 import sys
 import xml.sax
 
-from archiver import Archiver, read_config_file, ARCHIVED_LOG_LEVELS
+from archiver import ARCHIVED_LOG_LEVELS
 
 SUPPORTED_OUTPUT_FORMATS = (
         'robot', 'robotframework',
@@ -487,94 +486,41 @@ class MSTestOutputParser(XmlOutputParser):
         self._current_content = []
 
 
-def parse_xml(xml_file, output_format, db_engine, config):
-    if not os.path.exists(xml_file):
-        sys.exit('Could not find input file: ' + xml_file)
-    BUFFER_SIZE = 65536
-    archiver = Archiver(db_engine, config)
-    if output_format.lower() in ('rf', 'robot', 'robotframework'):
-        handler = RobotFrameworkOutputParser(archiver)
-    elif output_format.lower() == 'xunit':
-        handler = XUnitOutputParser(archiver)
-    elif output_format.lower() == 'junit':
-        handler = JUnitOutputParser(archiver)
-    elif output_format.lower() == 'mocha-junit':
-        handler = MochaJUnitOutputParser(archiver)
-    elif output_format.lower() == 'mstest':
-        handler = MSTestOutputParser(archiver)
-    else:
-        raise Exception("Unsupported report format '{}'".format(output_format))
-    parser = xml.sax.make_parser()
-    parser.setContentHandler(handler)
-    with open(xml_file) as file:
-        buffer = file.read(BUFFER_SIZE)
-        while buffer:
-            parser.feed(buffer)
+class OutputParser:
+    def __init__(self, archiver, output_files, output_format):
+        self.archiver = archiver
+        self.output_files = output_files
+        self.output_format = output_format
+
+    def _parse_xml(self, xml_file, output_format):
+        if not os.path.exists(xml_file):
+            sys.exit('Could not find input file: ' + xml_file)
+        BUFFER_SIZE = 65536
+        if output_format.lower() in ('rf', 'robot', 'robotframework'):
+            handler = RobotFrameworkOutputParser(self.archiver)
+        elif output_format.lower() == 'xunit':
+            handler = XUnitOutputParser(self.archiver)
+        elif output_format.lower() == 'junit':
+            handler = JUnitOutputParser(self.archiver)
+        elif output_format.lower() == 'mocha-junit':
+            handler = MochaJUnitOutputParser(self.archiver)
+        elif output_format.lower() == 'mstest':
+            handler = MSTestOutputParser(self.archiver)
+        else:
+            raise Exception("Unsupported report format '{}'".format(output_format))
+        parser = xml.sax.make_parser()
+        parser.setContentHandler(handler)
+        with open(xml_file) as file:
             buffer = file.read(BUFFER_SIZE)
-    if len(archiver.stack) != 1:
-        raise Exception('File parse error. Please check you used proper output format (default: robotframework).')
-    else:
-        archiver.end_test_run()
+            while buffer:
+                parser.feed(buffer)
+                buffer = file.read(BUFFER_SIZE)
+        if len(self.archiver.stack) != 1:
+            raise Exception('File parse error. Please check you used proper output format (default: robotframework).')
+        else:
+            self.archiver.end_test_run()
 
-
-def parse_metadata_args(metadata_args):
-    metadata = {}
-    if metadata_args:
-        for item in metadata_args:
-            try:
-                name, value = item.split(':', 1)
-                metadata[name] = value
-            except Exception:
-                raise Exception("Unsupported format for metadata: '{}' use NAME:VALUE".format(item))
-    return metadata
-
-
-if __name__ == '__main__':
-    if sys.version_info[0] < 3:
-        sys.exit('Unsupported Python version (' + str(sys.version_info.major) + '). Please use version 3.')
-    parser = argparse.ArgumentParser(description='Parse Robot Framework output.xml files to SQL database.')
-    parser.add_argument('output_files', nargs='+')
-    parser.add_argument('--config', dest='config_file',
-                        help='path to JSON config file containing database credentials')
-    parser.add_argument('--dbengine', default='sqlite',
-                        help='Database engine, postgresql or sqlite (default)')
-    parser.add_argument('--database', help='database name')
-    parser.add_argument('--host', help='databse host name', default=None)
-    parser.add_argument('--user', help='database user')
-    parser.add_argument('--pw', '--password', help='database password')
-    parser.add_argument('--port', help='database port (default: 5432)', default=5432, type=int)
-    parser.add_argument('--format', help='output format (default: robotframework)', default='robotframework',
-                        choices=SUPPORTED_OUTPUT_FORMATS, type=str.lower)
-    parser.add_argument('--team', help='Team name for the test series', default=None)
-    parser.add_argument('--series', action='append',
-                        help="Name of the testseries (and optionally build number 'SERIES_NAME#BUILD_NUM')")
-    parser.add_argument('--metadata', action='append',
-                        help="Adds given metadata to the testrun. expected_format 'NAME:VALUE'")
-    args = parser.parse_args()
-
-    if args.config_file:
-        config = read_config_file(args.config_file)
-        db_engine = config['db_engine']
-    else:
-        db_engine = args.dbengine
-        config = {
-            'database': args.database,
-            'user': args.user,
-            'password': args.pw,
-            'host': args.host,
-            'port': args.port,
-            }
-    config['series'] = args.series
-    if args.team:
-        config['team'] = args.team
-    metadata = parse_metadata_args(args.metadata)
-    if 'metadata' in config:
-        config['metadata'].update(metadata)
-    else:
-        config['metadata'] = metadata
-    if len(args.output_files) > 1:
-        config['multirun'] = {}
-
-    for output_file in args.output_files:
-        print("Parsing: '{}'".format(output_file))
-        parse_xml(output_file, args.format, db_engine, config)
+    def parse_output_files(self):
+        for output_file in self.output_files:
+            print("Parsing: '{}'".format(output_file))
+            self._parse_xml(output_file, self.output_format)
