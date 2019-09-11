@@ -44,18 +44,17 @@ def parse_commandline_arguments():
                         help="Adds given metadata to the testrun. expected_format 'NAME:VALUE'")
     return parser.parse_args()
 
-def parse_config_and_db_engine(args):
+def parse_config(args):
     if args.config_file:
         config = read_config_file(args.config_file)
-        db_engine = config['db_engine']
     else:
-        db_engine = args.dbengine
         config = {
-            'database': args.database,
-            'user': args.user,
-            'password': args.pw,
-            'host': args.host,
-            'port': args.port,
+            'db_engine':    args.dbengine,
+            'database':     args.database,
+            'user':         args.user,
+            'password':     args.pw,
+            'host':         args.host,
+            'port':         args.port
             }
     config['series'] = args.series
     if args.team:
@@ -68,15 +67,15 @@ def parse_config_and_db_engine(args):
     if len(args.output_files) > 1:
         config['multirun'] = {}
 
-    return config, db_engine
+    return config
 
 if __name__ == '__main__':
     if sys.version_info[0] < 3:
         sys.exit('Unsupported Python version (' + str(sys.version_info.major) + '). Please use version 3.')
 
     args = parse_commandline_arguments()
-    config, db_engine = parse_config_and_db_engine(args)
+    config = parse_config(args)
 
-    archiver = Archiver(db_engine, config)
+    archiver = Archiver(config)
     output_parser = OutputParser(archiver, args.output_files, args.format)
     output_parser.parse_output_files()

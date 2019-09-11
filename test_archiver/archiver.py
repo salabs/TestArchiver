@@ -364,7 +364,7 @@ class LogMessage(TestItem):
 
 
 class Archiver:
-    def __init__(self, db_engine, config):
+    def __init__(self, config):
         self.config = config
         self.additional_metadata = config['metadata'] if 'metadata' in config else {}
         self.test_run_id = None
@@ -373,7 +373,7 @@ class Archiver:
         self.series = config['series'] if 'series' in config else []
         self.repository = config['repository'] if 'repository' in config else 'default repo'
         self.output_from_dryrun = False
-        self.db = self._db(db_engine)
+        self.db = self._db(config['db_engine'])
         self.stack = []
         self.keyword_statistics = {}
 

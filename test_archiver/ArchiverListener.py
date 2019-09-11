@@ -8,16 +8,16 @@ class ArchiverListener:
                  db_engine=None, user=None, pw=None, host=None, port=5432):
         if not db_engine:
             config = read_config_file(config_file_or_database)
-            db_engine = config['db_engine'] if 'db_engine' in config else db_engine
         else:
             config = {
+                'db_engine': dbengine,
                 'database': config_file_or_database,
                 'user': user,
                 'password': pw,
                 'host': host,
                 'port': port,
             }
-        self.archiver = Archiver(db_engine, config)
+        self.archiver = Archiver(config)
         self.rpa = False
         self.dry_run = False
         self.generator = None
