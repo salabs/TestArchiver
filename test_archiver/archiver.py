@@ -4,7 +4,7 @@ from datetime import datetime
 
 from database import PostgresqlDatabase, SQLiteDatabase
 
-ARCHIVER_VERSION = "0.14.1"
+ARCHIVER_VERSION = "0.14.2"
 
 SUPPORTED_TIMESTAMP_FORMATS = (
         "%Y%m%d %H:%M:%S.%f",
@@ -447,7 +447,7 @@ class Archiver:
             'team': self.team if self.team else 'No team',
             'name': name,
             }
-        series_id = self.db.insert_and_return_id('test_series', data, ['team', 'name'])
+        series_id = self.db.return_id_or_insert_and_return_id('test_series', data, ['team', 'name'])
 
         if not build_number:
             previous_build_number = self.db.max_value('test_series_mapping', 'build_number',
