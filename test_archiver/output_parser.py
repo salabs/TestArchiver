@@ -38,6 +38,7 @@ class RobotFrameworkOutputParser(XmlOutputParser):
 
     def __init__(self, archiver):
         super(RobotFrameworkOutputParser, self).__init__(archiver)
+        self.archiver.test_type = "Robot Framework"
 
     def startElement(self, name, attrs):
         if name in RobotFrameworkOutputParser.EXCLUDED_SECTIONS:
@@ -692,11 +693,16 @@ if __name__ == '__main__':
                         help='Disable the default behavior to require ssl from the target database.')
     parser.add_argument('--format', help='output format (default: robotframework)', default='robotframework',
                         choices=SUPPORTED_OUTPUT_FORMATS, type=str.lower)
+    parser.add_argument('--repository', default=None,
+                        help=('The repository of the test cases. Used to differentiate between test with same '
+                              'name in different projects.'))
     parser.add_argument('--team', help='Team name for the test series', default=None)
     parser.add_argument('--series', action='append',
                         help="Name of the testseries (and optionally build number 'SERIES_NAME#BUILD_NUM')")
     parser.add_argument('--metadata', action='append',
                         help="Adds given metadata to the testrun. expected_format 'NAME:VALUE'")
+    parser.add_argument('--change_engine_url', default=None,
+                        help="Starts a listener that feeds results to ChangeEngine")
     args = parser.parse_args()
 
     if args.config_file:
@@ -714,6 +720,10 @@ if __name__ == '__main__':
     config['series'] = args.series
     if args.team:
         config['team'] = args.team
+    if args.repository:
+        config['repository'] = args.repository
+    if args.change_engine_url:
+        config['change_engine_url'] = args.change_engine_url
     metadata = parse_metadata_args(args.metadata)
     if 'metadata' in config:
         config['metadata'].update(metadata)

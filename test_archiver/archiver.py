@@ -3,6 +3,7 @@ from hashlib import sha1
 from datetime import datetime
 
 from database import PostgresqlDatabase, SQLiteDatabase
+from archiver_listeners import ChangeEngineListener
 
 ARCHIVER_VERSION = "0.17.0"
 
@@ -399,6 +400,7 @@ def database_connection(config):
 class Archiver:
     def __init__(self, database_connection, config):
         self.config = config
+        self.test_type = None
         self.additional_metadata = config['metadata'] if 'metadata' in config else {}
         self.test_run_id = None
         self.test_series = {}
@@ -409,6 +411,10 @@ class Archiver:
         self.db = database_connection
         self.stack = []
         self.keyword_statistics = {}
+
+        self.listeners = []
+        if 'change_engine_url' in config:
+            self.listeners.append(ChangeEngineListener(self, config['change_engine_url']))
 
     def current_item(self, expected_type=None):
         item = self.stack[-1] if self.stack else None
@@ -452,6 +458,7 @@ class Archiver:
 
     def begin_test_run(self, archived_using, generated, generator, rpa, dryrun):
         test_run = TestRun(self, archived_using, generated, generator, rpa, dryrun)
+        self.archived_using = archived_using
         self.test_run_id = test_run.id
         self.stack.append(test_run)
 
@@ -476,6 +483,8 @@ class Archiver:
             self.report_keyword_statistics()
 
         self.db._connection.commit()
+        for listener in self.listeners:
+            listener.end_run()
 
     def report_series(self, name, build_id):
         data = {
@@ -523,7 +532,9 @@ class Archiver:
                                                attributes['endtime'])
             self.current_item(Suite).metadata = attributes['metadata']
         self.current_item(Suite).finish()
-        self.stack.pop()
+        suite = self.stack.pop()
+        for listener in self.listeners:
+            listener.suite_result(suite)
 
     def begin_test(self, name, class_name=None):
         self.stack.append(Test(self, name, class_name))
@@ -534,7 +545,9 @@ class Archiver:
                                                attributes['endtime'])
             self.current_item(Test).tags = attributes['tags']
         self.current_item(Test).finish()
-        self.stack.pop()
+        test = self.stack.pop()
+        for listener in self.listeners:
+            listener.test_result(test)
 
     def begin_status(self, status, start_time=None, end_time=None, elapsed=None):
         self.current_item().update_status(status, start_time, end_time, elapsed)

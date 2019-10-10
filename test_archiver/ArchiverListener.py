@@ -8,7 +8,6 @@ class ArchiverListener:
                  db_engine=None, user=None, pw=None, host=None, port=5432):
         if not db_engine:
             config = read_config_file(config_file_or_database)
-            #db_engine = config['db_engine'] if 'db_engine' in config else db_engine
         else:
             config = {
                 'database': config_file_or_database,
@@ -20,6 +19,7 @@ class ArchiverListener:
             }
         database = database_connection(config)
         self.archiver = Archiver(database, config)
+        self.archiver.test_type = "Robot Framework"
         self.rpa = False
         self.dry_run = False
         self.generator = None
