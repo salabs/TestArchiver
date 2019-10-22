@@ -172,14 +172,14 @@ Valid suite result object
     String          ${path}.repository
 
     Integer         ${path}.test_run_id
-    String          ${path}.status          FAIL  PASS
-    # String          ${path}.execution_status
+    String          ${path}.status
+    String          ${path}.execution_status
     # String          ${path}.setup_status
     # String          ${path}.teardown_status
 
     String          ${path}.fingerprint
     # String          ${path}.setup_fingerprint
-    # String          ${path}.execution_fingerprint
+    String          ${path}.execution_fingerprint
     # String          ${path}.teardown_fingerprint
 
     #Run keyword if  ${detailed}  Valid keyword tree object  ${path}.setup
@@ -210,9 +210,9 @@ Valid test result object
 
     Integer         ${path}.test_run_id
     String          ${path}.status          FAIL  PASS
-    String          ${path}.execution_status
-    String          ${path}.setup_status
-    String          ${path}.teardown_status
+    Run keyword if  ${detailed}  String  ${path}.execution_status
+    Run keyword if  ${detailed}  String  ${path}.setup_status
+    Run keyword if  ${detailed}  String  ${path}.teardown_status
 
     String          ${path}.fingerprint
     Run keyword if  ${detailed}  String  ${path}.setup_fingerprint
