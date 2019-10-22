@@ -196,7 +196,8 @@ class FingerprintedItem(TestItem):
 class TestRun(FingerprintedItem):
     def __init__(self, archiver, archived_using, generated, generator, rpa, dryrun):
         super(TestRun, self).__init__(archiver, '')
-        data = {'archived_using': archived_using + ARCHIVER_VERSION,
+        data = {'archived_using': archived_using,
+                'archiver_version': ARCHIVER_VERSION,
                 'generated': generated,
                 'generator': generator,
                 'rpa': rpa,
@@ -335,8 +336,8 @@ class Keyword(FingerprintedItem):
             stat_object = self.archiver.keyword_statistics[self.fingerprint]
             stat_object['calls'] += 1
             if self.elapsed_time:
-                stat_object['max_exection_time'] = max(stat_object['max_exection_time'], self.elapsed_time)
-                stat_object['min_exection_time'] = min(stat_object['min_exection_time'], self.elapsed_time)
+                stat_object['max_execution_time'] = max(stat_object['max_execution_time'], self.elapsed_time)
+                stat_object['min_execution_time'] = min(stat_object['min_execution_time'], self.elapsed_time)
                 stat_object['cumulative_execution_time'] += self.elapsed_time
             stat_object['max_call_depth'] = max(stat_object['max_call_depth'], self.kw_call_depth)
         else:
@@ -344,8 +345,8 @@ class Keyword(FingerprintedItem):
                 'fingerprint': self.fingerprint,
                 'test_run_id': self.test_run_id(),
                 'calls': 1,
-                'max_exection_time': self.elapsed_time,
-                'min_exection_time': self.elapsed_time,
+                'max_execution_time': self.elapsed_time,
+                'min_execution_time': self.elapsed_time,
                 'cumulative_execution_time': self.elapsed_time,
                 'max_call_depth': self.kw_call_depth,
                 }
