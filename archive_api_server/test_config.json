@@ -1,0 +1,7 @@
+{
+    "port": 8888,
+    "db_name": "fixture_archive",
+    "db_host": "localhost",
+    "db_user": "robot",
+    "db_password": "robot"
+ }

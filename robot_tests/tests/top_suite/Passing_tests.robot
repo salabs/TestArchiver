@@ -13,5 +13,6 @@ Use library
 Set things up, do something and then tear down
     [Setup]     Do nothing twice
     [Teardown]  Do nothing twice
+    Log  Doing nothing
     Do nothing twice
     Do nothing twice
