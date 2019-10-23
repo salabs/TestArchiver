@@ -42,13 +42,17 @@ There are meta data that are useful to add with the results. Some testing framew
 `--metadata NAME:VALUE`
 
 ## Test series and teams
-In the data model, each test result file is represented as single test run. These test runs can also be linked and organized into builds in in different result series. Depending on the situation the series can be e.g. CI build jobs or different branches. By default if no series is specified the results are linked to a default series with autoincrementing build numbers. Different test runs (from different testing frameworks or parallel executions) that belong together can be organized into the same build. Different test series are additionally organized by team.
+In the data model, each test result file is represented as single test run. These test runs are linked and organized into builds in in different result series. Depending on the situation the series can be e.g. CI build jobs or different branches. By default if no series is specified the results are linked to a default series with autoincrementing build numbers. Different test runs (from different testing frameworks or parallel executions) that belong together can be organized into the same build. Different test series are additionally organized by team. Series name and build number/id are separated by `#`.
 
 Some examples using the `--series` and `--team` options of `output_parser.py`
 * `--series ${JENKINS_JOB_NAME}#${BUILD_NUMBER}`
-* `--series €{CURRENT_BRANCH}#${BUILD_ID} --team Team-A`
+* `--series "UI tests"#<commit hash>`
+* `--series ${CURRENT_BRANCH}#${BUILD_ID} --team Team-A`
 * `--series manually_run`
 
-The build number can me omitted when not available. Then the build number will be autoincremented for the particular series. If the tests are executed in a CI environment the build numbers are an excellent way to link the archived results to the actual builds.
+
+Each build will have a build number in the series. If the build number is specified then that number is used. If the build number/id is omitted then the build number will be checked from the previous build in that series and incremented. If the build number/id is not a number it is considered a build identifier string. If that id is new to the series the build number is incremented just as if it no build number was specified. If the same build id is found in the same test series then the results are added under that same previously archived build.
+
+If the tests are executed in a CI environment the build number/id is an excellent way to link the archived results to the actual builds.
 
 The series can also be indicated using metadata. Any metadata with name prefixed with `series` are interpreted as series information. This is especially useful when using listeners. For example when using Robot Framework metadata `--metadata team:A-Team --metadata series:JENKINS_JOB_NAME#BUILD_NUMBER`

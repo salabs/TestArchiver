@@ -43,5 +43,5 @@ do
 
   python3 test_archiver/output_parser.py robot_tests/run${RUN}/output.xml \
           --database ${DB_NAME} --user ${DB_USER} --dbengine postgresql \
-          --team "TestArchiver" --series Fixture#${RUN} --series "Parser"
+          --team "TestArchiver" --series "Fixture tests"#${RUN} --series "Parser"
 done
