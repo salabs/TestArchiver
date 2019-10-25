@@ -75,6 +75,7 @@ Tests usually consist of steps that can consist of substeps that form a tree str
 - status
 - arguments
 - fingerprints for sub keywords called
+
 How the fingerprints are calculated for other frameworks depends on what data of the substeps is available. For many frameworks there are no substeps reported when the test cases passes but when failures occur the fingerprint of that error is usually used.
 
 The fingerprints can be used to compare executions of test cases. When the fingerprints differ between two consecutive executions of the same test case we can infer that the execution of the test case changed some how. On the other if two executions of a test case fail with the same fingerprint, the test encountered a similar problem (possibly the same issue).
@@ -88,8 +89,8 @@ The fixture tests are used to generate test data for the archiver and the same t
 Fixture test set is executed 10 times. Once using the Robot Listener and then 9 times using the parser.
 
 | Series name | Fixture | Robot listener | Parser | All builds |
-| Test run/build number |  |  |  |  |
 | --- | --- | --- | --- | --- |
+| **Test run/build number** |  |  |  |  |
 | Run1 | 1 | 1 | - | 1 |
 | Run2 | 2 | - | 1 | 2 |
 | Run3 | 3 | - | 2 | 3 |
