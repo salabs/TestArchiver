@@ -30,16 +30,16 @@ robot --listener ArchiverListener:${DB_NAME}:postgresql:${DB_USER}:${DB_PASSWORD
       --metadata team:"TestArchiver" \
       --metadata series:"Robot listener" \
       --metadata series2:Fixture#1 \
-      robot_tests
+      robot_tests/tests
 
 for RUN in 2 3 4 5 6 7 8 9 10
 do
   echo "----------------------------------------"
-  echo " Run robot tests and and archive with parser (${RUN}/4)"
+  echo " Run robot tests and and archive with parser (${RUN}/10)"
   echo "----------------------------------------"
   robot --pythonpath ${PYTHONPATH} ${EXCLUDE_SLEEP} \
         --outputdir robot_tests/run${RUN} \
-        robot_tests
+        robot_tests/tests
 
   python3 test_archiver/output_parser.py robot_tests/run${RUN}/output.xml \
           --database ${DB_NAME} --user ${DB_USER} --dbengine postgresql \
