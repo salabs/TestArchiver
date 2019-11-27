@@ -3,15 +3,7 @@ import os.path
 import sys
 import xml.sax
 
-from archiver import Archiver, read_config_file, ARCHIVED_LOG_LEVELS
-
-SUPPORTED_OUTPUT_FORMATS = (
-        'robot', 'robotframework',
-        'xunit',
-        'junit',
-        'mocha-junit',
-        'mstest',
-    )
+from archiver import Archiver, read_config_file, ARCHIVED_LOG_LEVELS, database_connection
 
 DEFAULT_SUITE_NAME = 'Unnamed suite'
 
@@ -295,7 +287,6 @@ class JUnitOutputParser(XmlOutputParser):
         self._current_content = []
 
 
-
 class MochaJUnitOutputParser(XmlOutputParser):
     def __init__(self, archiver):
         super(MochaJUnitOutputParser, self).__init__(archiver)
@@ -493,21 +484,24 @@ class MSTestOutputParser(XmlOutputParser):
         self._current_content = []
 
 
-def parse_xml(xml_file, output_format, db_engine, config):
+SUPPORTED_OUTPUT_FORMATS = {
+    'robot': RobotFrameworkOutputParser,
+    'robotframework': RobotFrameworkOutputParser,
+    'xunit': XUnitOutputParser,
+    'junit': JUnitOutputParser,
+    'mocha-junit': MochaJUnitOutputParser,
+    'mstest': MSTestOutputParser,
+}
+
+
+def parse_xml(xml_file, output_format, connection, config):
+    output_format = output_format.lower()
     if not os.path.exists(xml_file):
         sys.exit('Could not find input file: ' + xml_file)
     BUFFER_SIZE = 65536
-    archiver = Archiver(db_engine, config)
-    if output_format.lower() in ('rf', 'robot', 'robotframework'):
-        handler = RobotFrameworkOutputParser(archiver)
-    elif output_format.lower() == 'xunit':
-        handler = XUnitOutputParser(archiver)
-    elif output_format.lower() == 'junit':
-        handler = JUnitOutputParser(archiver)
-    elif output_format.lower() == 'mocha-junit':
-        handler = MochaJUnitOutputParser(archiver)
-    elif output_format.lower() == 'mstest':
-        handler = MSTestOutputParser(archiver)
+    archiver = Archiver(connection, config)
+    if output_format in SUPPORTED_OUTPUT_FORMATS:
+        handler = SUPPORTED_OUTPUT_FORMATS[output_format](archiver)
     else:
         raise Exception("Unsupported report format '{}'".format(output_format))
     parser = xml.sax.make_parser()
@@ -549,6 +543,8 @@ if __name__ == '__main__':
     parser.add_argument('--user', help='database user')
     parser.add_argument('--pw', '--password', help='database password')
     parser.add_argument('--port', help='database port (default: 5432)', default=5432, type=int)
+    parser.add_argument('--dont-require-ssl', action='store_true', type=bool,
+                        help='Disable the default behavior to require ssl from the target database.')
     parser.add_argument('--format', help='output format (default: robotframework)', default='robotframework',
                         choices=SUPPORTED_OUTPUT_FORMATS, type=str.lower)
     parser.add_argument('--team', help='Team name for the test series', default=None)
@@ -560,15 +556,14 @@ if __name__ == '__main__':
 
     if args.config_file:
         config = read_config_file(args.config_file)
-        db_engine = config['db_engine']
     else:
-        db_engine = args.dbengine
         config = {
             'database': args.database,
             'user': args.user,
             'password': args.pw,
             'host': args.host,
             'port': args.port,
+            'require_ssl': False if args.dont_require_ssl else True
             }
     config['series'] = args.series
     if args.team:
@@ -581,6 +576,8 @@ if __name__ == '__main__':
     if len(args.output_files) > 1:
         config['multirun'] = {}
 
+    connection = database_connection(config)
+
     for output_file in args.output_files:
         print("Parsing: '{}'".format(output_file))
-        parse_xml(output_file, args.format, db_engine, config)
+        parse_xml(output_file, args.format, connection, config)

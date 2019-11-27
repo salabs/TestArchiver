@@ -8,6 +8,20 @@ DB_USER="robot"
 DB_PASSWORD="robot"
 DB_HOST="localhost"
 DB_PORT=5432
+REQUIRE_SSL=false
+
+cat << EOF > fixture_config.json
+{
+    "db_engine": "postgresql",
+    "database": "${DB_NAME}",
+    "host": "${DB_HOST}",
+    "port": "${DB_PORT}",
+    "user": "${DB_USER}",
+    "password": "${DB_PASSWORD}",
+    "require_ssl": ${REQUIRE_SSL}
+}
+EOF
+
 
 PYTHONPATH="robot_tests/libraries:robot_tests/resources:test_archiver"
 
@@ -24,7 +38,7 @@ echo "----------------------------------------"
 echo " First archive one round of robot tests with a listener"
 echo "----------------------------------------"
 
-robot --listener ArchiverListener:${DB_NAME}:postgresql:${DB_USER}:${DB_PASSWORD}:${DB_HOST}:${DB_PORT} \
+robot --listener ArchiverListener:fixture_config.json \
       --pythonpath ${PYTHONPATH} ${EXCLUDE_SLEEP} \
       --outputdir robot_tests/run1 \
       --metadata team:"TestArchiver" \
@@ -42,6 +56,6 @@ do
         robot_tests/tests
 
   python3 test_archiver/output_parser.py robot_tests/run${RUN}/output.xml \
-          --database ${DB_NAME} --user ${DB_USER} --dbengine postgresql \
-          --team "TestArchiver" --series "Fixture tests"#${RUN} --series "Parser"
+          --config fixture_config.json \
+          --team "TestArchiver" --series "Fixture"#${RUN} --series "Parser"
 done

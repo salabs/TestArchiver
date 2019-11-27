@@ -4,7 +4,7 @@ from datetime import datetime
 
 from database import PostgresqlDatabase, SQLiteDatabase
 
-ARCHIVER_VERSION = "0.15.0"
+ARCHIVER_VERSION = "0.16.0"
 
 SUPPORTED_TIMESTAMP_FORMATS = (
         "%Y%m%d %H:%M:%S.%f",
@@ -369,9 +369,22 @@ class LogMessage(TestItem):
                     'suite_id': self.parent_suite().id}
             self.id = self.archiver.db.insert('log_message', data)
 
+def database_connection(config):
+    if config['db_engine'] in ('postgresql', 'postgres'):
+        return PostgresqlDatabase(config['database'],
+                                  config['host'],
+                                  config['port'],
+                                  config['user'],
+                                  config['password'],
+                                  config['require_ssl'] if 'require_ssl' in config else True)
+    elif config['db_engine'] in ('sqlite', 'sqlite3'):
+        return SQLiteDatabase(config['database'])
+    raise Exception("Unsupported database type '{}'".format(db_engine))
+
+
 
 class Archiver:
-    def __init__(self, db_engine, config):
+    def __init__(self, database_connection, config):
         self.config = config
         self.additional_metadata = config['metadata'] if 'metadata' in config else {}
         self.test_run_id = None
@@ -380,23 +393,9 @@ class Archiver:
         self.series = config['series'] if 'series' in config else []
         self.repository = config['repository'] if 'repository' in config else 'default repo'
         self.output_from_dryrun = False
-        self.db = self._db(db_engine)
+        self.db = database_connection
         self.stack = []
         self.keyword_statistics = {}
-
-    def _db(self, db_engine):
-        if db_engine in ('postgresql', 'postgres'):
-            return PostgresqlDatabase(
-                self.config['database'],
-                self.config['host'],
-                self.config['port'],
-                self.config['user'],
-                self.config['password'],
-                )
-        elif db_engine in ('sqlite', 'sqlite3'):
-            return SQLiteDatabase(self.config['database'])
-        else:
-            raise Exception("Unsupported database type '{}'".format(db_engine))
 
     def _current_item(self, expected_type=None):
         item = self.stack[-1] if self.stack else None

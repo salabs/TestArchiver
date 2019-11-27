@@ -2,12 +2,13 @@ import os
 
 
 class Database:
-    def __init__(self, db_name, db_host, db_port, db_user, db_password):
+    def __init__(self, db_name, db_host=None, db_port=None, db_user=None, db_password=None, require_ssl=True):
         self.database = db_name
         self.host = db_host
         self.port = db_port
         self.user = db_user
         self.password = db_password
+        self.require_ssl = require_ssl
         self._connection = None
         self._connect()
 
@@ -74,7 +75,7 @@ class PostgresqlDatabase(Database):
             database=self.database,
             user=self.user,
             password=self.password,
-            sslmode='require',
+            sslmode='require' if self.require_ssl else 'prefer',
         )
         try:
             self._execute('SELECT 1 FROM keyword_statistics;')
@@ -196,7 +197,7 @@ class PostgresqlDatabase(Database):
 class SQLiteDatabase(Database):
 
     def __init__(self, db_name):
-        super(SQLiteDatabase, self).__init__(db_name, None, None, None, None)
+        super(SQLiteDatabase, self).__init__(db_name)
 
     def _connect(self):
         import sqlite3
