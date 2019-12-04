@@ -113,7 +113,7 @@ class RobotFrameworkOutputParser(XmlOutputParser):
         elif name == 'timeout':
             pass
         elif name == 'tag':
-            if self.archiver._current_item()._item_type() == 'test':
+            if self.archiver.current_item_is_test():
                 self.archiver.update_tags(self.content())
         elif name == 'item':  # metadata item
             self.archiver.end_metadata(self.content())
@@ -293,7 +293,7 @@ class MochaJUnitOutputParser(XmlOutputParser):
         self.in_setup_or_teardown = False
 
     def _end_previous_test(self):
-        if self.archiver._current_item()._item_type() == 'test':
+        if self.archiver.current_item_is_test():
             self.archiver.end_test()
 
     def _end_suite(self):
@@ -376,7 +376,7 @@ class MochaJUnitOutputParser(XmlOutputParser):
 
     def endElement(self, name):
         if name == 'testsuites':
-            while self.archiver._current_item()._item_type() == 'suite':
+            while self.archiver.current_item_is_suite():
                 self._end_suite()
         elif name == 'testsuite':
             self._end_previous_test()
@@ -406,6 +406,151 @@ class MochaJUnitOutputParser(XmlOutputParser):
         self._current_content = []
 
 
+class PytestJUnitOutputParser(XmlOutputParser):
+    def __init__(self, archiver):
+        super(PytestJUnitOutputParser, self).__init__(archiver)
+        self.in_setup_or_teardown = False
+        self._current_class_name = None
+        self._current_test_name = None
+
+    def _report_test_run(self):
+        self.archiver.begin_test_run('pytest JUnit parser', None, 'pytest', False, None)
+
+    def _handle_suites_from_class_name(self, class_name):
+        next_suite_stack = class_name.split('.')
+        current_suites = self.archiver.current_suites()
+        next_suite_stack.insert(0, current_suites[0].name)
+        last_common_suite = current_suites[0]
+        common_suites = 0
+        for i in range(len(current_suites)):
+            if i >= len(next_suite_stack) or current_suites[i].name != next_suite_stack[i]:
+                break
+            common_suites += 1
+        for i in range(common_suites, len(current_suites)):
+            self.archiver.end_suite()
+        for i in range(common_suites, len(next_suite_stack)):
+            self.archiver.begin_suite(next_suite_stack[i])
+
+    def _parse_error_to_keyword(self, error, log_level='ERROR'):
+        if ':' in error:
+            exception, message = error.split(': ', 1)
+            self.archiver.begin_keyword(exception, 'python', 'kw', [message])
+            self.archiver.update_status('FAIL')
+        elif error == 'test setup failure':
+            self.archiver.keyword('failed by class setUp', 'python', 'kw', 'FAIL')
+            self.archiver.end_test()
+            if self.archiver.current_suite().setup_status == None:
+                self.archiver.begin_keyword('setUpClass', 'python', 'setup')
+                self.archiver.update_status('FAIL')
+                self.in_setup_or_teardown = True
+        elif error == 'test teardown failure':
+            self.in_setup_or_teardown = True
+        else:
+            self.archiver.log_message(log_level, error)
+
+    def _detect_test_setup_or_teardown_from_stack_trace(self, trace):
+        if 'def tearDown(self' in trace:
+            self.archiver.keyword('test', 'python', 'teardown', 'FAIL')
+        elif 'def tearDownClass(cls' in trace:
+            self.archiver.end_test()
+            self.archiver.keyword('tearDownClass', 'python', 'teardown', 'FAIL')
+        elif 'def setUp(self' in trace:
+            keyword = self.archiver.current_keyword()
+            keyword.kw_type = 'setup'
+            self.archiver.end_keyword()
+
+    def _begin_new_test(self, class_name, test_name):
+        self._handle_suites_from_class_name(class_name)
+        self._current_class_name = class_name
+        self.archiver.begin_test(test_name)
+        self._current_test_name = test_name
+
+    def startElement(self, name, attrs):
+        if name in []:
+            self.excluding = True
+        elif self.excluding:
+            self.skipping_content = True
+        elif name == 'testsuites':
+            pass
+        elif name == 'testsuite':
+            self._report_test_run()
+            suite_name = attrs.getValue('name') if 'name' in attrs.getNames() else DEFAULT_SUITE_NAME
+            self.archiver.begin_suite(suite_name)
+            errors = int(attrs.getValue('errors')) if 'errors' in attrs.getNames() else 0
+            failures = int(attrs.getValue('failures')) if 'failures' in attrs.getNames() else 0
+            suite_status = 'PASS' if errors + failures == 0 else 'FAIL'
+            elapsed = int(float(attrs.getValue('time'))*1000) if 'time' in attrs.getNames() else None
+            timestamp = attrs.getValue('timestamp') if 'timestamp' in attrs.getNames() else None
+            self.archiver.begin_status(suite_status, start_time=timestamp, elapsed=elapsed)
+        elif name == 'testcase':
+            class_name = attrs.getValue('classname')
+            test_name = attrs.getValue('name')
+            print('-----', class_name, test_name)
+            if self.archiver.current_item_is_test():
+                current_test = self.archiver.current_item()
+                if class_name != self._current_class_name or current_test.name != test_name:
+                    self.archiver.end_test()
+                    self._begin_new_test(class_name, test_name)
+            else:
+                self._begin_new_test(class_name, test_name)
+            elapsed = int(float(attrs.getValue('time'))*1000)
+            status = attrs.getValue('status') if 'status' in attrs.getNames() else 'PASS'
+            self.archiver.begin_status('PASS', elapsed=elapsed)
+        elif name == 'failure':
+            self.archiver.update_status('FAIL')
+            self._parse_error_to_keyword(attrs.getValue('message'), 'FAIL')
+        elif name == 'error':
+            self.archiver.update_status('FAIL')
+            self._parse_error_to_keyword(attrs.getValue('message'), 'ERROR')
+        elif name == 'skipped':
+            self.archiver.update_status('SKIPPED')
+            if 'message' in attrs.getNames():
+                self.archiver.log_message('INFO', attrs.getValue('message'))
+        elif name in ('system-out', 'system-err'):
+            pass
+        elif name == 'properties':
+            pass
+        elif name == 'property':
+            self.archiver.metadata(attrs.getValue('name'), attrs.getValue('value'))
+        else:
+            print("WARNING: begin unknown item '{}'".format(name))
+
+    def endElement(self, name):
+        if name in []:
+            self.excluding = False
+        elif self.excluding:
+            self.skipping_content = False
+        elif name == 'testsuites':
+            pass
+        elif name == 'testsuite':
+            if self.archiver.current_item_is_test():
+                self.archiver.end_test()
+            while self.archiver.current_suite():
+                self.archiver.end_suite()
+        elif name == 'testcase':
+            while self.archiver.current_item_is_keyword():
+                self.archiver.end_keyword()
+        elif name == 'failure':
+            content = self.content()
+            self._detect_test_setup_or_teardown_from_stack_trace(content)
+            self.archiver.log_message('FAIL', content)
+        elif name == 'error':
+            content = self.content()
+            self._detect_test_setup_or_teardown_from_stack_trace(content)
+            self.archiver.log_message('ERROR', content)
+        elif name == 'system-out':
+            self.archiver.log_message('INFO', self.content())
+        elif name == 'system-err':
+            self.archiver.log_message('ERROR', self.content())
+        elif name in ('properties', 'property'):
+            pass
+        elif name == 'skipped':
+            self.archiver.log_message('INFO', self.content())
+        else:
+            print("WARNING: ending unknown item '{}'".format(name))
+        self._current_content = []
+
+
 class MSTestOutputParser(XmlOutputParser):
     # Currently only inital support for unittests
 
@@ -419,7 +564,7 @@ class MSTestOutputParser(XmlOutputParser):
         super(MSTestOutputParser, self).__init__(archiver)
 
     def _report_test_run(self):
-        self.archiver.begin_test_run('JUnit parser', None, 'JUnit', False, None)
+        self.archiver.begin_test_run('MSTest parser', None, 'MSTest', False, None)
 
     def _sanitise_timestamp_format(self, timestamp):
         # MSTest output timestamps use 7 digits for second fractions while python
@@ -490,6 +635,7 @@ SUPPORTED_OUTPUT_FORMATS = {
     'xunit': XUnitOutputParser,
     'junit': JUnitOutputParser,
     'mocha-junit': MochaJUnitOutputParser,
+    'pytest-junit': PytestJUnitOutputParser,
     'mstest': MSTestOutputParser,
 }
 

@@ -4,7 +4,7 @@ from datetime import datetime
 
 from database import PostgresqlDatabase, SQLiteDatabase
 
-ARCHIVER_VERSION = "0.16.0"
+ARCHIVER_VERSION = "0.17.0"
 
 SUPPORTED_TIMESTAMP_FORMATS = (
         "%Y%m%d %H:%M:%S.%f",
@@ -45,18 +45,15 @@ class TestItem:
     def __init__(self, archiver):
         self.archiver = archiver
 
-    def _item_type(self):
-        raise NotImplementedError()
-
     def parent_suite(self):
         for item in reversed(self.archiver.stack):
-            if item._item_type() == 'suite':
+            if isinstance(item, Suite):
                 return item
         return None
 
     def parent_test(self):
         for item in reversed(self.archiver.stack):
-            if item._item_type() == 'test':
+            if isinstance(item, Test):
                 return item
         return None
 
@@ -106,6 +103,7 @@ class FingerprintedItem(TestItem):
         self.child_suite_ids = []
 
         self.subtree_fingerprints = []
+        self.subtree_statuses = []
         self.fingerprint = None
         self.setup_fingerprint = None
         self.execution_fingerprint = None
@@ -129,8 +127,12 @@ class FingerprintedItem(TestItem):
         return self.full_name
 
     def finish(self):
+        self.handle_child_statuses()
         if not self.status:
-            self.status = self.execution_status
+            if self.execution_status:
+                self.status = self.execution_status
+            else:
+                self.status = 'PASS'
         if not self.elapsed_time:
             self.elapsed_time = (self.elapsed_time_setup if self.elapsed_time_setup else 0
                                  + self.elapsed_time_execution if self.elapsed_time_execution else 0
@@ -155,6 +157,17 @@ class FingerprintedItem(TestItem):
         fingerprint.update(str(self.arguments).encode('utf-8'))
         self.fingerprint = fingerprint.hexdigest()
 
+    def handle_child_statuses(self):
+        if self.subtree_statuses:
+            if 'FAIL' in self.subtree_statuses:
+                # Single child failure will fail the execution
+                self.execution_status = 'FAIL'
+            elif 'PASS' in self.subtree_statuses:
+                # Single passing child execution and item is not considered to be skipped
+                self.execution_status = 'PASS'
+            else:
+                self.execution_status = 'SKIPPED'
+
     def propagate_fingerprints_status_and_elapsed_time(self):
         if self.kw_type == 'setup':
             self.parent_item.setup_fingerprint = self.fingerprint
@@ -167,8 +180,7 @@ class FingerprintedItem(TestItem):
         else:
             if self.parent_item:
                 self.parent_item.subtree_fingerprints.append(self.fingerprint)
-                if self.parent_item.execution_status != 'FAIL':
-                    self.parent_item.execution_status = self.status
+                self.parent_item.subtree_statuses.append(self.status)
                 if self.elapsed_time:
                     if self.parent_item.elapsed_time_execution:
                         self.parent_item.elapsed_time_execution += self.elapsed_time
@@ -210,9 +222,6 @@ class TestRun(FingerprintedItem):
                 'dryrun': dryrun}
         self.id = self.archiver.db.insert_and_return_id('test_run', data)
 
-    def _item_type(self):
-        return 'test_run'
-
 
 class Suite(FingerprintedItem):
     def __init__(self, archiver, name, repository):
@@ -220,9 +229,6 @@ class Suite(FingerprintedItem):
         data = {'full_name': self.full_name, 'name': name, 'repository': repository}
         self.id = self.archiver.db.return_id_or_insert_and_return_id('suite', data,
                                                                      ['repository', 'full_name'])
-
-    def _item_type(self):
-        return "suite"
 
     def insert_results(self):
         data = {'suite_id': self.id, 'test_run_id': self.test_run_id()}
@@ -242,7 +248,7 @@ class Suite(FingerprintedItem):
 
     def insert_metadata(self):
         # If the top suite add/override metadata with metadata given to archiver
-        if self.parent_item._item_type() == 'test_run' and self.archiver.additional_metadata:
+        if isinstance(self.parent_item, TestRun) and self.archiver.additional_metadata:
             for name in self.archiver.additional_metadata:
                 self.metadata[name] = self.archiver.additional_metadata[name]
         for name in self.metadata:
@@ -266,9 +272,6 @@ class Test(FingerprintedItem):
         data = {'full_name': self.full_name, 'name': name, 'suite_id': self.parent_item.id}
         self.id = self.archiver.db.return_id_or_insert_and_return_id('test_case', data,
                                                                      ['suite_id', 'full_name'])
-
-    def _item_type(self):
-        return "test"
 
     def insert_results(self):
         if self.id not in self.parent_item.child_test_ids:
@@ -311,9 +314,6 @@ class Keyword(FingerprintedItem):
         self.kw_call_depth = self.parent_item.kw_call_depth + 1
         if arguments:
             self.arguments.extend(arguments)
-
-    def _item_type(self):
-        return "keyword"
 
     def insert_results(self):
         if self.kw_type == 'teardown' and self.status == 'FAIL':
@@ -374,9 +374,6 @@ class LogMessage(TestItem):
         self.log_level = log_level
         self.timestamp = timestamp
 
-    def _item_type(self):
-        return "log_message"
-
     def insert(self, content):
         if self.log_level in ARCHIVED_LOG_LEVELS:
             data = {'test_run_id': self.test_run_id(), 'timestamp': self.timestamp,
@@ -413,23 +410,45 @@ class Archiver:
         self.stack = []
         self.keyword_statistics = {}
 
-    def _current_item(self, expected_type=None):
+    def current_item(self, expected_type=None):
         item = self.stack[-1] if self.stack else None
         if expected_type:
-            if item._item_type() != expected_type:
+            if not isinstance(item, expected_type):
                 print("PARSING ERROR - printing current stack:")
                 for item in self.stack:
-                    print(item._item_type())
+                    print(item.__class__.__name__)
                 raise Exception("Expected to end '{}' but '{}' currently in stack".format(
                     expected_type,
-                    item._item_type()),
+                    item.__class__.__name__),
                     )
         return item
 
+    def current_item_is_keyword(self):
+        if isinstance(self.current_item(), Keyword):
+            return True
+        return False
+
+    def current_item_is_test(self):
+        if isinstance(self.current_item(), Test):
+            return True
+        return False
+
+    def current_item_is_suite(self):
+        if isinstance(self.current_item(), Suite):
+            return True
+        return False
+
     def current_suite(self):
-        if self._current_item():
-            return self._current_item().parent_suite()
+        if self.current_item():
+            return self.current_item().parent_suite()
         return None
+
+    def current_suites(self):
+        return [item for item in self.stack if isinstance(item, Suite)]
+
+    def current_keyword(self):
+        keyword = self.current_item(Keyword)
+        return keyword
 
     def begin_test_run(self, archived_using, generated, generator, rpa, dryrun):
         test_run = TestRun(self, archived_using, generated, generator, rpa, dryrun)
@@ -500,35 +519,38 @@ class Archiver:
 
     def end_suite(self, attributes=None):
         if attributes:
-            self._current_item('suite').update_status(attributes['status'], attributes['starttime'],
+            self.current_item(Suite).update_status(attributes['status'], attributes['starttime'],
                                                attributes['endtime'])
-            self._current_item('suite').metadata = attributes['metadata']
-        self.stack.pop().finish()
+            self.current_item(Suite).metadata = attributes['metadata']
+        self.current_item(Suite).finish()
+        self.stack.pop()
 
     def begin_test(self, name, class_name=None):
         self.stack.append(Test(self, name, class_name))
 
     def end_test(self, attributes=None):
         if attributes:
-            self._current_item('test').update_status(attributes['status'], attributes['starttime'],
+            self.current_item(Test).update_status(attributes['status'], attributes['starttime'],
                                                attributes['endtime'])
-            self._current_item('test').tags = attributes['tags']
-        self.stack.pop().finish()
+            self.current_item(Test).tags = attributes['tags']
+        self.current_item(Test).finish()
+        self.stack.pop()
 
     def begin_status(self, status, start_time=None, end_time=None, elapsed=None):
-        self._current_item().update_status(status, start_time, end_time, elapsed)
+        self.current_item().update_status(status, start_time, end_time, elapsed)
 
     def update_status(self, status):
-        self._current_item().status = status
+        self.current_item().status = status
 
     def begin_keyword(self, name, library, kw_type, arguments=None):
         self.stack.append(Keyword(self, name, library, kw_type.lower(), arguments))
 
     def end_keyword(self, attributes=None):
         if attributes:
-            self._current_item('keyword').update_status(attributes['status'], attributes['starttime'],
+            self.current_item(Keyword).update_status(attributes['status'], attributes['starttime'],
                                                attributes['endtime'])
-        self.stack.pop().finish()
+        self.current_item(Keyword).finish()
+        self.stack.pop()
 
     def keyword(self, name, library, kw_type, status, arguments=None):
         self.begin_keyword(name, library, kw_type, arguments)
@@ -536,20 +558,20 @@ class Archiver:
         self.end_keyword()
 
     def update_arguments(self, argument):
-        self._current_item('keyword').arguments.append(argument)
+        self.current_item(Keyword).arguments.append(argument)
 
     def update_tags(self, tag):
-        self._current_item('test').tags.append(tag)
+        self.current_item(Test).tags.append(tag)
 
     def metadata(self, name, content):
         self.begin_metadata(name)
         self.end_metadata(content)
 
     def begin_metadata(self, name):
-        self._current_item('suite')._last_metadata_name = name
+        self.current_item(Suite)._last_metadata_name = name
 
     def end_metadata(self, content):
-        self._current_item('suite').metadata[self._current_item()._last_metadata_name] = content
+        self.current_item(Suite).metadata[self.current_item()._last_metadata_name] = content
 
     def log_message(self, level, content, timestamp=None):
         self.begin_log_message(level, timestamp)
@@ -559,7 +581,7 @@ class Archiver:
         self.stack.append(LogMessage(self, level, timestamp))
 
     def end_log_message(self, content):
-        self._current_item('log_message').insert(content)
+        self.current_item(LogMessage).insert(content)
         self.stack.pop()
 
     def report_keyword_statistics(self):
