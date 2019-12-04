@@ -1,6 +1,8 @@
 *** Settings ***
-Library           String
-Force tags        loops
+Library         String
+Force tags      loops
+Test setup      Log  foo
+Test teardown   Log  foo
 
 *** Test Cases ***
 For-Loop-In-Range

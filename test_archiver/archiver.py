@@ -129,6 +129,12 @@ class FingerprintedItem(TestItem):
         return self.full_name
 
     def finish(self):
+        if not self.status:
+            self.status = self.execution_status
+        if not self.elapsed_time:
+            self.elapsed_time = (self.elapsed_time_setup if self.elapsed_time_setup else 0
+                                 + self.elapsed_time_execution if self.elapsed_time_execution else 0
+                                 + self.elapsed_time_teardown if self.elapsed_time_teardown else 0)
         self.calculate_fingerprints()
         self.propagate_fingerprints_status_and_elapsed_time()
         self.insert_results()
@@ -336,9 +342,19 @@ class Keyword(FingerprintedItem):
             stat_object = self.archiver.keyword_statistics[self.fingerprint]
             stat_object['calls'] += 1
             if self.elapsed_time:
-                stat_object['max_execution_time'] = max(stat_object['max_execution_time'], self.elapsed_time)
-                stat_object['min_execution_time'] = min(stat_object['min_execution_time'], self.elapsed_time)
-                stat_object['cumulative_execution_time'] += self.elapsed_time
+                if stat_object['max_execution_time'] == None:
+                    stat_object['max_execution_time'] = self.elapsed_time
+                else:stat_object['max_execution_time'] = max(stat_object['max_execution_time'],
+                                                             self.elapsed_time)
+                if stat_object['min_execution_time'] == None:
+                    stat_object['min_execution_time'] = self.elapsed_time
+                else:
+                    stat_object['min_execution_time'] = min(stat_object['min_execution_time'],
+                                                            self.elapsed_time)
+                if stat_object['cumulative_execution_time'] == None:
+                    stat_object['cumulative_execution_time'] = self.elapsed_time
+                else:
+                    stat_object['cumulative_execution_time'] += self.elapsed_time
             stat_object['max_call_depth'] = max(stat_object['max_call_depth'], self.kw_call_depth)
         else:
             self.archiver.keyword_statistics[self.fingerprint] = {
