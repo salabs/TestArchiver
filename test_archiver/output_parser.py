@@ -563,6 +563,7 @@ if __name__ == '__main__':
             'password': args.pw,
             'host': args.host,
             'port': args.port,
+            'db_engine': args.dbengine,
             'require_ssl': False if args.dont_require_ssl else True
             }
     config['series'] = args.series
