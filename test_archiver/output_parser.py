@@ -543,7 +543,7 @@ if __name__ == '__main__':
     parser.add_argument('--user', help='database user')
     parser.add_argument('--pw', '--password', help='database password')
     parser.add_argument('--port', help='database port (default: 5432)', default=5432, type=int)
-    parser.add_argument('--dont-require-ssl', action='store_true', type=bool,
+    parser.add_argument('--dont-require-ssl', action='store_true',
                         help='Disable the default behavior to require ssl from the target database.')
     parser.add_argument('--format', help='output format (default: robotframework)', default='robotframework',
                         choices=SUPPORTED_OUTPUT_FORMATS, type=str.lower)
