@@ -485,7 +485,6 @@ class PytestJUnitOutputParser(XmlOutputParser):
         elif name == 'testcase':
             class_name = attrs.getValue('classname')
             test_name = attrs.getValue('name')
-            print('-----', class_name, test_name)
             if self.archiver.current_item_is_test():
                 current_test = self.archiver.current_item()
                 if class_name != self._current_class_name or current_test.name != test_name:
