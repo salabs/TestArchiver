@@ -10,6 +10,7 @@ TestArchiver is a tool for archiving your test results to a SQL database.
 | JUnit | Experimental | Missing | junit |
 | xUnit | Experimental | Missing | xunit |
 | MSTest | Experimental | Missing | mstest |
+| pytest | [Supported](pytest/) | Done| pytest-junit |
 
 Contributions for output parsers or listeners for different testing frameworks are appreciated. Contributing a fixture test set (that can be used to generate output files for developing a specific parser) is helpful for any new framework.
 
