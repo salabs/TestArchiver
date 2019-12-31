@@ -4,7 +4,7 @@ from datetime import datetime
 
 from database import PostgresqlDatabase, SQLiteDatabase
 
-ARCHIVER_VERSION = "0.15.0"
+ARCHIVER_VERSION = "0.15.1"
 
 SUPPORTED_TIMESTAMP_FORMATS = (
         "%Y%m%d %H:%M:%S.%f",
