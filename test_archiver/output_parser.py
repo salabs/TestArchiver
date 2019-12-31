@@ -29,7 +29,7 @@ class XmlOutputParser(xml.sax.handler.ContentHandler):
 
     def characters(self, content):
         if not self.skipping_content:
-            if content.strip('\n'):
+            if content:
                 self._current_content.append(content)
 
 
