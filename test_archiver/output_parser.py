@@ -3,15 +3,7 @@ import os.path
 import sys
 import xml.sax
 
-from archiver import Archiver, read_config_file, ARCHIVED_LOG_LEVELS
-
-SUPPORTED_OUTPUT_FORMATS = (
-        'robot', 'robotframework',
-        'xunit',
-        'junit',
-        'mocha-junit',
-        'mstest',
-    )
+from archiver import Archiver, read_config_file, ARCHIVED_LOG_LEVELS, database_connection
 
 DEFAULT_SUITE_NAME = 'Unnamed suite'
 
@@ -46,6 +38,7 @@ class RobotFrameworkOutputParser(XmlOutputParser):
 
     def __init__(self, archiver):
         super(RobotFrameworkOutputParser, self).__init__(archiver)
+        self.archiver.test_type = "Robot Framework"
 
     def startElement(self, name, attrs):
         if name in RobotFrameworkOutputParser.EXCLUDED_SECTIONS:
@@ -121,7 +114,7 @@ class RobotFrameworkOutputParser(XmlOutputParser):
         elif name == 'timeout':
             pass
         elif name == 'tag':
-            if self.archiver._current_item()._item_type() == 'test':
+            if self.archiver.current_item_is_test():
                 self.archiver.update_tags(self.content())
         elif name == 'item':  # metadata item
             self.archiver.end_metadata(self.content())
@@ -295,14 +288,13 @@ class JUnitOutputParser(XmlOutputParser):
         self._current_content = []
 
 
-
 class MochaJUnitOutputParser(XmlOutputParser):
     def __init__(self, archiver):
         super(MochaJUnitOutputParser, self).__init__(archiver)
         self.in_setup_or_teardown = False
 
     def _end_previous_test(self):
-        if self.archiver._current_item()._item_type() == 'test':
+        if self.archiver.current_item_is_test():
             self.archiver.end_test()
 
     def _end_suite(self):
@@ -385,7 +377,7 @@ class MochaJUnitOutputParser(XmlOutputParser):
 
     def endElement(self, name):
         if name == 'testsuites':
-            while self.archiver._current_item()._item_type() == 'suite':
+            while self.archiver.current_item_is_suite():
                 self._end_suite()
         elif name == 'testsuite':
             self._end_previous_test()
@@ -415,6 +407,150 @@ class MochaJUnitOutputParser(XmlOutputParser):
         self._current_content = []
 
 
+class PytestJUnitOutputParser(XmlOutputParser):
+    def __init__(self, archiver):
+        super(PytestJUnitOutputParser, self).__init__(archiver)
+        self.in_setup_or_teardown = False
+        self._current_class_name = None
+        self._current_test_name = None
+
+    def _report_test_run(self):
+        self.archiver.begin_test_run('pytest JUnit parser', None, 'pytest', False, None)
+
+    def _handle_suites_from_class_name(self, class_name):
+        next_suite_stack = class_name.split('.')
+        current_suites = self.archiver.current_suites()
+        next_suite_stack.insert(0, current_suites[0].name)
+        last_common_suite = current_suites[0]
+        common_suites = 0
+        for i in range(len(current_suites)):
+            if i >= len(next_suite_stack) or current_suites[i].name != next_suite_stack[i]:
+                break
+            common_suites += 1
+        for i in range(common_suites, len(current_suites)):
+            self.archiver.end_suite()
+        for i in range(common_suites, len(next_suite_stack)):
+            self.archiver.begin_suite(next_suite_stack[i])
+
+    def _parse_error_to_keyword(self, error, log_level='ERROR'):
+        if ':' in error:
+            exception, message = error.split(': ', 1)
+            self.archiver.begin_keyword(exception, 'python', 'kw', [message])
+            self.archiver.update_status('FAIL')
+        elif error == 'test setup failure':
+            self.archiver.keyword('failed by class setUp', 'python', 'kw', 'FAIL')
+            self.archiver.end_test()
+            if self.archiver.current_suite().setup_status == None:
+                self.archiver.begin_keyword('setUpClass', 'python', 'setup')
+                self.archiver.update_status('FAIL')
+                self.in_setup_or_teardown = True
+        elif error == 'test teardown failure':
+            self.in_setup_or_teardown = True
+        else:
+            self.archiver.log_message(log_level, error)
+
+    def _detect_test_setup_or_teardown_from_stack_trace(self, trace):
+        if 'def tearDown(self' in trace:
+            self.archiver.keyword('test', 'python', 'teardown', 'FAIL')
+        elif 'def tearDownClass(cls' in trace:
+            self.archiver.end_test()
+            self.archiver.keyword('tearDownClass', 'python', 'teardown', 'FAIL')
+        elif 'def setUp(self' in trace:
+            keyword = self.archiver.current_keyword()
+            keyword.kw_type = 'setup'
+            self.archiver.end_keyword()
+
+    def _begin_new_test(self, class_name, test_name):
+        self._handle_suites_from_class_name(class_name)
+        self._current_class_name = class_name
+        self.archiver.begin_test(test_name)
+        self._current_test_name = test_name
+
+    def startElement(self, name, attrs):
+        if name in []:
+            self.excluding = True
+        elif self.excluding:
+            self.skipping_content = True
+        elif name == 'testsuites':
+            pass
+        elif name == 'testsuite':
+            self._report_test_run()
+            suite_name = attrs.getValue('name') if 'name' in attrs.getNames() else DEFAULT_SUITE_NAME
+            self.archiver.begin_suite(suite_name)
+            errors = int(attrs.getValue('errors')) if 'errors' in attrs.getNames() else 0
+            failures = int(attrs.getValue('failures')) if 'failures' in attrs.getNames() else 0
+            suite_status = 'PASS' if errors + failures == 0 else 'FAIL'
+            elapsed = int(float(attrs.getValue('time'))*1000) if 'time' in attrs.getNames() else None
+            timestamp = attrs.getValue('timestamp') if 'timestamp' in attrs.getNames() else None
+            self.archiver.begin_status(suite_status, start_time=timestamp, elapsed=elapsed)
+        elif name == 'testcase':
+            class_name = attrs.getValue('classname')
+            test_name = attrs.getValue('name')
+            if self.archiver.current_item_is_test():
+                current_test = self.archiver.current_item()
+                if class_name != self._current_class_name or current_test.name != test_name:
+                    self.archiver.end_test()
+                    self._begin_new_test(class_name, test_name)
+            else:
+                self._begin_new_test(class_name, test_name)
+            elapsed = int(float(attrs.getValue('time'))*1000)
+            status = attrs.getValue('status') if 'status' in attrs.getNames() else 'PASS'
+            self.archiver.begin_status('PASS', elapsed=elapsed)
+        elif name == 'failure':
+            self.archiver.update_status('FAIL')
+            self._parse_error_to_keyword(attrs.getValue('message'), 'FAIL')
+        elif name == 'error':
+            self.archiver.update_status('FAIL')
+            self._parse_error_to_keyword(attrs.getValue('message'), 'ERROR')
+        elif name == 'skipped':
+            self.archiver.update_status('SKIPPED')
+            if 'message' in attrs.getNames():
+                self.archiver.log_message('INFO', attrs.getValue('message'))
+        elif name in ('system-out', 'system-err'):
+            pass
+        elif name == 'properties':
+            pass
+        elif name == 'property':
+            self.archiver.metadata(attrs.getValue('name'), attrs.getValue('value'))
+        else:
+            print("WARNING: begin unknown item '{}'".format(name))
+
+    def endElement(self, name):
+        if name in []:
+            self.excluding = False
+        elif self.excluding:
+            self.skipping_content = False
+        elif name == 'testsuites':
+            pass
+        elif name == 'testsuite':
+            if self.archiver.current_item_is_test():
+                self.archiver.end_test()
+            while self.archiver.current_suite():
+                self.archiver.end_suite()
+        elif name == 'testcase':
+            while self.archiver.current_item_is_keyword():
+                self.archiver.end_keyword()
+        elif name == 'failure':
+            content = self.content()
+            self._detect_test_setup_or_teardown_from_stack_trace(content)
+            self.archiver.log_message('FAIL', content)
+        elif name == 'error':
+            content = self.content()
+            self._detect_test_setup_or_teardown_from_stack_trace(content)
+            self.archiver.log_message('ERROR', content)
+        elif name == 'system-out':
+            self.archiver.log_message('INFO', self.content())
+        elif name == 'system-err':
+            self.archiver.log_message('ERROR', self.content())
+        elif name in ('properties', 'property'):
+            pass
+        elif name == 'skipped':
+            self.archiver.log_message('INFO', self.content())
+        else:
+            print("WARNING: ending unknown item '{}'".format(name))
+        self._current_content = []
+
+
 class MSTestOutputParser(XmlOutputParser):
     # Currently only inital support for unittests
 
@@ -428,7 +564,7 @@ class MSTestOutputParser(XmlOutputParser):
         super(MSTestOutputParser, self).__init__(archiver)
 
     def _report_test_run(self):
-        self.archiver.begin_test_run('JUnit parser', None, 'JUnit', False, None)
+        self.archiver.begin_test_run('MSTest parser', None, 'MSTest', False, None)
 
     def _sanitise_timestamp_format(self, timestamp):
         # MSTest output timestamps use 7 digits for second fractions while python
@@ -493,21 +629,25 @@ class MSTestOutputParser(XmlOutputParser):
         self._current_content = []
 
 
-def parse_xml(xml_file, output_format, db_engine, config):
+SUPPORTED_OUTPUT_FORMATS = {
+    'robot': RobotFrameworkOutputParser,
+    'robotframework': RobotFrameworkOutputParser,
+    'xunit': XUnitOutputParser,
+    'junit': JUnitOutputParser,
+    'mocha-junit': MochaJUnitOutputParser,
+    'pytest-junit': PytestJUnitOutputParser,
+    'mstest': MSTestOutputParser,
+}
+
+
+def parse_xml(xml_file, output_format, connection, config):
+    output_format = output_format.lower()
     if not os.path.exists(xml_file):
         sys.exit('Could not find input file: ' + xml_file)
     BUFFER_SIZE = 65536
-    archiver = Archiver(db_engine, config)
-    if output_format.lower() in ('rf', 'robot', 'robotframework'):
-        handler = RobotFrameworkOutputParser(archiver)
-    elif output_format.lower() == 'xunit':
-        handler = XUnitOutputParser(archiver)
-    elif output_format.lower() == 'junit':
-        handler = JUnitOutputParser(archiver)
-    elif output_format.lower() == 'mocha-junit':
-        handler = MochaJUnitOutputParser(archiver)
-    elif output_format.lower() == 'mstest':
-        handler = MSTestOutputParser(archiver)
+    archiver = Archiver(connection, config)
+    if output_format in SUPPORTED_OUTPUT_FORMATS:
+        handler = SUPPORTED_OUTPUT_FORMATS[output_format](archiver)
     else:
         raise Exception("Unsupported report format '{}'".format(output_format))
     parser = xml.sax.make_parser()
@@ -549,30 +689,41 @@ if __name__ == '__main__':
     parser.add_argument('--user', help='database user')
     parser.add_argument('--pw', '--password', help='database password')
     parser.add_argument('--port', help='database port (default: 5432)', default=5432, type=int)
+    parser.add_argument('--dont-require-ssl', action='store_true',
+                        help='Disable the default behavior to require ssl from the target database.')
     parser.add_argument('--format', help='output format (default: robotframework)', default='robotframework',
                         choices=SUPPORTED_OUTPUT_FORMATS, type=str.lower)
+    parser.add_argument('--repository', default=None,
+                        help=('The repository of the test cases. Used to differentiate between test with same '
+                              'name in different projects.'))
     parser.add_argument('--team', help='Team name for the test series', default=None)
     parser.add_argument('--series', action='append',
                         help="Name of the testseries (and optionally build number 'SERIES_NAME#BUILD_NUM')")
     parser.add_argument('--metadata', action='append',
                         help="Adds given metadata to the testrun. expected_format 'NAME:VALUE'")
+    parser.add_argument('--change_engine_url', default=None,
+                        help="Starts a listener that feeds results to ChangeEngine")
     args = parser.parse_args()
 
     if args.config_file:
         config = read_config_file(args.config_file)
-        db_engine = config['db_engine']
     else:
-        db_engine = args.dbengine
         config = {
             'database': args.database,
             'user': args.user,
             'password': args.pw,
             'host': args.host,
             'port': args.port,
+            'db_engine': args.dbengine,
+            'require_ssl': False if args.dont_require_ssl else True
             }
     config['series'] = args.series
     if args.team:
         config['team'] = args.team
+    if args.repository:
+        config['repository'] = args.repository
+    if args.change_engine_url:
+        config['change_engine_url'] = args.change_engine_url
     metadata = parse_metadata_args(args.metadata)
     if 'metadata' in config:
         config['metadata'].update(metadata)
@@ -581,6 +732,8 @@ if __name__ == '__main__':
     if len(args.output_files) > 1:
         config['multirun'] = {}
 
+    connection = database_connection(config)
+
     for output_file in args.output_files:
         print("Parsing: '{}'".format(output_file))
-        parse_xml(output_file, args.format, db_engine, config)
+        parse_xml(output_file, args.format, connection, config)
