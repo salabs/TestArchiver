@@ -1,3 +1,4 @@
+import itertools
 import os
 import sys
 
@@ -100,6 +101,11 @@ class PostgresqlDatabase(Database):
             with open(schema_file) as schema:
                 self._execute(schema.read())
 
+        self._previous_insert_or_ignore = None
+        self._pooled_insert_or_ignore_values = []
+        self._previous_insert = None
+        self._pooled_insert_values = []
+
     def _handle_values(self, values):
         return values
 
@@ -148,17 +154,31 @@ class PostgresqlDatabase(Database):
             row_id = self._fetch_id(table, data, key_fields)
         return row_id
 
+    def _flush_pooled_insert_or_ignore(self):
+        if self._previous_insert_or_ignore:
+            table, keys, key_fields = self._previous_insert_or_ignore
+            sql = "INSERT INTO {table}({fields}) VALUES {value_placeholders} {conflict_statement};"
+            on_conflict = ' ON CONFLICT ({}) DO NOTHING '.format(','.join(key_fields)) if key_fields else ''
+            value_groups = [[values[key] for key in values] for values in self._pooled_insert_or_ignore_values]
+            value_placeholders = []
+            for values in self._pooled_insert_or_ignore_values:
+                value_placeholders.append("({})".format(','.join(['%s' for value in values])))
+            sql = sql.format(
+                table=table,
+                fields=','.join(keys),
+                value_placeholders=','.join(value_placeholders),
+                conflict_statement=on_conflict,
+                )
+            self._execute(sql, list(itertools.chain.from_iterable(value_groups)))
+
     def insert_or_ignore(self, table, data, key_fields=None):
-        sql = "INSERT INTO {table}({fields}) VALUES ({value_placeholders}) {conflict_statement};"
         keys = list(data)
-        on_conflict = ' ON CONFLICT ({}) DO NOTHING '.format(','.join(key_fields)) if key_fields else ''
-        sql = sql.format(
-            table=table,
-            fields=','.join(keys),
-            value_placeholders=','.join(['%s' for _ in keys]),
-            conflict_statement=on_conflict,
-            )
-        self._execute(sql, [data[key] for key in keys])
+        if self._previous_insert_or_ignore != (table, keys, key_fields):
+            self._flush_pooled_insert_or_ignore()
+            self._pooled_insert_or_ignore_values = [data]
+        else:
+            self._pooled_insert_or_ignore_values.append(data)
+        self._previous_insert_or_ignore = (table, keys, key_fields)
 
     def update(self, table, data, key_data):
         sql = "UPDATE {table} SET {updates} WHERE {key_fields};"
@@ -174,19 +194,35 @@ class PostgresqlDatabase(Database):
         values.extend([key_data[key] for key in key_data])
         self._execute(sql, values)
 
-    def insert(self, table, data):
-        sql = "INSERT INTO {table}({fields}) VALUES ({value_placeholders});"
-        keys = list(data)
-        sql = sql.format(
-            table=table,
-            fields=','.join(keys),
-            value_placeholders=','.join(['%s' for _ in keys]),
-            )
-        try:
-            self._execute(sql, [data[key] for key in keys])
-        except psycopg2.errors.UniqueViolation:
-            raise IntegrityError()
+    def _flush_pooled_insert(self):
+        if self._previous_insert:
+            table, keys = self._previous_insert
+            sql = "INSERT INTO {table}({fields}) VALUES {value_placeholders};"
+            value_groups = [[values[key] for key in values] for values in self._pooled_insert_values]
+            value_placeholders = []
+            for values in self._pooled_insert_values:
+                value_placeholders.append("({})".format(','.join(['%s' for value in values])))
+            sql = sql.format(
+                table=table,
+                fields=','.join(keys),
+                value_placeholders=','.join(value_placeholders),
+                )
+            self._execute(sql, list(itertools.chain.from_iterable(value_groups)))
 
+    def insert(self, table, data):
+        self._flush_pooled_insert_or_ignore() # This insert might require previous values to be up to date
+        keys = list(data)
+        if self._previous_insert != (table, keys):
+            try:
+                #self._execute(sql, [data[key] for key in keys])
+                self._flush_pooled_insert()
+            except psycopg2.errors.UniqueViolation:
+                raise IntegrityError()
+
+            self._pooled_insert_values = [data]
+        else:
+            self._pooled_insert_values.append(data)
+        self._previous_insert = (table, keys)
 
     def max_value(self, table, column, where_data):
         sql = "SELECT max({column}) FROM {table} WHERE {where};"
