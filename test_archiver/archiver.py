@@ -5,7 +5,7 @@ from datetime import datetime
 from database import PostgresqlDatabase, SQLiteDatabase
 from archiver_listeners import ChangeEngineListener
 
-ARCHIVER_VERSION = "1.0.0"
+ARCHIVER_VERSION = "1.1.0"
 
 SUPPORTED_TIMESTAMP_FORMATS = (
         "%Y%m%d %H:%M:%S.%f",
