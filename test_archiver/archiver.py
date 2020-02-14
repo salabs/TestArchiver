@@ -5,7 +5,7 @@ from datetime import datetime
 from database import PostgresqlDatabase, SQLiteDatabase
 from archiver_listeners import ChangeEngineListener
 
-ARCHIVER_VERSION = "1.1.0"
+ARCHIVER_VERSION = "1.1.1"
 
 SUPPORTED_TIMESTAMP_FORMATS = (
         "%Y%m%d %H:%M:%S.%f",
@@ -392,8 +392,10 @@ def database_connection(config):
                                   config['password'],
                                   config['require_ssl'] if 'require_ssl' in config else True)
     elif config['db_engine'] in ('sqlite', 'sqlite3'):
+        if config.get('host', None) or config.get('user', None):
+            raise Exception("--host or --user options should not be used with default sqlite3 database engine")
         return SQLiteDatabase(config['database'])
-    raise Exception("Unsupported database type '{}'".format(db_engine))
+    raise Exception("Unsupported database type '{}'".format(config['db_engine']))
 
 
 
