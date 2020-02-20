@@ -144,7 +144,6 @@ class FingerprintedItem(TestItem):
 
     def calculate_fingerprints(self):
         """Calculate identification fingerprints using sha1 hashing."""
-
         # sha1 is not considered secure anymore but in this use case
         # it is not used for any security functionality.
         # sha1() lines marked nosec for Bandit linter to ignore.
