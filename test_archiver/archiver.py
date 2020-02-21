@@ -143,13 +143,18 @@ class FingerprintedItem(TestItem):
         self.insert_results()
 
     def calculate_fingerprints(self):
+        """Calculate identification fingerprints using sha1 hashing."""
+        # sha1 is not considered secure anymore but in this use case
+        # it is not used for any security functionality.
+        # sha1() lines marked nosec for Bandit linter to ignore.
+
         if self.subtree_fingerprints:
-            execution = sha1()
+            execution = sha1() # nosec
             for child in self.subtree_fingerprints:
                 execution.update(child.encode('utf-8'))
             self.execution_fingerprint = execution.hexdigest()
 
-        fingerprint = sha1()
+        fingerprint = sha1() # nosec
         fingerprint.update(self._hashing_name().encode('utf-8'))
         fingerprint.update(str(self.setup_fingerprint).encode('utf-8'))
         fingerprint.update(str(self.execution_fingerprint).encode('utf-8'))
