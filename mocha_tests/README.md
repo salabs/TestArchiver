@@ -20,3 +20,38 @@ mocha fixture_suite.js \
     --reporter-options suiteTitleSeparedBy="." \
     --reporter-options testCaseSwitchClassnameAndName=True
 ```
+
+## Example configuration with Cypress
+
+Mocha-JUnit format can be used with [Cypress](https://github.com/cypress-io/cypress) testing framework.
+
+Add `mocha-junit-reporter` and `cypress-multi-reporters` to package.json devDependencies list. Example package.json config:
+
+```
+"devDependencies": {
+    ...
+    "mocha": "6.2.0",
+    "cypress-multi-reporters": "1.2.1",
+    "mocha-junit-reporter": "1.23.1"
+}
+```
+
+After npm package installation, configure cypress reporter options. These settings have been verified to work with TestArchiver in production use:
+
+```
+"reporter": "cypress-multi-reporters",
+"reporterOptions": {
+    "reporterEnabled": "spec, mocha-junit-reporter",
+    "mochaJunitReporterReporterOptions": {
+        "mochaFile": "resultfolder/result-[hash].xml",
+        "rootSuiteTitle": "Root Suite Name",
+        "outputs": true,
+        "testCaseSwitchClassnameAndName": true,
+        "useFullSuiteTitle": true,
+        "includePending": true,
+        "suiteTitleSeparedBy": "."
+    }
+},
+```
+
+After cypress has completed with these settings, test result xml files should be stored in `resultfolder` directory. They can be imported using TestArchiver from there by using `--format mocha-junit` command line parameter.
