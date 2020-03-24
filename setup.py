@@ -1,0 +1,37 @@
+import setuptools
+
+with open("README.md", "r") as fh:
+    long_description = fh.read()
+
+setuptools.setup(
+    name="testarchiver", 
+    version="0.0.4",
+    author="Tommi Oinonen",
+    author_email="salabs-mail@siili.com",
+    description="Tools for serialising test results to SQL database ",
+    long_description=long_description,
+    long_description_content_type="text/markdown",
+    url="https://github.com/salabs/TestArchiver",
+    license="Apache License 2.0",
+    classifiers=[
+        "Programming Language :: Python :: 3",
+        "Operating System :: OS Independent",
+        "Topic :: Software Development :: Testing",        
+
+    ],
+    keywords='robotframework test report history',
+
+    packages=setuptools.find_packages(),
+    python_requires='>=3.0',
+    install_requires=[
+        'psycopg2-binary >= 2.8.0'
+    ],
+    include_package_data=True,
+    zip_safe=False,
+
+    entry_points={
+        'console_scripts': [
+            'testarchiver=test_archiver.output_parser:main',
+        ]
+    },
+)
