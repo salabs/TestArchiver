@@ -652,7 +652,7 @@ def parse_xml(xml_file, output_format, connection, config):
         raise Exception("Unsupported report format '{}'".format(output_format))
     parser = xml.sax.make_parser()
     parser.setContentHandler(handler)
-    with open(xml_file) as file:
+    with open(xml_file, encoding="UTF-8") as file:
         buffer = file.read(BUFFER_SIZE)
         while buffer:
             parser.feed(buffer)
