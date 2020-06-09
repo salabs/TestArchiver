@@ -1,8 +1,10 @@
 import json
+import sys
 from hashlib import sha1
 from datetime import datetime
 
 from database import PostgresqlDatabase, SQLiteDatabase
+from database import IntegrityError
 from archiver_listeners import ChangeEngineListener
 
 ARCHIVER_VERSION = "1.1.2"
@@ -240,7 +242,11 @@ class Suite(FingerprintedItem):
         data = {'suite_id': self.id, 'test_run_id': self.test_run_id()}
         data.update(self.status_and_fingerprint_values())
         if self.id not in self.parent_item.child_suite_ids:
-            self.archiver.db.insert('suite_result', data)
+            try:
+                self.archiver.db.insert('suite_result', data)
+            except IntegrityError:
+                print("ERROR: IntegrityError: these results have already been archived!")
+                sys.exit(1)
             self.insert_metadata()
             if self.failed_by_teardown:
                 self.fail_children()

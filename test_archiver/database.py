@@ -1,4 +1,15 @@
 import os
+import sys
+
+import sqlite3
+
+try:
+    import psycopg2
+except ImportError:
+    psycopg2 = None
+
+class IntegrityError(Exception):
+    """Exception for uniformly communicating a database integrity error"""
 
 
 class Database:
@@ -62,14 +73,18 @@ class Database:
     def max_value(self, table, column, where_data):
         raise NotImplementedError()
 
-    def fetch_one_value(self):
+    def fetch_one_value(self, table, column, where_data):
         raise NotImplementedError()
 
 
 class PostgresqlDatabase(Database):
 
     def _connect(self):
-        import psycopg2
+        if not psycopg2:
+            print('ERROR: Trying to use Postgresql database but psycopg2 is not installed!')
+            print("ERROR: For example: 'pip install psycopg2-binary'")
+            sys.exit(1)
+
         self._connection = psycopg2.connect(
             host=self.host,
             database=self.database,
@@ -78,7 +93,7 @@ class PostgresqlDatabase(Database):
             sslmode='require' if self.require_ssl else 'prefer',
         )
         try:
-            self._execute('SELECT 1 FROM keyword_statistics;')
+            self._execute("SELECT 'keyword_statistics'::regclass;")
         except psycopg2.ProgrammingError:
             self._connection.rollback()
             schema_file = os.path.join(os.path.dirname(__file__), 'schemas/schema_postgres.sql')
@@ -97,13 +112,13 @@ class PostgresqlDatabase(Database):
         row = self._execute_and_fetchone(sql, [data[key] for key in key_fields])
         if row:
             return row[0]
-        else:
-            return None
+        return None
 
     def return_id_or_insert_and_return_id(self, table, data, key_fields):
         row_id = self._fetch_id(table, data, key_fields)
         if not row_id:
-            sql = "INSERT INTO {table}({fields}) VALUES ({value_placeholders}) {conflict_statement} RETURNING id;"
+            sql = ("INSERT INTO {table}({fields}) VALUES ({value_placeholders}) "
+                   "{conflict_statement} RETURNING id;")
             keys = list(data)
             on_conflict = ' ON CONFLICT ({}) DO NOTHING '.format(','.join(key_fields)) if key_fields else ''
             sql = sql.format(
@@ -167,7 +182,11 @@ class PostgresqlDatabase(Database):
             fields=','.join(keys),
             value_placeholders=','.join(['%s' for _ in keys]),
             )
-        self._execute(sql, [data[key] for key in keys])
+        try:
+            self._execute(sql, [data[key] for key in keys])
+        except psycopg2.errors.UniqueViolation:
+            raise IntegrityError()
+
 
     def max_value(self, table, column, where_data):
         sql = "SELECT max({column}) FROM {table} WHERE {where};"
@@ -190,8 +209,7 @@ class PostgresqlDatabase(Database):
         if row:
             (value, ) = row
             return value
-        else:
-            return None
+        return None
 
 
 class SQLiteDatabase(Database):
@@ -200,11 +218,10 @@ class SQLiteDatabase(Database):
         super(SQLiteDatabase, self).__init__(db_name)
 
     def _connect(self):
-        import sqlite3
         self._connection = sqlite3.connect(self.database)
-        try:
-            self._execute('SELECT 1 FROM keyword_statistics;')
-        except sqlite3.OperationalError:
+        query = "SELECT 1 FROM sqlite_master WHERE type='table' AND name='keyword_statistics';"
+        exists = self._execute_and_fetchone(query)
+        if not exists:
             schema_file = os.path.join(os.path.dirname(__file__), 'schemas/schema_sqlite.sql')
             with open(schema_file) as schema:
                 self._connection.executescript(schema.read())
@@ -289,7 +306,11 @@ class SQLiteDatabase(Database):
             fields=','.join(keys),
             value_placeholders=','.join(['?' for _ in keys]),
             )
-        self._execute(sql, [data[key] for key in keys])
+        try:
+            self._execute(sql, [data[key] for key in keys])
+        except sqlite3.IntegrityError:
+            raise IntegrityError()
+
 
     def max_value(self, table, column, where_data):
         sql = "SELECT max({column}) FROM {table} WHERE {where};"
@@ -312,5 +333,4 @@ class SQLiteDatabase(Database):
         if row:
             (value, ) = row
             return value
-        else:
-            return None
+        return None
