@@ -27,7 +27,7 @@ Contributions for output parsers or listeners for different testing frameworks a
 
 ## PostgreSQL
 
-[PostgreSQL](https://www.postgresql.org) is the currently supported database for real projects. For example [Epimetheus](https://github.com/salabs/Epimetheus) service uses a PosrgreSQL database. For accessing PostgreSQL databases the script uses psycopg2 module: `pip install psycopg2` or `pip install psycopg2-binary`
+[PostgreSQL](https://www.postgresql.org) is the currently supported database for real projects. For example [Epimetheus](https://github.com/salabs/Epimetheus) service uses a PosrgreSQL database. For accessing PostgreSQL databases the script uses psycopg2 module: `pip install psycopg2-binary`
 
 # Basic usage
 
@@ -93,3 +93,10 @@ Each build will have a build number in the series. If the build number is specif
 If the tests are executed in a CI environment the build number/id is an excellent way to link the archived results to the actual builds.
 
 The series can also be indicated using metadata. Any metadata with name prefixed with `series` are interpreted as series information. This is especially useful when using listeners. For example when using Robot Framework metadata `--metadata team:A-Team --metadata series:JENKINS_JOB_NAME#BUILD_NUMBER`
+
+# Release notes
+- 1.1.3 (2020-06-09)
+  * Performance fix for the schema existance check
+  * Improved error messages:
+    - Error when trying to archive results that have already been archived
+    - Error when psycopg2 module is not found

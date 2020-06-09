@@ -7,7 +7,7 @@ from database import PostgresqlDatabase, SQLiteDatabase
 from database import IntegrityError
 from archiver_listeners import ChangeEngineListener
 
-ARCHIVER_VERSION = "1.1.2"
+ARCHIVER_VERSION = "1.1.3"
 
 SUPPORTED_TIMESTAMP_FORMATS = (
         "%Y%m%d %H:%M:%S.%f",
