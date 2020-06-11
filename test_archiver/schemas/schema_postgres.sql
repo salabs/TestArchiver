@@ -91,6 +91,7 @@ CREATE TABLE log_message (
     log_level text NOT NULL,
     message text
 );
+CREATE INDEX log_message_index ON log_message(test_run_id, suite_id, test_id);
 
 CREATE TABLE suite_metadata (
     suite_id int REFERENCES suite(id) ON DELETE CASCADE NOT NULL,

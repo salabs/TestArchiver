@@ -97,6 +97,8 @@ The series can also be indicated using metadata. Any metadata with name prefixed
 # Release notes
 - TBD (TBD)
   * Record test criticality (Robot Framework specific)
+  * Schema update: adds index for searching log messages more efficiently
+  * TestArchiver able to perform schema updates
 
 - 1.1.3 (2020-06-09)
   * Performance fix for the schema existance check

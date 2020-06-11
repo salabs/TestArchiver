@@ -13,6 +13,9 @@ class IntegrityError(Exception):
 
 
 class Database:
+
+    SCHEMA_UPDATES = None
+
     def __init__(self, db_name, db_host=None, db_port=None, db_user=None, db_password=None, require_ssl=True):
         self.database = db_name
         self.host = db_host
@@ -22,8 +25,26 @@ class Database:
         self.require_ssl = require_ssl
         self._connection = None
         self._connect()
+        self._update_schema()
 
     def _connect(self):
+        raise NotImplementedError()
+
+    def _update_schema(self):
+        updates_needed = []
+        for check, update in self.SCHEMA_UPDATES:
+            if self._execute_and_fetchone(check):
+                break
+            updates_needed.append(update)
+        else:
+            if self._initialize_schema():
+                # No need for updates as current schema was initialized
+                return
+
+        for update in reversed(updates_needed):
+            self._execute(update)
+
+    def _initialize_schema(self):
         raise NotImplementedError()
 
     def _execute(self, sql, values=None):
@@ -79,6 +100,13 @@ class Database:
 
 class PostgresqlDatabase(Database):
 
+    # pairs of queries (check, update)
+    # Newest updates on top
+    SCHEMA_UPDATES = [
+        ("SELECT true FROM pg_class WHERE pg_class.relname = 'log_message_index';",
+         "CREATE INDEX log_message_index ON log_message(test_run_id, suite_id, test_id);"),
+    ]
+
     def _connect(self):
         if not psycopg2:
             print('ERROR: Trying to use Postgresql database but psycopg2 is not installed!')
@@ -92,6 +120,8 @@ class PostgresqlDatabase(Database):
             password=self.password,
             sslmode='require' if self.require_ssl else 'prefer',
         )
+
+    def _initialize_schema(self):
         try:
             self._execute("SELECT 'keyword_statistics'::regclass;")
         except psycopg2.ProgrammingError:
@@ -99,6 +129,8 @@ class PostgresqlDatabase(Database):
             schema_file = os.path.join(os.path.dirname(__file__), 'schemas/schema_postgres.sql')
             with open(schema_file) as schema:
                 self._execute(schema.read())
+            return True
+        return False
 
     def _handle_values(self, values):
         return values
@@ -214,17 +246,27 @@ class PostgresqlDatabase(Database):
 
 class SQLiteDatabase(Database):
 
+    # pairs of queries (check, update)
+    # Newest updates on top
+    SCHEMA_UPDATES = [
+        ("SELECT true FROM sqlite_master WHERE name = 'log_message_index';",
+         "CREATE INDEX log_message_index ON log_message(test_run_id, suite_id, test_id);"),
+    ]
+
     def __init__(self, db_name):
         super(SQLiteDatabase, self).__init__(db_name)
 
     def _connect(self):
         self._connection = sqlite3.connect(self.database)
+
+    def _initialize_schema(self):
         query = "SELECT 1 FROM sqlite_master WHERE type='table' AND name='keyword_statistics';"
-        exists = self._execute_and_fetchone(query)
-        if not exists:
+        if not self._execute_and_fetchone(query):
             schema_file = os.path.join(os.path.dirname(__file__), 'schemas/schema_sqlite.sql')
             with open(schema_file) as schema:
                 self._connection.executescript(schema.read())
+            return True
+        return False
 
     def _handle_values(self, values):
         handled_values = []
