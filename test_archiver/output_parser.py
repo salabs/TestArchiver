@@ -68,8 +68,9 @@ class RobotFrameworkOutputParser(XmlOutputParser):
             if attrs.getValue('level') not in ARCHIVED_LOG_LEVELS:
                 self.skipping_content = True
         elif name == 'status':
+            critical = attrs.getValue('critical') == 'yes' if 'critical' in attrs.getNames() else None
             self.archiver.begin_status(attrs.getValue('status'), attrs.getValue('starttime'),
-                                       attrs.getValue('endtime'))
+                                       attrs.getValue('endtime'), critical=critical)
         elif name == 'assign':
             pass
         elif name == 'var':
@@ -153,7 +154,6 @@ class XUnitOutputParser(XmlOutputParser):
             class_name = attrs.getValue('classname')
             self.archiver.begin_test(attrs.getValue('name'), class_name)
             elapsed = int(float(attrs.getValue('time'))*1000)
-            status = attrs.getValue('status') if 'status' in attrs.getNames() else 'PASS'
             self.archiver.begin_status('PASS', elapsed=elapsed)
         elif name == 'failure':
             self.archiver.update_status('FAIL')
@@ -233,7 +233,6 @@ class JUnitOutputParser(XmlOutputParser):
             class_name = attrs.getValue('classname')
             self.archiver.begin_test(attrs.getValue('name'), class_name)
             elapsed = int(float(attrs.getValue('time'))*1000)
-            status = attrs.getValue('status') if 'status' in attrs.getNames() else 'PASS'
             self.archiver.begin_status('PASS', elapsed=elapsed)
         elif name == 'failure':
             self.archiver.update_status('FAIL')
@@ -421,7 +420,6 @@ class PytestJUnitOutputParser(XmlOutputParser):
         next_suite_stack = class_name.split('.')
         current_suites = self.archiver.current_suites()
         next_suite_stack.insert(0, current_suites[0].name)
-        last_common_suite = current_suites[0]
         common_suites = 0
         for i in range(len(current_suites)):
             if i >= len(next_suite_stack) or current_suites[i].name != next_suite_stack[i]:
@@ -440,7 +438,7 @@ class PytestJUnitOutputParser(XmlOutputParser):
         elif error == 'test setup failure':
             self.archiver.keyword('failed by class setUp', 'python', 'kw', 'FAIL')
             self.archiver.end_test()
-            if self.archiver.current_suite().setup_status == None:
+            if self.archiver.current_suite().setup_status is None:
                 self.archiver.begin_keyword('setUpClass', 'python', 'setup')
                 self.archiver.update_status('FAIL')
                 self.in_setup_or_teardown = True
@@ -494,7 +492,6 @@ class PytestJUnitOutputParser(XmlOutputParser):
             else:
                 self._begin_new_test(class_name, test_name)
             elapsed = int(float(attrs.getValue('time'))*1000)
-            status = attrs.getValue('status') if 'status' in attrs.getNames() else 'PASS'
             self.archiver.begin_status('PASS', elapsed=elapsed)
         elif name == 'failure':
             self.archiver.update_status('FAIL')
@@ -658,9 +655,9 @@ def parse_xml(xml_file, output_format, connection, config):
             parser.feed(buffer)
             buffer = file.read(BUFFER_SIZE)
     if len(archiver.stack) != 1:
-        raise Exception('File parse error. Please check you used proper output format (default: robotframework).')
-    else:
-        archiver.end_test_run()
+        raise Exception('File parse error. Please check you used proper output format '
+                        '(default: robotframework).')
+    archiver.end_test_run()
 
 
 def parse_metadata_args(metadata_args):
@@ -675,9 +672,7 @@ def parse_metadata_args(metadata_args):
     return metadata
 
 
-if __name__ == '__main__':
-    if sys.version_info[0] < 3:
-        sys.exit('Unsupported Python version (' + str(sys.version_info.major) + '). Please use version 3.')
+def argument_parser():
     parser = argparse.ArgumentParser(description='Parse Robot Framework output.xml files to SQL database.')
     parser.add_argument('output_files', nargs='+')
     parser.add_argument('--config', dest='config_file',
@@ -694,8 +689,8 @@ if __name__ == '__main__':
     parser.add_argument('--format', help='output format (default: robotframework)', default='robotframework',
                         choices=SUPPORTED_OUTPUT_FORMATS, type=str.lower)
     parser.add_argument('--repository', default=None,
-                        help=('The repository of the test cases. Used to differentiate between test with same '
-                              'name in different projects.'))
+                        help=('The repository of the test cases. Used to differentiate between test with '
+                              'same name in different projects.'))
     parser.add_argument('--team', help='Team name for the test series', default=None)
     parser.add_argument('--series', action='append',
                         help="Name of the testseries (and optionally build number 'SERIES_NAME#BUILD_NUM')")
@@ -703,6 +698,13 @@ if __name__ == '__main__':
                         help="Adds given metadata to the testrun. expected_format 'NAME:VALUE'")
     parser.add_argument('--change_engine_url', default=None,
                         help="Starts a listener that feeds results to ChangeEngine")
+    return parser
+
+def main():
+    if sys.version_info[0] < 3:
+        sys.exit('Unsupported Python version (' + str(sys.version_info.major) + '). Please use version 3.')
+
+    parser = argument_parser()
     args = parser.parse_args()
 
     if args.config_file:
@@ -715,7 +717,7 @@ if __name__ == '__main__':
             'host': args.host,
             'port': args.port,
             'db_engine': args.dbengine,
-            'require_ssl': False if args.dont_require_ssl else True
+            'require_ssl': not args.dont_require_ssl,
             }
     config['series'] = args.series
     if args.team:
@@ -737,3 +739,7 @@ if __name__ == '__main__':
     for output_file in args.output_files:
         print("Parsing: '{}'".format(output_file))
         parse_xml(output_file, args.format, connection, config)
+
+
+if __name__ == '__main__':
+    main()

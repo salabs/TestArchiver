@@ -93,6 +93,7 @@ class FingerprintedItem(TestItem):
         self.elapsed_time_setup = None
         self.elapsed_time_execution = None
         self.elapsed_time_teardown = None
+        self.critical = None
 
         self.kw_type = None
         self.kw_call_depth = 0
@@ -112,7 +113,7 @@ class FingerprintedItem(TestItem):
         self.execution_fingerprint = None
         self.teardown_fingerprint = None
 
-    def update_status(self, status, start_time, end_time, elapsed=None):
+    def update_status(self, status, start_time, end_time, elapsed=None, critical=None):
         if status == 'NOT_RUN':
             # If some keyword is not executed the execution was a dryrun
             self.archiver.output_from_dryrun = True
@@ -125,6 +126,7 @@ class FingerprintedItem(TestItem):
             self.elapsed_time = int((end - start).total_seconds()*1000)
         elif elapsed is not None:
             self.elapsed_time = elapsed
+        self.critical = critical
 
     def _hashing_name(self):
         return self.full_name
@@ -287,7 +289,7 @@ class Test(FingerprintedItem):
 
     def insert_results(self):
         if self.id not in self.parent_item.child_test_ids:
-            data = {'test_id': self.id, 'test_run_id': self.test_run_id()}
+            data = {'test_id': self.id, 'test_run_id': self.test_run_id(), 'critical': self.critical}
             data.update(self.status_and_fingerprint_values())
             self.archiver.db.insert('test_result', data)
             if self.subtree_fingerprints:
@@ -542,7 +544,7 @@ class Archiver:
     def end_suite(self, attributes=None):
         if attributes:
             self.current_item(Suite).update_status(attributes['status'], attributes['starttime'],
-                                               attributes['endtime'])
+                                                   attributes['endtime'])
             self.current_item(Suite).metadata = attributes['metadata']
         self.current_item(Suite).finish()
         suite = self.stack.pop()
@@ -555,15 +557,16 @@ class Archiver:
     def end_test(self, attributes=None):
         if attributes:
             self.current_item(Test).update_status(attributes['status'], attributes['starttime'],
-                                               attributes['endtime'])
+                                                  attributes['endtime'],
+                                                  critical=attributes['critical'] == 'yes')
             self.current_item(Test).tags = attributes['tags']
         self.current_item(Test).finish()
         test = self.stack.pop()
         for listener in self.listeners:
             listener.test_result(test)
 
-    def begin_status(self, status, start_time=None, end_time=None, elapsed=None):
-        self.current_item().update_status(status, start_time, end_time, elapsed)
+    def begin_status(self, status, start_time=None, end_time=None, elapsed=None, critical=None):
+        self.current_item().update_status(status, start_time, end_time, elapsed, critical)
 
     def update_status(self, status):
         self.current_item().status = status
@@ -574,7 +577,7 @@ class Archiver:
     def end_keyword(self, attributes=None):
         if attributes:
             self.current_item(Keyword).update_status(attributes['status'], attributes['starttime'],
-                                               attributes['endtime'])
+                                                     attributes['endtime'])
         self.current_item(Keyword).finish()
         self.stack.pop()
 

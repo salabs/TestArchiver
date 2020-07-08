@@ -85,6 +85,8 @@ Result fields are:
 
 -   `setup_elapsed` total time of the item setup (milliseconds)
 
+-   `critical` weather the test is critical or not (boolean, Robot Framework specific null in other cases)
+
 -   `log_messages` timestamp, log_level and message string up to 2000 characters
 
 -   `test_tags` tags set for the test case
