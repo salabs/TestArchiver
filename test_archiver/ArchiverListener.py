@@ -1,5 +1,6 @@
-from archiver import Archiver, read_config_file, database_connection
 
+from archiver import Archiver, database_connection
+from configs import Config
 
 class ArchiverListener:
     ROBOT_LISTENER_API_VERSION = 2
@@ -7,16 +8,14 @@ class ArchiverListener:
     def __init__(self, config_file_or_database,
                  db_engine=None, user=None, pw=None, host=None, port=5432):
         if not db_engine:
-            config = read_config_file(config_file_or_database)
+            config = Config(file_config=config_file_or_database)
         else:
-            config = {
-                'database': config_file_or_database,
-                'db_engine': db_engine,
-                'user': user,
-                'password': pw,
-                'host': host,
-                'port': port,
-            }
+            config = Config(file_config={'database': config_file_or_database,
+                                         'db_engine': db_engine,
+                                         'user': user,
+                                         'password': pw,
+                                         'host': host,
+                                         'port': port})
         database = database_connection(config)
         self.archiver = Archiver(database, config)
         self.archiver.test_type = "Robot Framework"
@@ -30,8 +29,7 @@ class ArchiverListener:
                                          None,
                                          self.generator,
                                          self.rpa,
-                                         self.dry_run
-                                         )
+                                         self.dry_run)
         self.archiver.begin_suite(name)
 
     def end_suite(self, name, attrs):

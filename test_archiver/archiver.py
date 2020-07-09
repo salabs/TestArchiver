@@ -39,10 +39,6 @@ ARCHIVE_KEYWORDS = True
 ARCHIVE_KEYWORD_STATISTICS = True
 
 
-def read_config_file(file_name):
-    with open(file_name, 'r') as config_file:
-        return json.load(config_file)
-
 
 class TestItem:
     def __init__(self, archiver):
@@ -397,39 +393,41 @@ class LogMessage(TestItem):
             self.id = self.archiver.db.insert('log_message', data)
 
 def database_connection(config):
-    if config['db_engine'] in ('postgresql', 'postgres'):
-        return PostgresqlDatabase(config['database'],
-                                  config['host'],
-                                  config['port'],
-                                  config['user'],
-                                  config['password'],
-                                  config['require_ssl'] if 'require_ssl' in config else True)
-    elif config['db_engine'] in ('sqlite', 'sqlite3'):
-        if config.get('host', None) or config.get('user', None):
-            raise Exception("--host or --user options should not be used with default sqlite3 database engine")
-        return SQLiteDatabase(config['database'])
-    raise Exception("Unsupported database type '{}'".format(config['db_engine']))
-
+    if config.db_engine in ('postgresql', 'postgres'):
+        return PostgresqlDatabase(config.database,
+                                  config.host,
+                                  config.port,
+                                  config.user,
+                                  config.password,
+                                  config.require_ssl)
+    if config.db_engine in ('sqlite', 'sqlite3'):
+        if config.host or config.user:
+            raise Exception("--host or --user options should not be used "
+                            "with default sqlite3 database engine")
+        return SQLiteDatabase(config.database)
+    raise Exception("Unsupported database type '{}'".format(config.db_engine))
 
 
 class Archiver:
-    def __init__(self, database_connection, config):
+    def __init__(self, database_connection, config, build_number_cache=None):
         self.config = config
         self.test_type = None
-        self.additional_metadata = config['metadata'] if 'metadata' in config else {}
+        self.additional_metadata = config.metadata
         self.test_run_id = None
         self.test_series = {}
-        self.team = config['team'] if 'team' in config else None
-        self.series = config['series'] if 'series' in config else []
-        self.repository = config['repository'] if 'repository' in config else 'default repo'
+        self.team = config.team
+        self.series = config.series
+        self.repository = config.repository
+
         self.output_from_dryrun = False
         self.db = database_connection
         self.stack = []
         self.keyword_statistics = {}
+        self.build_number_cache = build_number_cache or {}
 
         self.listeners = []
-        if 'change_engine_url' in config:
-            self.listeners.append(ChangeEngineListener(self, config['change_engine_url']))
+        if config.change_engine_url:
+            self.listeners.append(ChangeEngineListener(self, config.change_engine_url))
 
     def current_item(self, expected_type=None):
         item = self.stack[-1] if self.stack else None
@@ -440,8 +438,7 @@ class Archiver:
                     print(item.__class__.__name__)
                 raise Exception("Expected to end '{}' but '{}' currently in stack".format(
                     expected_type,
-                    item.__class__.__name__),
-                    )
+                    item.__class__.__name__))
         return item
 
     def current_item_is_keyword(self):
@@ -482,13 +479,12 @@ class Archiver:
         self.db.update('test_run', data, {'id': self.test_run_id})
 
     def end_test_run(self):
-        if 'series' in self.config and self.config['series']:
-            for content in self.config['series']:
-                if '#' in content:
-                    series_name, build_number = content.split('#')
-                else:
-                    series_name, build_number = content, None
-                self.test_series[series_name] = build_number
+        for content in self.config.series:
+            if '#' in content:
+                series_name, build_number = content.split('#')
+            else:
+                series_name, build_number = content, None
+            self.test_series[series_name] = build_number
         for name in self.test_series:
             self.report_series(name, self.test_series[name])
         if not self.test_series:
@@ -501,11 +497,11 @@ class Archiver:
         for listener in self.listeners:
             listener.end_run()
 
+        return self.build_number_cache
+
     def report_series(self, name, build_id):
-        data = {
-            'team': self.team if self.team else 'No team',
-            'name': name,
-            }
+        data = {'team': self.team if self.team else 'No team',
+                'name': name}
         series_id = self.db.return_id_or_insert_and_return_id('test_series', data, ['team', 'name'])
         if build_id:
             try:
@@ -513,14 +509,13 @@ class Archiver:
             except ValueError:
                 build_number = self._build_number_by_id(series_id, build_id)
         else:
-            previous_build_number = self.db.max_value('test_series_mapping', 'build_number',
-                                                      {'series': series_id})
-            build_number = previous_build_number + 1 if previous_build_number else 1
-            if 'multirun' in self.config:
-                if series_id in self.config['multirun']:
-                    build_number = self.config['multirun'][series_id]
-                else:
-                    self.config['multirun'][series_id] = build_number
+            if series_id in self.build_number_cache:
+                build_number = self.build_number_cache[series_id]
+            else:
+                previous_build_number = self.db.max_value('test_series_mapping', 'build_number',
+                                                          {'series': series_id})
+                build_number = previous_build_number + 1 if previous_build_number else 1
+                self.build_number_cache[series_id] = build_number
         data = {
             'series': series_id,
             'test_run_id': self.test_run_id,

@@ -3,7 +3,8 @@ import os.path
 import sys
 import xml.sax
 
-from archiver import Archiver, read_config_file, ARCHIVED_LOG_LEVELS, database_connection
+from archiver import Archiver, ARCHIVED_LOG_LEVELS, database_connection
+from configs import Config
 
 DEFAULT_SUITE_NAME = 'Unnamed suite'
 
@@ -637,12 +638,12 @@ SUPPORTED_OUTPUT_FORMATS = {
 }
 
 
-def parse_xml(xml_file, output_format, connection, config):
+def parse_xml(xml_file, output_format, connection, config, build_number_cache):
     output_format = output_format.lower()
     if not os.path.exists(xml_file):
         sys.exit('Could not find input file: ' + xml_file)
     BUFFER_SIZE = 65536
-    archiver = Archiver(connection, config)
+    archiver = Archiver(connection, config, build_number_cache=build_number_cache)
     if output_format in SUPPORTED_OUTPUT_FORMATS:
         handler = SUPPORTED_OUTPUT_FORMATS[output_format](archiver)
     else:
@@ -657,34 +658,22 @@ def parse_xml(xml_file, output_format, connection, config):
     if len(archiver.stack) != 1:
         raise Exception('File parse error. Please check you used proper output format '
                         '(default: robotframework).')
-    archiver.end_test_run()
-
-
-def parse_metadata_args(metadata_args):
-    metadata = {}
-    if metadata_args:
-        for item in metadata_args:
-            try:
-                name, value = item.split(':', 1)
-                metadata[name] = value
-            except Exception:
-                raise Exception("Unsupported format for metadata: '{}' use NAME:VALUE".format(item))
-    return metadata
+    return archiver.end_test_run()
 
 
 def argument_parser():
-    parser = argparse.ArgumentParser(description='Parse Robot Framework output.xml files to SQL database.')
+    parser = argparse.ArgumentParser(description='Parse test automation output.xml files to SQL database.')
     parser.add_argument('output_files', nargs='+')
     parser.add_argument('--config', dest='config_file',
                         help='path to JSON config file containing database credentials')
-    parser.add_argument('--dbengine', default='sqlite',
+    parser.add_argument('--dbengine', dest='db_engine',
                         help='Database engine, postgresql or sqlite (default)')
     parser.add_argument('--database', help='database name')
     parser.add_argument('--host', help='databse host name', default=None)
     parser.add_argument('--user', help='database user')
-    parser.add_argument('--pw', '--password', help='database password')
-    parser.add_argument('--port', help='database port (default: 5432)', default=5432, type=int)
-    parser.add_argument('--dont-require-ssl', action='store_true',
+    parser.add_argument('--pw', '--password', dest='password', help='database password')
+    parser.add_argument('--port', help='database port (default: 5432)')
+    parser.add_argument('--dont-require-ssl', dest='require_ssl', action='store_false', default=None,
                         help='Disable the default behavior to require ssl from the target database.')
     parser.add_argument('--format', help='output format (default: robotframework)', default='robotframework',
                         choices=SUPPORTED_OUTPUT_FORMATS, type=str.lower)
@@ -694,7 +683,7 @@ def argument_parser():
     parser.add_argument('--team', help='Team name for the test series', default=None)
     parser.add_argument('--series', action='append',
                         help="Name of the testseries (and optionally build number 'SERIES_NAME#BUILD_NUM')")
-    parser.add_argument('--metadata', action='append',
+    parser.add_argument('--metadata', action='append', metavar='NAME:VALUE',
                         help="Adds given metadata to the testrun. expected_format 'NAME:VALUE'")
     parser.add_argument('--change_engine_url', default=None,
                         help="Starts a listener that feeds results to ChangeEngine")
@@ -706,39 +695,14 @@ def main():
 
     parser = argument_parser()
     args = parser.parse_args()
-
-    if args.config_file:
-        config = read_config_file(args.config_file)
-    else:
-        config = {
-            'database': args.database,
-            'user': args.user,
-            'password': args.pw,
-            'host': args.host,
-            'port': args.port,
-            'db_engine': args.dbengine,
-            'require_ssl': not args.dont_require_ssl,
-            }
-    config['series'] = args.series
-    if args.team:
-        config['team'] = args.team
-    if args.repository:
-        config['repository'] = args.repository
-    if args.change_engine_url:
-        config['change_engine_url'] = args.change_engine_url
-    metadata = parse_metadata_args(args.metadata)
-    if 'metadata' in config:
-        config['metadata'].update(metadata)
-    else:
-        config['metadata'] = metadata
-    if len(args.output_files) > 1:
-        config['multirun'] = {}
+    config = Config(args, args.config_file)
 
     connection = database_connection(config)
 
+    build_number_cache = {}
     for output_file in args.output_files:
         print("Parsing: '{}'".format(output_file))
-        parse_xml(output_file, args.format, connection, config)
+        build_number_cache = parse_xml(output_file, args.format, connection, config, build_number_cache)
 
 
 if __name__ == '__main__':
