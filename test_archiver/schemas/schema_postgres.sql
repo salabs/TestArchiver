@@ -1,3 +1,13 @@
+CREATE TABLE schema_updates (
+    id serial PRIMARY KEY,
+    schema_version int UNIQUE NOT NULL,
+    applied_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    initial_update boolean DEFAULT false,
+    applied_by text
+);
+INSERT INTO schema_updates(schema_version, initial_update, applied_by)
+VALUES (1, true, '{applied_by}');
+
 CREATE TABLE test_series (
     id serial PRIMARY KEY,
     name text NOT NULL,
@@ -14,7 +24,8 @@ CREATE TABLE test_run (
     generated timestamp,
     rpa boolean,
     dryrun boolean,
-    ignored boolean DEFAULT false
+    ignored boolean DEFAULT false,
+    schema_version int REFERENCES schema_updates(schema_version) NOT NULL
 );
 
 CREATE TABLE test_series_mapping (
@@ -91,6 +102,7 @@ CREATE TABLE log_message (
     log_level text NOT NULL,
     message text
 );
+CREATE INDEX test_log_message_index ON log_message(test_run_id, suite_id, test_id);
 
 CREATE TABLE suite_metadata (
     suite_id int REFERENCES suite(id) ON DELETE CASCADE NOT NULL,

@@ -6,6 +6,8 @@ def read_config_file(file_name):
         return json.load(config_file)
 
 def parse_key_value_pairs(values):
+    if isinstance(values, dict):
+        return values.copy()
     pairs = {}
     for item in values or []:
         try:
@@ -25,6 +27,9 @@ class Config():
         else:
             self._file_config = file_config or {}
 
+        self._resolve_options()
+
+    def _resolve_options(self):
         self.database = self.resolve_option('database', default='test_archive')
         self.user = self.resolve_option('user')
         self.password = self.resolve_option('password')
@@ -36,7 +41,14 @@ class Config():
         self.team = self.resolve_option('team')
         self.repository = self.resolve_option('repository', default='default repo')
         self.series = self.resolve_list_option('series')
-        self.metadata = self.resolve_list_option('metadata', parse_key_value_pairs)
+        self.metadata = self.resolve_map_option('metadata')
+
+        self.allow_major_schema_updates = self.resolve_option('allow_major_schema_updates',
+                                                              default=False, cast_as=bool)
+        self.allow_minor_schema_updates = self.resolve_option('allow_minor_schema_updates',
+                                                              default=False, cast_as=bool)
+        # If major updates are allowed then minor ones are as well
+        self.allow_minor_schema_updates = self.allow_major_schema_updates or self.allow_minor_schema_updates
 
         self.change_engine_url = self.resolve_option('change_engine_url')
 
@@ -55,10 +67,14 @@ class Config():
             print("Error: incompatiple value for option '{}'".format(name))
             raise value_error
 
-    def resolve_list_option(self, name, value_handler=None):
+    def resolve_list_option(self, name):
         values = self._file_config.get(name, [])
         if self._cli_args and name in self._cli_args and self._cli_args.__getattribute__(name) is not None:
             values.extend(self._cli_args.__getattribute__(name))
-        if value_handler:
-            return value_handler(values)
+        return values
+
+    def resolve_map_option(self, name):
+        values = parse_key_value_pairs(self._file_config.get(name, []))
+        if self._cli_args and name in self._cli_args and self._cli_args.__getattribute__(name) is not None:
+            values.update(parse_key_value_pairs(self._cli_args.__getattribute__(name)))
         return values

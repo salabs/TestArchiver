@@ -243,7 +243,6 @@ class JUnitOutputParser(XmlOutputParser):
                 print("Ignoring empty message attribute in failure element")
                 # jest-junit does not add 'message' attribute to 'failure' xml element
                 # https://github.com/jest-community/jest-junit
-                pass
         elif name == 'error':
             self.archiver.update_status('FAIL')
             self.archiver.log_message('ERROR', attrs.getValue('message'))
@@ -422,8 +421,8 @@ class PytestJUnitOutputParser(XmlOutputParser):
         current_suites = self.archiver.current_suites()
         next_suite_stack.insert(0, current_suites[0].name)
         common_suites = 0
-        for i in range(len(current_suites)):
-            if i >= len(next_suite_stack) or current_suites[i].name != next_suite_stack[i]:
+        for i, current_suite in enumerate(current_suites):
+            if i >= len(next_suite_stack) or current_suite.name != next_suite_stack[i]:
                 break
             common_suites += 1
         for i in range(common_suites, len(current_suites)):
@@ -663,7 +662,9 @@ def parse_xml(xml_file, output_format, connection, config, build_number_cache):
 
 def argument_parser():
     parser = argparse.ArgumentParser(description='Parse test automation output.xml files to SQL database.')
-    parser.add_argument('output_files', nargs='+')
+    parser.add_argument('output_files', nargs='+',
+                        help='list of test output files to parse in to the test archive')
+
     parser.add_argument('--config', dest='config_file',
                         help='path to JSON config file containing database credentials')
     parser.add_argument('--dbengine', dest='db_engine',
@@ -675,6 +676,13 @@ def argument_parser():
     parser.add_argument('--port', help='database port (default: 5432)')
     parser.add_argument('--dont-require-ssl', dest='require_ssl', action='store_false', default=None,
                         help='Disable the default behavior to require ssl from the target database.')
+    parser.add_argument('--allow-minor-schema-updates', action='store_true', default=None,
+                        help=('Allow TestArchiver to perform MINOR (backwards compatible) schema '
+                              'updates the test archive'))
+    parser.add_argument('--allow-major-schema-updates', action='store_true', default=None,
+                        help=('Allow TestArchiver to perform MAJOR (backwards incompatible) schema '
+                              'updates the test archive'))
+
     parser.add_argument('--format', help='output format (default: robotframework)', default='robotframework',
                         choices=SUPPORTED_OUTPUT_FORMATS, type=str.lower)
     parser.add_argument('--repository', default=None,
@@ -682,10 +690,12 @@ def argument_parser():
                               'same name in different projects.'))
     parser.add_argument('--team', help='Team name for the test series', default=None)
     parser.add_argument('--series', action='append',
-                        help="Name of the testseries (and optionally build number 'SERIES_NAME#BUILD_NUM')")
+                        help=("Name of the test series (and optionally build number 'SERIES_NAME#BUILD_NUM' "
+                              "or build id 'SERIES_NAME#BUILD_ID')"))
     parser.add_argument('--metadata', action='append', metavar='NAME:VALUE',
-                        help="Adds given metadata to the testrun. expected_format 'NAME:VALUE'")
-    parser.add_argument('--change_engine_url', default=None,
+                        help="Adds given metadata to the testrun. Expected format: 'NAME:VALUE'")
+
+    parser.add_argument('--change-engine-url', default=None,
                         help="Starts a listener that feeds results to ChangeEngine")
     return parser
 
@@ -693,8 +703,7 @@ def main():
     if sys.version_info[0] < 3:
         sys.exit('Unsupported Python version (' + str(sys.version_info.major) + '). Please use version 3.')
 
-    parser = argument_parser()
-    args = parser.parse_args()
+    args = argument_parser().parse_args()
     config = Config(args, args.config_file)
 
     connection = database_connection(config)
@@ -703,6 +712,7 @@ def main():
     for output_file in args.output_files:
         print("Parsing: '{}'".format(output_file))
         build_number_cache = parse_xml(output_file, args.format, connection, config, build_number_cache)
+
 
 
 if __name__ == '__main__':
