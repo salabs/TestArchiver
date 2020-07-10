@@ -1,13 +1,12 @@
-import json
 import sys
 from hashlib import sha1
 from datetime import datetime
 
-from database import PostgresqlDatabase, SQLiteDatabase
+from database import get_connection_and_check_schema
 from database import IntegrityError
 from archiver_listeners import ChangeEngineListener
 
-ARCHIVER_VERSION = "1.2.0"
+from version import ARCHIVER_VERSION
 
 SUPPORTED_TIMESTAMP_FORMATS = (
         "%Y%m%d %H:%M:%S.%f",
@@ -225,7 +224,8 @@ class TestRun(FingerprintedItem):
                 'generated': generated,
                 'generator': generator,
                 'rpa': rpa,
-                'dryrun': dryrun}
+                'dryrun': dryrun,
+                'schema_version': self.archiver.db.current_schema_version()}
         try:
             self.id = self.archiver.db.insert_and_return_id('test_run', data)
         except IntegrityError:
@@ -398,19 +398,7 @@ class LogMessage(TestItem):
             self.id = self.archiver.db.insert('log_message', data)
 
 def database_connection(config):
-    if config.db_engine in ('postgresql', 'postgres'):
-        return PostgresqlDatabase(config.database,
-                                  config.host,
-                                  config.port,
-                                  config.user,
-                                  config.password,
-                                  config.require_ssl)
-    if config.db_engine in ('sqlite', 'sqlite3'):
-        if config.host or config.user:
-            raise Exception("--host or --user options should not be used "
-                            "with default sqlite3 database engine")
-        return SQLiteDatabase(config.database)
-    raise Exception("Unsupported database type '{}'".format(config.db_engine))
+    return get_connection_and_check_schema(config)
 
 
 class Archiver:

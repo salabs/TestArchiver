@@ -107,6 +107,13 @@ How the fingerprints are calculated for other frameworks depends on what data of
 
 The fingerprints can be used to compare executions of test cases. When the fingerprints differ between two consecutive executions of the same test case we can infer that the execution of the test case changed some how. On the other if two executions of a test case fail with the same fingerprint, the test encountered a similar problem (possibly the same issue).
 
+## Schema versioning
+From version 2.0.0 onwards the tool will manage and enforce that the schema version of the database matches that of the archiver. The tool can perform the schema updates when explicitly allowed. But in most cases it is recommended to run the updates manually using the `database.py` script. The schema version and all the updates performed are recorded to `schema_updates` table. The updates are categorized to major and minor updates and allowing each type of update is handled separately. Minor (`--allow_minor_schema_updates`) updates should only include changes that keep the database compatible to anyone reading the archive. Major (`--allow_major_schema_updates`) updates can include changes that can be incompatiple to services reading the database.
+
+```
+python3 test_archiver/database.py --database test_archive.db --allow-major-schema-updates
+```
+
 # Fixture Robot Framework tests
 
 The fixture tests are used to generate test data for the archiver and the same test data is assumed by the [archiver API server](/archive_api_server) tests. Here you can find the documentation on how these test outputs are mapped to the archivers data model. The script [run_fixture_robot.sh](/run_fixture_robot.sh) executes the Robot Framework [fixture test set](/robot_tests/) 10 times and parses those results in to a test database.
