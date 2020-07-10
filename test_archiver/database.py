@@ -1,30 +1,116 @@
+import argparse
 import os
 import sys
-
 import sqlite3
+from pathlib import Path
 
 try:
     import psycopg2
 except ImportError:
     psycopg2 = None
 
+from version import ARCHIVER_VERSION
+from configs import Config
+
+
+SCHEMA_UPDATES = (
+    #(update_id, minor, file)
+    (1, False, '0001-schema_update_table_and_log_message_index.sql'),
+    # Updates are appended to the end
+)
+
+
+def get_connection_and_check_schema(config):
+    connection = None
+    if config.db_engine in ('postgresql', 'postgres'):
+        connection = PostgresqlDatabase(config)
+    elif config.db_engine in ('sqlite', 'sqlite3'):
+        if config.host or config.user:
+            raise Exception("--host or --user options should not be used "
+                            "with default sqlite3 database engine")
+        connection = SQLiteDatabase(config)
+    if connection:
+        connection.check_and_update_schema()
+        return connection
+    raise Exception("Unsupported database type '{}'".format(config.db_engine))
+
+
 class IntegrityError(Exception):
     """Exception for uniformly communicating a database integrity error"""
 
+class ArchiverSchemaException(Exception):
+    """Exception for communicating a mismatch with database schema and TestArchiver version"""
 
-class Database:
-    def __init__(self, db_name, db_host=None, db_port=None, db_user=None, db_password=None, require_ssl=True):
-        self.database = db_name
-        self.host = db_host
-        self.port = db_port
-        self.user = db_user
-        self.password = db_password
-        self.require_ssl = require_ssl
+
+class BaseDatabase:
+
+    UndefinedTableError = None
+
+    def __init__(self, config):
+        self._schema_updates = SCHEMA_UPDATES
+        self.database = config.database
+        self.host = config.host
+        self.port = config.port
+        self.user = config.user
+        self.password = config.password
+        self.require_ssl = config.require_ssl
+        self.allow_minor_schema_updates = config.allow_minor_schema_updates
+        self.allow_major_schema_updates = config.allow_major_schema_updates
         self._connection = None
         self._connect()
 
+    def current_schema_version(self):
+        return self._schema_updates[-1][0]
+
+    def _db_engine_identifier(self):
+        raise NotImplementedError()
+
     def _connect(self):
         raise NotImplementedError()
+
+    def _initialize_schema(self):
+        raise NotImplementedError()
+
+    def _run_script(self, script_file):
+        raise NotImplementedError()
+
+    def check_and_update_schema(self):
+        latest_update_applied = self._latest_update_applied()
+        if latest_update_applied is None:
+            if self._initialize_schema():
+                print('Test archive schema initialized')
+                return
+            latest_update_applied = 0
+        if latest_update_applied < self._schema_updates[-1][0]:
+            for update_id, is_minor, file in self._schema_updates:
+                if update_id > latest_update_applied:
+                    base_dir = Path(os.path.dirname(__file__))
+                    script_file = base_dir / 'schemas/migrations' / self._db_engine_identifier() / file
+                    if self.allow_major_schema_updates or (is_minor and self.allow_minor_schema_updates):
+                        print('Running schema update {} from: {}'.format(update_id, script_file))
+                        self._run_script(script_file)
+                    elif is_minor:
+                        raise ArchiverSchemaException('ERROR: pending minor schema update is needed.'
+                                                      'Run with --allow-minor-schema-updates option to '
+                                                      'update the schema to match the archiver version.')
+                    else:
+                        raise ArchiverSchemaException('ERROR: pending major schema update is needed.'
+                                                      'Run with --allow-major-schema-updates option to '
+                                                      'update the schema to match the archiver version.')
+
+        elif latest_update_applied > self._schema_updates[-1][0]:
+            # The schema is newer than the Archiver
+            minimum_version = self.fetch_one_value('schema_updates', 'applied_by',
+                                                   {'update_id': latest_update_applied})
+            raise ArchiverSchemaException("ERROR: The version of TestArchiver is older than the schema. "
+                                          "Please update to version '{}' or higher".format(minimum_version))
+
+    def _latest_update_applied(self):
+        try:
+            return self.max_value('schema_updates', 'schema_version')
+        except self.UndefinedTableError:
+            self._connection.rollback()
+        return None
 
     def _execute(self, sql, values=None):
         if values is None:
@@ -70,14 +156,19 @@ class Database:
     def insert(self, table, data):
         raise NotImplementedError()
 
-    def max_value(self, table, column, where_data):
+    def max_value(self, table, column, where_data=None):
         raise NotImplementedError()
 
-    def fetch_one_value(self, table, column, where_data):
+    def fetch_one_value(self, table, column, where_data=None):
         raise NotImplementedError()
 
 
-class PostgresqlDatabase(Database):
+class PostgresqlDatabase(BaseDatabase):
+
+    UndefinedTableError = psycopg2.errors.UndefinedTable if psycopg2 else None
+
+    def _db_engine_identifier(self):
+        return 'postgres'
 
     def _connect(self):
         if not psycopg2:
@@ -92,13 +183,21 @@ class PostgresqlDatabase(Database):
             password=self.password,
             sslmode='require' if self.require_ssl else 'prefer',
         )
+
+    def _initialize_schema(self):
         try:
-            self._execute("SELECT 'keyword_statistics'::regclass;")
+            self._execute("SELECT 'test_run'::regclass;")
         except psycopg2.ProgrammingError:
             self._connection.rollback()
             schema_file = os.path.join(os.path.dirname(__file__), 'schemas/schema_postgres.sql')
-            with open(schema_file) as schema:
-                self._execute(schema.read())
+            self._run_script(schema_file)
+            return True
+        return False
+
+    def _run_script(self, script_file):
+        with open(script_file) as file:
+            self._execute(file.read().format(applied_by=ARCHIVER_VERSION))
+            self._connection.commit()
 
     def _handle_values(self, values):
         return values
@@ -188,22 +287,25 @@ class PostgresqlDatabase(Database):
             raise IntegrityError()
 
 
-    def max_value(self, table, column, where_data):
-        sql = "SELECT max({column}) FROM {table} WHERE {where};"
+    def max_value(self, table, column, where_data=None):
+        where_data = where_data or {}
+        where_filters = ' AND '.join(['{}=%s'.format(col) for col in where_data])
+        sql = "SELECT max({column}) FROM {table} {where};"
         sql = sql.format(
             table=table,
             column=column,
-            where=' AND '.join(['{}=%s'.format(col) for col in where_data]),
+            where='WHERE {}'.format(where_filters) if where_data else '',
             )
         (value, ) = self._execute_and_fetchone(sql, [where_data[key] for key in where_data])
         return value
 
-    def fetch_one_value(self, table, column, where_data):
-        sql = "SELECT {column} FROM {table} WHERE {where};"
+    def fetch_one_value(self, table, column, where_data=None):
+        where_data = where_data or {}
+        sql = "SELECT {column} FROM {table} {where};"
         sql = sql.format(
             table=table,
             column=column,
-            where=' AND '.join(['{}=%s'.format(col) for col in where_data]),
+            where='WHERE ' + ' AND '.join(['{}=%s'.format(col) for col in where_data]) if where_data else '',
             )
         row = self._execute_and_fetchone(sql, [where_data[key] for key in where_data])
         if row:
@@ -212,24 +314,33 @@ class PostgresqlDatabase(Database):
         return None
 
 
-class SQLiteDatabase(Database):
+class SQLiteDatabase(BaseDatabase):
 
-    def __init__(self, db_name):
-        super(SQLiteDatabase, self).__init__(db_name)
+    UndefinedTableError = sqlite3.OperationalError
+
+    def _db_engine_identifier(self):
+        return 'sqlite'
 
     def _connect(self):
         self._connection = sqlite3.connect(self.database)
-        query = "SELECT 1 FROM sqlite_master WHERE type='table' AND name='keyword_statistics';"
-        exists = self._execute_and_fetchone(query)
-        if not exists:
+
+    def _initialize_schema(self):
+        query = "SELECT 1 FROM sqlite_master WHERE type='table' AND name='test_run';"
+        if not self._execute_and_fetchone(query):
             schema_file = os.path.join(os.path.dirname(__file__), 'schemas/schema_sqlite.sql')
-            with open(schema_file) as schema:
-                self._connection.executescript(schema.read())
+            self._run_script(schema_file)
+            return True
+        return False
+
+    def _run_script(self, script_file):
+        with open(script_file) as file:
+            self._connection.executescript(file.read().format(applied_by=ARCHIVER_VERSION))
+            self._connection.commit()
 
     def _handle_values(self, values):
         handled_values = []
         for value in values:
-            if type(value) == list:
+            if isinstance(value, list):
                 handled_values.append(str(value))
             else:
                 handled_values.append(value)
@@ -257,8 +368,7 @@ class SQLiteDatabase(Database):
 
     def insert_and_return_id(self, table, data, key_fields=None):
         self.insert(table, data)
-        row_id = self._fetch_id(table, data, key_fields)
-        return row_id
+        return self._fetch_id(table, data, key_fields)
 
     def insert_or_ignore(self, table, data, key_fields=None):
         sql = "INSERT OR IGNORE INTO {table}({fields}) VALUES ({value_placeholders});"
@@ -298,25 +408,63 @@ class SQLiteDatabase(Database):
             raise IntegrityError()
 
 
-    def max_value(self, table, column, where_data):
-        sql = "SELECT max({column}) FROM {table} WHERE {where};"
+    def max_value(self, table, column, where_data=None):
+        where_data = where_data or {}
+        where_filters = ' AND '.join(['{}=?'.format(col) for col in where_data])
+        sql = "SELECT max({column}) FROM {table} {where};"
         sql = sql.format(
             table=table,
             column=column,
-            where=' AND '.join(['{}=?'.format(col) for col in where_data]),
+            where='WHERE {}'.format(where_filters) if where_data else '',
             )
         (value, ) = self._execute_and_fetchone(sql, [where_data[key] for key in where_data])
         return value
 
-    def fetch_one_value(self, table, column, where_data):
-        sql = "SELECT max({column}) FROM {table} WHERE {where};"
+    def fetch_one_value(self, table, column, where_data=None):
+        where_data = where_data or {}
+        sql = "SELECT {column} FROM {table} {where};"
         sql = sql.format(
             table=table,
             column=column,
-            where=' AND '.join(['{}=?'.format(col) for col in where_data]),
+            where='WHERE ' + ' AND '.join(['{}=?'.format(col) for col in where_data]) if where_data else '',
             )
         row = self._execute_and_fetchone(sql, [where_data[key] for key in where_data])
         if row:
             (value, ) = row
             return value
         return None
+
+
+def argument_parser():
+    parser = argparse.ArgumentParser(description='Initialize and update test archive schema.')
+    parser.add_argument('--database', required=True, help='database name')
+    parser.add_argument('--config', dest='config_file',
+                        help='path to JSON config file containing database credentials')
+    parser.add_argument('--dbengine', dest='db_engine',
+                        help='Database engine, postgresql or sqlite (default)')
+    parser.add_argument('--host', help='databse host name', default=None)
+    parser.add_argument('--user', help='database user')
+    parser.add_argument('--pw', '--password', dest='password', help='database password')
+    parser.add_argument('--port', help='database port (default: 5432)')
+    parser.add_argument('--dont-require-ssl', dest='require_ssl', action='store_false', default=None,
+                        help='Disable the default behavior to require ssl from the target database.')
+    parser.add_argument('--allow-minor-schema-updates', action='store_true', default=None,
+                        help=('Allow TestArchiver to perform MINOR (backwards compatible) schema '
+                              'updates the test archive'))
+    parser.add_argument('--allow-major-schema-updates', action='store_true', default=None,
+                        help=('Allow TestArchiver to perform MAJOR (backwards incompatible) schema '
+                              'updates the test archive'))
+    return parser
+
+def main():
+    if sys.version_info[0] < 3:
+        sys.exit('Unsupported Python version (' + str(sys.version_info.major) + '). Please use version 3.')
+
+    args = argument_parser().parse_args()
+    config = Config(args, args.config_file)
+
+    get_connection_and_check_schema(config)
+
+
+if __name__ == '__main__':
+    main()
