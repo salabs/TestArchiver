@@ -1,3 +1,5 @@
+# pylint: disable=W0212
+
 import os
 import shutil
 import unittest

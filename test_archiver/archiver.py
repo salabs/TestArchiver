@@ -1,6 +1,7 @@
 import sys
 from hashlib import sha1
 from datetime import datetime
+from collections import defaultdict
 
 from database import get_connection_and_check_schema
 from database import IntegrityError
@@ -107,6 +108,12 @@ class FingerprintedItem(TestItem):
         self.setup_fingerprint = None
         self.execution_fingerprint = None
         self.teardown_fingerprint = None
+
+        self._execution_path = None
+        self._child_counters = defaultdict(lambda: 0)
+
+    def insert_results(self):
+        raise NotImplementedError()
 
     def update_status(self, status, start_time, end_time, elapsed=None, critical=None):
         if status == 'NOT_RUN':
@@ -215,6 +222,29 @@ class FingerprintedItem(TestItem):
             key_values = {'test_id': test_id, 'test_run_id': self.test_run_id()}
             self.archiver.db.update('test_result', {'status': 'FAIL'}, key_values)
 
+    def set_execution_path(self, execution_path):
+        self._execution_path = execution_path
+
+    def _execution_path_identifier(self):
+        return ''
+
+    def child_counter(self, execution_path_identifier):
+        self._child_counters[execution_path_identifier] += 1
+        return self._child_counters[execution_path_identifier]
+
+    def execution_path(self):
+        if not self._execution_path:
+            identifier = self._execution_path_identifier()
+            if self.parent_item:
+                identifier += str(self.parent_item.child_counter(self._execution_path_identifier()))
+            else:
+                identifier += '1'
+            if self.parent_item and self.parent_item.execution_path():
+                self._execution_path = (self.parent_item.execution_path() + '-' + identifier)
+            else:
+                self._execution_path = identifier
+        return self._execution_path
+
 
 class TestRun(FingerprintedItem):
     def __init__(self, archiver, archived_using, generated, generator, rpa, dryrun):
@@ -233,6 +263,9 @@ class TestRun(FingerprintedItem):
                                  'compatible with the version of TestArchiver you are using. '
                                  'Consider updating to 2.0 or later.')
 
+    def execution_path(self):
+        return ''
+
 
 class Suite(FingerprintedItem):
     def __init__(self, archiver, name, repository):
@@ -241,8 +274,12 @@ class Suite(FingerprintedItem):
         self.id = self.archiver.db.return_id_or_insert_and_return_id('suite', data,
                                                                      ['repository', 'full_name'])
 
+    def _execution_path_identifier(self):
+        return 's'
+
     def insert_results(self):
-        data = {'suite_id': self.id, 'test_run_id': self.test_run_id()}
+        data = {'suite_id': self.id, 'test_run_id': self.test_run_id(),
+                'execution_path': self.execution_path()}
         data.update(self.status_and_fingerprint_values())
         if self.id not in self.parent_item.child_suite_ids:
             try:
@@ -288,9 +325,13 @@ class Test(FingerprintedItem):
         self.id = self.archiver.db.return_id_or_insert_and_return_id('test_case', data,
                                                                      ['suite_id', 'full_name'])
 
+    def _execution_path_identifier(self):
+        return 't'
+
     def insert_results(self):
         if self.id not in self.parent_item.child_test_ids:
-            data = {'test_id': self.id, 'test_run_id': self.test_run_id(), 'critical': self.critical}
+            data = {'test_id': self.id, 'test_run_id': self.test_run_id(), 'critical': self.critical,
+                    'execution_path': self.execution_path()}
             data.update(self.status_and_fingerprint_values())
             self.archiver.db.insert('test_result', data)
             if self.subtree_fingerprints:
@@ -330,6 +371,9 @@ class Keyword(FingerprintedItem):
         if arguments:
             self.arguments.extend(arguments)
 
+    def _execution_path_identifier(self):
+        return 'k'
+
     def insert_results(self):
         if self.kw_type == 'teardown' and self.status == 'FAIL':
             self.parent_item.failed_by_teardown = True
@@ -357,16 +401,17 @@ class Keyword(FingerprintedItem):
             stat_object = self.archiver.keyword_statistics[self.fingerprint]
             stat_object['calls'] += 1
             if self.elapsed_time:
-                if stat_object['max_execution_time'] == None:
+                if stat_object['max_execution_time'] is None:
                     stat_object['max_execution_time'] = self.elapsed_time
-                else:stat_object['max_execution_time'] = max(stat_object['max_execution_time'],
-                                                             self.elapsed_time)
-                if stat_object['min_execution_time'] == None:
+                else:
+                    stat_object['max_execution_time'] = max(stat_object['max_execution_time'],
+                                                            self.elapsed_time)
+                if stat_object['min_execution_time'] is None:
                     stat_object['min_execution_time'] = self.elapsed_time
                 else:
                     stat_object['min_execution_time'] = min(stat_object['min_execution_time'],
                                                             self.elapsed_time)
-                if stat_object['cumulative_execution_time'] == None:
+                if stat_object['cumulative_execution_time'] is None:
                     stat_object['cumulative_execution_time'] = self.elapsed_time
                 else:
                     stat_object['cumulative_execution_time'] += self.elapsed_time
@@ -385,17 +430,23 @@ class Keyword(FingerprintedItem):
 
 class LogMessage(TestItem):
     def __init__(self, archiver, log_level, timestamp):
-        self.archiver = archiver
+        super(LogMessage, self).__init__(archiver)
+        self.parent_item = self._parent_item()
         self.log_level = log_level
         self.timestamp = timestamp
+        self.id = None
 
     def insert(self, content):
         if self.log_level in ARCHIVED_LOG_LEVELS:
             data = {'test_run_id': self.test_run_id(), 'timestamp': self.timestamp,
                     'log_level': self.log_level, 'message': content[:MAX_LOG_MESSAGE_LENGTH],
                     'test_id': self.parent_test().id if self.parent_test() else None,
-                    'suite_id': self.parent_suite().id}
+                    'suite_id': self.parent_suite().id,
+                    'execution_path': self.execution_path()}
             self.id = self.archiver.db.insert('log_message', data)
+
+    def execution_path(self):
+        return self.parent_item.execution_path()
 
 def database_connection(config):
     return get_connection_and_check_schema(config)
@@ -412,6 +463,7 @@ class Archiver:
         self.series = config.series
         self.repository = config.repository
 
+        self.archived_using = None
         self.output_from_dryrun = False
         self.db = database_connection
         self.stack = []
@@ -486,7 +538,7 @@ class Archiver:
         if ARCHIVE_KEYWORDS and ARCHIVE_KEYWORD_STATISTICS:
             self.report_keyword_statistics()
 
-        self.db._connection.commit()
+        self.db.commit()
         for listener in self.listeners:
             listener.end_run()
 
@@ -526,8 +578,11 @@ class Archiver:
             build_number = previous_build_number + 1 if previous_build_number else 1
         return build_number
 
-    def begin_suite(self, name):
-        self.stack.append(Suite(self, name, 'repo'))
+    def begin_suite(self, name, execution_path=None):
+        suite = Suite(self, name, 'repo')
+        suite.set_execution_path(execution_path)
+        self.stack.append(suite)
+        return suite
 
     def end_suite(self, attributes=None):
         if attributes:
@@ -539,8 +594,11 @@ class Archiver:
         for listener in self.listeners:
             listener.suite_result(suite)
 
-    def begin_test(self, name, class_name=None):
-        self.stack.append(Test(self, name, class_name))
+    def begin_test(self, name, class_name=None, execution_path=None):
+        test = Test(self, name, class_name)
+        test.set_execution_path(execution_path)
+        self.stack.append(test)
+        return test
 
     def end_test(self, attributes=None):
         if attributes:
@@ -560,7 +618,9 @@ class Archiver:
         self.current_item().status = status
 
     def begin_keyword(self, name, library, kw_type, arguments=None):
-        self.stack.append(Keyword(self, name, library, kw_type.lower(), arguments))
+        keyword = Keyword(self, name, library, kw_type.lower(), arguments)
+        self.stack.append(keyword)
+        return keyword
 
     def end_keyword(self, attributes=None):
         if attributes:
@@ -570,9 +630,10 @@ class Archiver:
         self.stack.pop()
 
     def keyword(self, name, library, kw_type, status, arguments=None):
-        self.begin_keyword(name, library, kw_type, arguments)
+        keyword = self.begin_keyword(name, library, kw_type, arguments)
         self.update_status(status)
         self.end_keyword()
+        return keyword
 
     def update_arguments(self, argument):
         self.current_item(Keyword).arguments.append(argument)
