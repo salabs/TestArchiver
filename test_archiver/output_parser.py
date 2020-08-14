@@ -54,14 +54,17 @@ class RobotFrameworkOutputParser(XmlOutputParser):
                                          None,
                                          )
         elif name == 'suite':
-            self.archiver.begin_suite(attrs.getValue('name'))
+            execution_path = attrs.getValue('id') if 'id' in attrs.getNames() else None
+            self.archiver.begin_suite(attrs.getValue('name'), execution_path=execution_path)
         elif name == 'test':
-            self.archiver.begin_test(attrs.getValue('name'))
+            execution_path = attrs.getValue('id') if 'id' in attrs.getNames() else None
+            self.archiver.begin_test(attrs.getValue('name'), execution_path=execution_path)
         elif name == 'kw':
             name = attrs.getValue('name') if 'name' in attrs.getNames() else '${EMPTY}'
             kw_type = attrs.getValue('type') if 'type' in attrs.getNames() else 'Keyword'
             library = attrs.getValue('library') if 'library' in attrs.getNames() else ''
             self.archiver.begin_keyword(name, library, kw_type)
+            #self.archiver.set_execution_path(attrs.getValue('id'))
         elif name == 'arg':
             pass
         elif name == 'msg':
@@ -153,7 +156,7 @@ class XUnitOutputParser(XmlOutputParser):
             self.archiver.begin_status(suite_status, start_time=timestamp, elapsed=elapsed)
         elif name == 'testcase':
             class_name = attrs.getValue('classname')
-            self.archiver.begin_test(attrs.getValue('name'), class_name)
+            self.archiver.begin_test(attrs.getValue('name'), class_name=class_name)
             elapsed = int(float(attrs.getValue('time'))*1000)
             self.archiver.begin_status('PASS', elapsed=elapsed)
         elif name == 'failure':
@@ -232,7 +235,7 @@ class JUnitOutputParser(XmlOutputParser):
             self.archiver.begin_status(suite_status, start_time=timestamp, elapsed=elapsed)
         elif name == 'testcase':
             class_name = attrs.getValue('classname')
-            self.archiver.begin_test(attrs.getValue('name'), class_name)
+            self.archiver.begin_test(attrs.getValue('name'), class_name=class_name)
             elapsed = int(float(attrs.getValue('time'))*1000)
             self.archiver.begin_status('PASS', elapsed=elapsed)
         elif name == 'failure':

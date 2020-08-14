@@ -116,12 +116,18 @@ The series can also be indicated using metadata. Any metadata with name prefixed
     - Updates are divided to major and minor updates
     - Minor updates are backwards compatible for applications reading the database
     - Major updates are backwards incompatible for applications reading the database
-  * Major schema update:
+  * Major schema update #1:
     - Adds `schema_updates` table for recording schema updates
     - Adds `schema_version` column to `test_run` table to make schema incompatible with
       old versions TestArchiver
     - Adds index for log messages for query performance
   * renamed `output_parser.py` cli option `--change_engine_url` to `--change-engine-url`
+  * Record an execution path for test cases, suites and log messages.
+    - The path explains the position of the item in its test run.
+    - E.g. `s1-s2-t3` means the third test in the second subsuite of the top suite.
+  * Minor schema update #2:
+    - Adds `execution_path` column to `test_result`, `suite_result` and `log_message` tables
+
 
 - 1.2.0 (2020-08-18)
   * Important database integrity fix when using sqlite database

@@ -16,6 +16,7 @@ from configs import Config
 SCHEMA_UPDATES = (
     #(update_id, minor, file)
     (1, False, '0001-schema_update_table_and_log_message_index.sql'),
+    (2, True, '0002-execution_paths.sql'),
     # Updates are appended to the end
 )
 
@@ -67,6 +68,9 @@ class BaseDatabase:
 
     def _connect(self):
         raise NotImplementedError()
+
+    def commit(self):
+        self._connection.commit()
 
     def _initialize_schema(self):
         raise NotImplementedError()
@@ -172,9 +176,8 @@ class PostgresqlDatabase(BaseDatabase):
 
     def _connect(self):
         if not psycopg2:
-            print('ERROR: Trying to use Postgresql database but psycopg2 is not installed!')
-            print("ERROR: For example: 'pip install psycopg2-binary'")
-            sys.exit(1)
+            raise Exception("ERROR: Trying to use Postgresql database but psycopg2 is not installed! "
+                            "Try for example: 'pip install psycopg2-binary'")
 
         self._connection = psycopg2.connect(
             host=self.host,
@@ -197,7 +200,7 @@ class PostgresqlDatabase(BaseDatabase):
     def _run_script(self, script_file):
         with open(script_file) as file:
             self._execute(file.read().format(applied_by=ARCHIVER_VERSION))
-            self._connection.commit()
+            self.commit()
 
     def _handle_values(self, values):
         return values
@@ -335,7 +338,7 @@ class SQLiteDatabase(BaseDatabase):
     def _run_script(self, script_file):
         with open(script_file) as file:
             self._connection.executescript(file.read().format(applied_by=ARCHIVER_VERSION))
-            self._connection.commit()
+            self.commit()
 
     def _handle_values(self, values):
         handled_values = []
