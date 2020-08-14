@@ -6,7 +6,7 @@ CREATE TABLE schema_updates (
     applied_by text
 );
 INSERT INTO schema_updates(schema_version, initial_update, applied_by)
-VALUES (1, true, '{applied_by}');
+VALUES (2, true, '{applied_by}');
 
 CREATE TABLE test_series (
     id integer PRIMARY KEY AUTOINCREMENT,
@@ -60,6 +60,7 @@ CREATE TABLE suite_result (
     setup_fingerprint text,
     execution_fingerprint text,
     teardown_fingerprint text,
+    execution_path text,
     PRIMARY KEY (test_run_id, suite_id)
 );
 CREATE UNIQUE INDEX unique_suite_result_idx ON suite_result(start_time, fingerprint);
@@ -90,10 +91,12 @@ CREATE TABLE test_result (
     setup_fingerprint text,
     execution_fingerprint text,
     teardown_fingerprint text,
+    execution_path text,
     PRIMARY KEY (test_run_id, test_id)
 );
 
 CREATE TABLE log_message (
+    execution_path text,
     test_run_id int REFERENCES test_run(id) ON DELETE CASCADE NOT NULL,
     test_id int REFERENCES test_case(id) ON DELETE CASCADE,
     suite_id int REFERENCES suite(id) ON DELETE CASCADE NOT NULL,

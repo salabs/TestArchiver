@@ -1,6 +1,6 @@
+import argparse
 import unittest
 import mock
-import argparse
 
 from configs import Config, parse_key_value_pairs
 

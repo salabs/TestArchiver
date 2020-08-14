@@ -75,6 +75,8 @@ Result fields are:
 
 -   `fingerprint` Fingerprint of the result, hash calculated from the combination of item name and subfingerprints
 
+-   `execution_path` Execution path of the result i.e. where in the execution tree of the test run the item was executed. E.g. `s1-s2-t3` means the third test in the second subsuite of the top suite.
+
 -   `start_time` timestamp
 
 -   `elapsed` total time of the item execution (milliseconds)
@@ -87,7 +89,9 @@ Result fields are:
 
 -   `critical` weather the test is critical or not (boolean, Robot Framework specific null in other cases)
 
--   `log_messages` timestamp, log_level and message string up to 2000 characters
+### Data linked to results objects
+
+-   `log_messages` timestamp, log_level, execution path and message string up to 2000 characters
 
 -   `test_tags` tags set for the test case
 
