@@ -184,7 +184,7 @@ class PostgresqlDatabase(Database):
             )
         try:
             self._execute(sql, [data[key] for key in keys])
-        except psycopg2.errors.UniqueViolation:
+        except (psycopg2.errors.UniqueViolation, psycopg2.errors.NotNullViolation):
             raise IntegrityError()
 
 
@@ -252,25 +252,11 @@ class SQLiteDatabase(Database):
         return row_id
 
     def return_id_or_insert_and_return_id(self, table, data, key_fields):
-        sql = "INSERT OR IGNORE INTO {table}({fields}) VALUES ({value_placeholders});"
-        keys = list(data)
-        sql = sql.format(
-            table=table,
-            fields=','.join(keys),
-            value_placeholders=','.join(['?' for _ in keys]),
-            )
-        self._execute(sql, [data[key] for key in keys])
+        self.insert_or_ignore(table, data)
         return self._fetch_id(table, data, key_fields)
 
     def insert_and_return_id(self, table, data, key_fields=None):
-        sql = "INSERT OR IGNORE INTO {table}({fields}) VALUES ({value_placeholders});"
-        keys = list(data)
-        sql = sql.format(
-            table=table,
-            fields=','.join(keys),
-            value_placeholders=','.join(['?' for _ in keys]),
-            )
-        self._execute(sql, [data[key] for key in keys])
+        self.insert(table, data)
         row_id = self._fetch_id(table, data, key_fields)
         return row_id
 

@@ -7,7 +7,7 @@ from database import PostgresqlDatabase, SQLiteDatabase
 from database import IntegrityError
 from archiver_listeners import ChangeEngineListener
 
-ARCHIVER_VERSION = "1.1.3"
+ARCHIVER_VERSION = "1.2.0-dev"
 
 SUPPORTED_TIMESTAMP_FORMATS = (
         "%Y%m%d %H:%M:%S.%f",
@@ -226,7 +226,12 @@ class TestRun(FingerprintedItem):
                 'generator': generator,
                 'rpa': rpa,
                 'dryrun': dryrun}
-        self.id = self.archiver.db.insert_and_return_id('test_run', data)
+        try:
+            self.id = self.archiver.db.insert_and_return_id('test_run', data)
+        except IntegrityError:
+            raise IntegrityError('ERROR: Unable to insert results. Probably the test archive schema is not '
+                                 'compatible with the version of TestArchiver you are using. '
+                                 'Consider updating to 2.0 or later.')
 
 
 class Suite(FingerprintedItem):
