@@ -2,10 +2,10 @@
 
 ## With output parser
 
-The robot output.xml files can be imported using `test_archiver/output_parser.py`.
+The robot output.xml files can be imported using `testarchiver`.
 
 ```
-python3 test_archiver/output_parser.py --format robot --database test_archive.db output.xml
+testarchiver --format robot --database test_archive.db output.xml
 ```
 
 ## With listener
@@ -13,7 +13,7 @@ python3 test_archiver/output_parser.py --format robot --database test_archive.db
 The project includes a listener that allows archiving the results using Robot Frameworks [Listener interface](https://robotframework.org/robotframework/latest/RobotFrameworkUserGuide.html#listener-interface)
 
 ```
-robot --pythonpath /path/to/test_archiver/ --listener ArchiverListener:test_archive.db:sqlite3 my_tests.robot
+robot --pythonpath /path/to/test_archiver/ --listener test_archiver.ArchiverListener:test_archive.db:sqlite3 my_tests.robot
 ```
 
 This will create a SQLite database file named `test_archive.db` that contains the results.

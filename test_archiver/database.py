@@ -9,8 +9,7 @@ try:
 except ImportError:
     psycopg2 = None
 
-from version import ARCHIVER_VERSION
-from configs import Config
+from . import version, configs
 
 
 SCHEMA_UPDATES = (
@@ -199,7 +198,7 @@ class PostgresqlDatabase(BaseDatabase):
 
     def _run_script(self, script_file):
         with open(script_file) as file:
-            self._execute(file.read().format(applied_by=ARCHIVER_VERSION))
+            self._execute(file.read().format(applied_by=version.ARCHIVER_VERSION))
             self.commit()
 
     def _handle_values(self, values):
@@ -337,7 +336,7 @@ class SQLiteDatabase(BaseDatabase):
 
     def _run_script(self, script_file):
         with open(script_file) as file:
-            self._connection.executescript(file.read().format(applied_by=ARCHIVER_VERSION))
+            self._connection.executescript(file.read().format(applied_by=version.ARCHIVER_VERSION))
             self.commit()
 
     def _handle_values(self, values):
@@ -464,7 +463,7 @@ def main():
         sys.exit('Unsupported Python version (' + str(sys.version_info.major) + '). Please use version 3.')
 
     args = argument_parser().parse_args()
-    config = Config(args, args.config_file)
+    config = configs.Config(args, args.config_file)
 
     get_connection_and_check_schema(config)
 

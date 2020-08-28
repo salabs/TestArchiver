@@ -3,11 +3,7 @@ from hashlib import sha1
 from datetime import datetime
 from collections import defaultdict
 
-from database import get_connection_and_check_schema
-from database import IntegrityError
-from archiver_listeners import ChangeEngineListener
-
-from version import ARCHIVER_VERSION
+from . import database, version, archiver_listeners
 
 SUPPORTED_TIMESTAMP_FORMATS = (
         "%Y%m%d %H:%M:%S.%f",
@@ -250,7 +246,7 @@ class TestRun(FingerprintedItem):
     def __init__(self, archiver, archived_using, generated, generator, rpa, dryrun):
         super(TestRun, self).__init__(archiver, '')
         data = {'archived_using': archived_using,
-                'archiver_version': ARCHIVER_VERSION,
+                'archiver_version': version.ARCHIVER_VERSION,
                 'generated': generated,
                 'generator': generator,
                 'rpa': rpa,
@@ -258,10 +254,11 @@ class TestRun(FingerprintedItem):
                 'schema_version': self.archiver.db.current_schema_version()}
         try:
             self.id = self.archiver.db.insert_and_return_id('test_run', data)
-        except IntegrityError:
-            raise IntegrityError('ERROR: Unable to insert results. Probably the test archive schema is not '
-                                 'compatible with the version of TestArchiver you are using. '
-                                 'Consider updating to 2.0 or later.')
+        except database.IntegrityError:
+            raise database.IntegrityError(
+                'ERROR: Unable to insert results. Probably the test archive schema is not '
+                'compatible with the version of TestArchiver you are using. '
+                'Consider updating to 2.0 or later.')
 
     def execution_path(self):
         return ''
@@ -284,8 +281,8 @@ class Suite(FingerprintedItem):
         if self.id not in self.parent_item.child_suite_ids:
             try:
                 self.archiver.db.insert('suite_result', data)
-            except IntegrityError:
-                print("ERROR: IntegrityError: these results have already been archived!")
+            except database.IntegrityError:
+                print("ERROR: database.IntegrityError: these results have already been archived!")
                 sys.exit(1)
             self.insert_metadata()
             if self.failed_by_teardown:
@@ -449,7 +446,7 @@ class LogMessage(TestItem):
         return self.parent_item.execution_path()
 
 def database_connection(config):
-    return get_connection_and_check_schema(config)
+    return database.get_connection_and_check_schema(config)
 
 
 class Archiver:
@@ -472,7 +469,7 @@ class Archiver:
 
         self.listeners = []
         if config.change_engine_url:
-            self.listeners.append(ChangeEngineListener(self, config.change_engine_url))
+            self.listeners.append(archiver_listeners.ChangeEngineListener(self, config.change_engine_url))
 
     def current_item(self, expected_type=None):
         item = self.stack[-1] if self.stack else None
