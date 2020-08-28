@@ -3,85 +3,85 @@
 import unittest
 from mock import Mock
 
-from configs import Config
-from archiver import Archiver, FingerprintedItem, Suite, Keyword
+# from configs import Config
+# from archiver import Archiver, FingerprintedItem, Suite, Keyword
 
-# These classes are renamed to avoid problems with some test case collection scripts
-from archiver import TestItem as ArchiverTestItem
-from archiver import TestRun as ArchiverTestRun
-from archiver import Test as ArchiverTestCase
-
+# # These classes are renamed to avoid problems with some test case collection scripts
+# from archiver import TestItem as TestItem
+# from archiver import TestRun as TestRun
+# from archiver import Test as TestCase
+from test_archiver import configs, archiver
 
 class TestTestItem(unittest.TestCase):
 
     def setUp(self):
         self.mock_db = Mock()
-        self.config = Config(file_config={})
-        self.archiver = Archiver(self.mock_db, self.config)
-        self.item = ArchiverTestItem(self.archiver)
+        self.config = configs.Config(file_config={})
+        self.archiver = archiver.Archiver(self.mock_db, self.config)
+        self.item = archiver.TestItem(self.archiver)
 
     def test_parent_suite(self):
         self.assertEqual(self.item.parent_suite(), None)
 
-        test_run = ArchiverTestRun(self.archiver, 'unittests', 'never', 'unittests', None, None)
+        test_run = archiver.TestRun(self.archiver, 'unittests', 'never', 'unittests', None, None)
         self.archiver.stack.append(test_run)
         self.assertEqual(self.item.parent_suite(), None)
 
-        suite1 = Suite(self.archiver, 'mock_suite1', 'mock_repo')
+        suite1 = archiver.Suite(self.archiver, 'mock_suite1', 'mock_repo')
         self.archiver.stack.append(suite1)
         self.assertEqual(self.item.parent_suite(), suite1)
 
-        suite2 = Suite(self.archiver, 'mock_suite2', 'mock_repo')
+        suite2 = archiver.Suite(self.archiver, 'mock_suite2', 'mock_repo')
         self.archiver.stack.append(suite2)
         self.assertEqual(self.item.parent_suite(), suite2)
 
-        test = ArchiverTestCase(self.archiver, 'mock_test', None)
+        test = archiver.Test(self.archiver, 'mock_test', None)
         self.archiver.stack.append(test)
         self.assertEqual(self.item.parent_suite(), suite2)
 
     def test_parent_test(self):
         self.assertEqual(self.item.parent_test(), None)
 
-        test_run = ArchiverTestRun(self.archiver, 'unittests', 'never', 'unittests', None, None)
+        test_run = archiver.TestRun(self.archiver, 'unittests', 'never', 'unittests', None, None)
         self.archiver.stack.append(test_run)
         self.assertEqual(self.item.parent_test(), None)
 
-        suite1 = Suite(self.archiver, 'mock_suite1', 'mock_repo')
+        suite1 = archiver.Suite(self.archiver, 'mock_suite1', 'mock_repo')
         self.archiver.stack.append(suite1)
         self.assertEqual(self.item.parent_test(), None)
 
-        suite2 = Suite(self.archiver, 'mock_suite2', 'mock_repo')
+        suite2 = archiver.Suite(self.archiver, 'mock_suite2', 'mock_repo')
         self.archiver.stack.append(suite2)
         self.assertEqual(self.item.parent_test(), None)
 
-        test = ArchiverTestCase(self.archiver, 'mock_test', None)
+        test = archiver.Test(self.archiver, 'mock_test', None)
         self.archiver.stack.append(test)
         self.assertEqual(self.item.parent_test(), test)
 
-        keyword = Keyword(self.archiver, 'mock_kw', None, None, None)
+        keyword = archiver.Keyword(self.archiver, 'mock_kw', None, None, None)
         self.archiver.stack.append(keyword)
         self.assertEqual(self.item.parent_test(), test)
 
     def test_parent_item(self):
         self.assertEqual(self.item._parent_item(), None)
 
-        test_run = ArchiverTestRun(self.archiver, 'unittests', 'never', 'unittests', None, None)
+        test_run = archiver.TestRun(self.archiver, 'unittests', 'never', 'unittests', None, None)
         self.archiver.stack.append(test_run)
         self.assertEqual(self.item._parent_item(), test_run)
 
-        suite1 = Suite(self.archiver, 'mock_suite1', 'mock_repo')
+        suite1 = archiver.Suite(self.archiver, 'mock_suite1', 'mock_repo')
         self.archiver.stack.append(suite1)
         self.assertEqual(self.item._parent_item(), suite1)
 
-        suite2 = Suite(self.archiver, 'mock_suite2', 'mock_repo')
+        suite2 = archiver.Suite(self.archiver, 'mock_suite2', 'mock_repo')
         self.archiver.stack.append(suite2)
         self.assertEqual(self.item._parent_item(), suite2)
 
-        test = ArchiverTestCase(self.archiver, 'mock_test', None)
+        test = archiver.Test(self.archiver, 'mock_test', None)
         self.archiver.stack.append(test)
         self.assertEqual(self.item._parent_item(), test)
 
-        keyword = Keyword(self.archiver, 'mock_kw', None, None, None)
+        keyword = archiver.Keyword(self.archiver, 'mock_kw', None, None, None)
         self.archiver.stack.append(keyword)
         self.assertEqual(self.item._parent_item(), keyword)
 
@@ -93,7 +93,7 @@ class TestTestItem(unittest.TestCase):
         self.assertEqual(self.item.test_run_id(), 1234)
 
 
-class SutFingerprintedItem(FingerprintedItem):
+class SutFingerprintedItem(archiver.FingerprintedItem):
     def _execution_path_identifier(self):
         return 'sut'
 
@@ -101,8 +101,8 @@ class TestFingerprintedItem(unittest.TestCase):
 
     def setUp(self):
         self.mock_db = Mock()
-        self.config = Config(file_config={})
-        self.archiver = Archiver(self.mock_db, self.config)
+        self.config = configs.Config(file_config={})
+        self.archiver = archiver.Archiver(self.mock_db, self.config)
         self.item = SutFingerprintedItem(self.archiver, 'SUT item')
 
     def test_child_counter(self):
@@ -134,8 +134,8 @@ class TestArchiverClass(unittest.TestCase):
 
     def setUp(self):
         self.mock_db = Mock()
-        self.config = Config(file_config={})
-        self.archiver = Archiver(self.mock_db, self.config)
+        self.config = configs.Config(file_config={})
+        self.archiver = archiver.Archiver(self.mock_db, self.config)
 
     def test_suite_execution_paths_are_set_or_generated(self):
         suite1 = self.archiver.begin_suite('mock suite 1', execution_path='path-to-s1')
@@ -189,3 +189,6 @@ class TestArchiverClass(unittest.TestCase):
         self.archiver.end_keyword()
         keyword3 = self.archiver.begin_keyword('mock kw', 'unitests', 'kw')
         self.assertEqual(keyword3.execution_path(), 's1-t1-k1-k2')
+
+if __name__ == '__main__':
+    unittest.main()

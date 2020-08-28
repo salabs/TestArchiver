@@ -4,7 +4,7 @@ push:
       - master
 jobs:
     build-and-publish:
-      name:  
+      name:
       runs-on: ubuntu-latest
       steps:
         - uses: actions/checkout@master
@@ -30,10 +30,9 @@ jobs:
           with:
             password: ${{ secrets.test_pypi_api_token }}
             repository_url: https://test.pypi.org/legacy/
-        
-        - name: Publish distribution  to PyPI
+
+        - name: Publish distribution to PyPI
             if: startsWith(github.event.ref, 'refs/tags')
             uses: pypa/gh-action-pypi-publish@master
             with:
               password: ${{ secrets.pypi_api_token }}
-      

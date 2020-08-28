@@ -3,8 +3,8 @@ import os.path
 import sys
 import xml.sax
 
-from archiver import Archiver, ARCHIVED_LOG_LEVELS, database_connection
-from configs import Config
+from . import archiver, configs
+
 
 DEFAULT_SUITE_NAME = 'Unnamed suite'
 
@@ -69,7 +69,7 @@ class RobotFrameworkOutputParser(XmlOutputParser):
             pass
         elif name == 'msg':
             self.archiver.begin_log_message(attrs.getValue('level'), attrs.getValue('timestamp'))
-            if attrs.getValue('level') not in ARCHIVED_LOG_LEVELS:
+            if attrs.getValue('level') not in archiver.ARCHIVED_LOG_LEVELS:
                 self.skipping_content = True
         elif name == 'status':
             critical = attrs.getValue('critical') == 'yes' if 'critical' in attrs.getNames() else None
@@ -645,9 +645,9 @@ def parse_xml(xml_file, output_format, connection, config, build_number_cache):
     if not os.path.exists(xml_file):
         sys.exit('Could not find input file: ' + xml_file)
     BUFFER_SIZE = 65536
-    archiver = Archiver(connection, config, build_number_cache=build_number_cache)
+    test_archiver = archiver.Archiver(connection, config, build_number_cache=build_number_cache)
     if output_format in SUPPORTED_OUTPUT_FORMATS:
-        handler = SUPPORTED_OUTPUT_FORMATS[output_format](archiver)
+        handler = SUPPORTED_OUTPUT_FORMATS[output_format](test_archiver)
     else:
         raise Exception("Unsupported report format '{}'".format(output_format))
     parser = xml.sax.make_parser()
@@ -657,10 +657,10 @@ def parse_xml(xml_file, output_format, connection, config, build_number_cache):
         while buffer:
             parser.feed(buffer)
             buffer = file.read(BUFFER_SIZE)
-    if len(archiver.stack) != 1:
+    if len(test_archiver.stack) != 1:
         raise Exception('File parse error. Please check you used proper output format '
                         '(default: robotframework).')
-    return archiver.end_test_run()
+    return test_archiver.end_test_run()
 
 
 def argument_parser():
@@ -707,9 +707,9 @@ def main():
         sys.exit('Unsupported Python version (' + str(sys.version_info.major) + '). Please use version 3.')
 
     args = argument_parser().parse_args()
-    config = Config(args, args.config_file)
+    config = configs.Config(args, args.config_file)
 
-    connection = database_connection(config)
+    connection = archiver.database_connection(config)
 
     build_number_cache = {}
     for output_file in args.output_files:
