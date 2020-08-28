@@ -1,23 +1,22 @@
 
-from archiver import Archiver, database_connection
-from configs import Config
+from . import archiver, configs
 
-class ArchiverListener:
+class ArchiverRobotListener:
     ROBOT_LISTENER_API_VERSION = 2
 
     def __init__(self, config_file_or_database,
                  db_engine=None, user=None, pw=None, host=None, port=5432):
         if not db_engine:
-            config = Config(file_config=config_file_or_database)
+            config = configs.Config(file_config=config_file_or_database)
         else:
-            config = Config(file_config={'database': config_file_or_database,
-                                         'db_engine': db_engine,
-                                         'user': user,
-                                         'password': pw,
-                                         'host': host,
-                                         'port': port})
-        database = database_connection(config)
-        self.archiver = Archiver(database, config)
+            config = configs.Config(file_config={'database': config_file_or_database,
+                                                 'db_engine': db_engine,
+                                                 'user': user,
+                                                 'password': pw,
+                                                 'host': host,
+                                                 'port': port})
+        database = archiver.database_connection(config)
+        self.archiver = archiver.Archiver(database, config)
         self.archiver.test_type = "Robot Framework"
         self.rpa = False
         self.dry_run = False

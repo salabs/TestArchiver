@@ -23,7 +23,7 @@ cat << EOF > fixture_config.json
 EOF
 
 
-PYTHONPATH="robot_tests/libraries:robot_tests/resources:test_archiver"
+PYTHONPATH="robot_tests/libraries:robot_tests/resources:."
 
 # Comment this if you would like to run the fixture tests with sleeps
 # that are useful as more interesting running time data
@@ -38,7 +38,7 @@ echo "----------------------------------------"
 echo " First archive one round of robot tests with a listener"
 echo "----------------------------------------"
 
-robot --listener ArchiverListener:fixture_config.json \
+robot --listener test_archiver.ArchiverRobotListener:fixture_config.json \
       --pythonpath ${PYTHONPATH} ${EXCLUDE_SLEEP} \
       --outputdir robot_tests/run1 \
       --metadata team:"TestArchiver" \
@@ -55,7 +55,7 @@ do
         --outputdir robot_tests/run${RUN} \
         robot_tests/tests
 
-  python3 test_archiver/output_parser.py robot_tests/run${RUN}/output.xml \
+  python3 -m test_archiver.output_parser robot_tests/run${RUN}/output.xml \
           --config fixture_config.json \
           --team "TestArchiver" --series "Fixture"#${RUN} --series "Parser"
 done
