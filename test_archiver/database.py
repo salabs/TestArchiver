@@ -438,24 +438,7 @@ class SQLiteDatabase(BaseDatabase):
 
 
 def argument_parser():
-    parser = argparse.ArgumentParser(description='Initialize and update test archive schema.')
-    parser.add_argument('--database', required=True, help='database name')
-    parser.add_argument('--config', dest='config_file',
-                        help='path to JSON config file containing database credentials')
-    parser.add_argument('--dbengine', dest='db_engine',
-                        help='Database engine, postgresql or sqlite (default)')
-    parser.add_argument('--host', help='databse host name', default=None)
-    parser.add_argument('--user', help='database user')
-    parser.add_argument('--pw', '--password', dest='password', help='database password')
-    parser.add_argument('--port', help='database port (default: 5432)')
-    parser.add_argument('--dont-require-ssl', dest='require_ssl', action='store_false', default=None,
-                        help='Disable the default behavior to require ssl from the target database.')
-    parser.add_argument('--allow-minor-schema-updates', action='store_true', default=None,
-                        help=('Allow TestArchiver to perform MINOR (backwards compatible) schema '
-                              'updates the test archive'))
-    parser.add_argument('--allow-major-schema-updates', action='store_true', default=None,
-                        help=('Allow TestArchiver to perform MAJOR (backwards incompatible) schema '
-                              'updates the test archive'))
+    parser = configs.base_argument_parser('Initialize and update test archive schema.')
     return parser
 
 def main():
