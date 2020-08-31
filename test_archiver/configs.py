@@ -1,5 +1,7 @@
+import argparse
 import json
 
+from . import version
 
 def read_config_file(file_name):
     with open(file_name, 'r') as config_file:
@@ -78,3 +80,27 @@ class Config():
         if self._cli_args and name in self._cli_args and self._cli_args.__getattribute__(name) is not None:
             values.update(parse_key_value_pairs(self._cli_args.__getattribute__(name)))
         return values
+
+def base_argument_parser(description):
+    parser = argparse.ArgumentParser(description=description)
+    parser.add_argument('--version', '-v', action='version',
+                        version='%(prog)s {}'.format(version.ARCHIVER_VERSION))
+    parser.add_argument('--config', dest='config_file',
+                        help='path to JSON config file containing database credentials')
+
+    parser.add_argument('--dbengine', dest='db_engine',
+                        help='Database engine, postgresql or sqlite (default)')
+    parser.add_argument('--database', help='database name')
+    parser.add_argument('--host', help='databse host name', default=None)
+    parser.add_argument('--user', help='database user')
+    parser.add_argument('--pw', '--password', dest='password', help='database password')
+    parser.add_argument('--port', help='database port (default: 5432)')
+    parser.add_argument('--dont-require-ssl', dest='require_ssl', action='store_false', default=None,
+                        help='Disable the default behavior to require ssl from the target database.')
+    parser.add_argument('--allow-minor-schema-updates', action='store_true', default=None,
+                        help=('Allow TestArchiver to perform MINOR (backwards compatible) schema '
+                              'updates the test archive'))
+    parser.add_argument('--allow-major-schema-updates', action='store_true', default=None,
+                        help=('Allow TestArchiver to perform MAJOR (backwards incompatible) schema '
+                              'updates the test archive'))
+    return parser
