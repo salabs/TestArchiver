@@ -1,4 +1,3 @@
-import argparse
 import os.path
 import sys
 import xml.sax
@@ -664,30 +663,12 @@ def parse_xml(xml_file, output_format, connection, config, build_number_cache):
 
 
 def argument_parser():
-    parser = argparse.ArgumentParser(description='Parse test automation output.xml files to SQL database.')
+    parser = configs.base_argument_parser('Parse test automation output.xml files to SQL database.')
     parser.add_argument('output_files', nargs='+',
                         help='list of test output files to parse in to the test archive')
-
-    parser.add_argument('--config', dest='config_file',
-                        help='path to JSON config file containing database credentials')
-    parser.add_argument('--dbengine', dest='db_engine',
-                        help='Database engine, postgresql or sqlite (default)')
-    parser.add_argument('--database', help='database name')
-    parser.add_argument('--host', help='databse host name', default=None)
-    parser.add_argument('--user', help='database user')
-    parser.add_argument('--pw', '--password', dest='password', help='database password')
-    parser.add_argument('--port', help='database port (default: 5432)')
-    parser.add_argument('--dont-require-ssl', dest='require_ssl', action='store_false', default=None,
-                        help='Disable the default behavior to require ssl from the target database.')
-    parser.add_argument('--allow-minor-schema-updates', action='store_true', default=None,
-                        help=('Allow TestArchiver to perform MINOR (backwards compatible) schema '
-                              'updates the test archive'))
-    parser.add_argument('--allow-major-schema-updates', action='store_true', default=None,
-                        help=('Allow TestArchiver to perform MAJOR (backwards incompatible) schema '
-                              'updates the test archive'))
-
     parser.add_argument('--format', help='output format (default: robotframework)', default='robotframework',
                         choices=SUPPORTED_OUTPUT_FORMATS, type=str.lower)
+
     parser.add_argument('--repository', default=None,
                         help=('The repository of the test cases. Used to differentiate between test with '
                               'same name in different projects.'))
