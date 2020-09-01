@@ -36,8 +36,8 @@ class ChangeEngineListener(DefaultListener):
     def report_changes(self, tests, changes):
         tests_data = []
         for test in tests:
-            tests_data.append({'name': test.full_name, 'status': test.status, 'subtype': self.archiver.test_type,
-                               'repository': self.archiver.repository})
+            tests_data.append({'name': test.full_name, 'status': test.status,
+                               'subtype': self.archiver.test_type, 'repository': self.archiver.repository})
         data = {"tests": tests_data, "changes": changes}
         url = "{}/result/".format(self.change_engine_url)
         request = Request(url)

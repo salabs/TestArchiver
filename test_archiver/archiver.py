@@ -1,3 +1,5 @@
+# pylint: disable=C0103
+
 import sys
 from hashlib import sha1
 from datetime import datetime
@@ -221,7 +223,8 @@ class FingerprintedItem(TestItem):
     def set_execution_path(self, execution_path):
         self._execution_path = execution_path
 
-    def _execution_path_identifier(self):
+    @staticmethod
+    def _execution_path_identifier():
         return ''
 
     def child_counter(self, execution_path_identifier):
@@ -263,6 +266,9 @@ class TestRun(FingerprintedItem):
     def execution_path(self):
         return ''
 
+    def insert_results(self):
+        raise NotImplementedError()
+
 
 class Suite(FingerprintedItem):
     def __init__(self, archiver, name, repository):
@@ -271,7 +277,8 @@ class Suite(FingerprintedItem):
         self.id = self.archiver.db.return_id_or_insert_and_return_id('suite', data,
                                                                      ['repository', 'full_name'])
 
-    def _execution_path_identifier(self):
+    @staticmethod
+    def _execution_path_identifier():
         return 's'
 
     def insert_results(self):
@@ -314,6 +321,12 @@ class Suite(FingerprintedItem):
             elif name == 'team':
                 self.archiver.team = content
 
+    def register_metadata(self, name=None, value=None):
+        if name:
+            self._last_metadata_name = name
+        if value:
+            self.metadata[self._last_metadata_name] = value
+
 
 class Test(FingerprintedItem):
     def __init__(self, archiver, name, class_name):
@@ -322,7 +335,8 @@ class Test(FingerprintedItem):
         self.id = self.archiver.db.return_id_or_insert_and_return_id('test_case', data,
                                                                      ['suite_id', 'full_name'])
 
-    def _execution_path_identifier(self):
+    @staticmethod
+    def _execution_path_identifier():
         return 't'
 
     def insert_results(self):
@@ -368,7 +382,8 @@ class Keyword(FingerprintedItem):
         if arguments:
             self.arguments.extend(arguments)
 
-    def _execution_path_identifier(self):
+    @staticmethod
+    def _execution_path_identifier():
         return 'k'
 
     def insert_results(self):
@@ -450,7 +465,7 @@ def database_connection(config):
 
 
 class Archiver:
-    def __init__(self, database_connection, config, build_number_cache=None):
+    def __init__(self, connection, config, build_number_cache=None):
         self.config = config
         self.test_type = None
         self.additional_metadata = config.metadata
@@ -462,7 +477,7 @@ class Archiver:
 
         self.archived_using = None
         self.output_from_dryrun = False
-        self.db = database_connection
+        self.db = connection
         self.stack = []
         self.keyword_statistics = {}
         self.build_number_cache = build_number_cache or {}
@@ -643,10 +658,10 @@ class Archiver:
         self.end_metadata(content)
 
     def begin_metadata(self, name):
-        self.current_item(Suite)._last_metadata_name = name
+        self.current_item(Suite).register_metadata(name=name)
 
     def end_metadata(self, content):
-        self.current_item(Suite).metadata[self.current_item()._last_metadata_name] = content
+        self.current_item(Suite).register_metadata(value=content)
 
     def log_message(self, level, content, timestamp=None):
         self.begin_log_message(level, timestamp)

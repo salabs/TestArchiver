@@ -1,3 +1,8 @@
+# pylint: disable=C0103
+# Module name "ArchiverRobotListener" doesn't conform to snake_case naming style (invalid-name)
+# Because Robot Framework needs it to have the same name as the listener class
+# pylint: disable=W0613
+# Listener methods have unused arguments
 
 from . import archiver, configs
 
