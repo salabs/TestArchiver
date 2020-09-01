@@ -8,7 +8,7 @@ CREATE TABLE schema_updates (
 );
 -- Pre 2.0 Schema is version 0
 INSERT INTO schema_updates (schema_version, initial_update, applied_by)
-VALUES (0, true, '{applied_by}');
+VALUES (0, 1, '{applied_by}');
 
 -- Add schema_version column to test_runs.
 -- Makes the schema incompatible for older versions of TestArchiver on purpose.
@@ -32,5 +32,5 @@ ALTER TABLE temp_test_run RENAME TO test_run;
 -- Adds missing index for log_message table
 CREATE INDEX test_log_message_index ON log_message(test_run_id, suite_id, test_id);
 
-INSERT INTO schema_updates (schema_version, initial_update, applied_by)
-VALUES (1, false, '{applied_by}');
+INSERT INTO schema_updates (schema_version, applied_by)
+VALUES (1, '{applied_by}');

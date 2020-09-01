@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.5, 3.6, 3.7, 3.8]
+        python-version: [3.6, 3.7]
 
     steps:
     - uses: actions/checkout@v2
@@ -20,7 +20,6 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install pylint==2.4.4 pytest mock setuptools wheel
-        pip install -i https://test.pypi.org/simple/ testarchiver
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     - name: Lint with pylint
       run: |
