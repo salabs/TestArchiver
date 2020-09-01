@@ -1,6 +1,6 @@
-import argparse
+# pylint: disable=E1101
+
 import os
-import sys
 import sqlite3
 from pathlib import Path
 
@@ -442,11 +442,7 @@ def argument_parser():
     return parser
 
 def main():
-    if sys.version_info[0] < 3:
-        sys.exit('Unsupported Python version (' + str(sys.version_info.major) + '). Please use version 3.')
-
-    args = argument_parser().parse_args()
-    config = configs.Config(args, args.config_file)
+    config, _ = configs.configuration(argument_parser)
 
     get_connection_and_check_schema(config)
 

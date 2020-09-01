@@ -1,3 +1,5 @@
+# pylint: disable=R0912,R0915
+
 import os.path
 import sys
 import xml.sax
@@ -9,8 +11,9 @@ DEFAULT_SUITE_NAME = 'Unnamed suite'
 
 
 class XmlOutputParser(xml.sax.handler.ContentHandler):
-    def __init__(self, archiver):
-        self.archiver = archiver
+    def __init__(self, archiver_instance):
+        super(XmlOutputParser, self).__init__()
+        self.archiver = archiver_instance
         self._current_content = []
         self.excluding = False
         self.dryrun = False
@@ -36,8 +39,8 @@ class XmlOutputParser(xml.sax.handler.ContentHandler):
 class RobotFrameworkOutputParser(XmlOutputParser):
     EXCLUDED_SECTIONS = ('statistics', 'errors')
 
-    def __init__(self, archiver):
-        super(RobotFrameworkOutputParser, self).__init__(archiver)
+    def __init__(self, archiver_instance):
+        super(RobotFrameworkOutputParser, self).__init__(archiver_instance)
         self.archiver.test_type = "Robot Framework"
 
     def startElement(self, name, attrs):
@@ -132,8 +135,6 @@ class RobotFrameworkOutputParser(XmlOutputParser):
 
 
 class XUnitOutputParser(XmlOutputParser):
-    def __init__(self, archiver):
-        super(XUnitOutputParser, self).__init__(archiver)
 
     def startElement(self, name, attrs):
         if name in []:
@@ -204,8 +205,6 @@ class XUnitOutputParser(XmlOutputParser):
 
 
 class JUnitOutputParser(XmlOutputParser):
-    def __init__(self, archiver):
-        super(JUnitOutputParser, self).__init__(archiver)
 
     def _report_test_run(self):
         self.archiver.begin_test_run('JUnit parser', None, 'JUnit', False, None)
@@ -290,8 +289,8 @@ class JUnitOutputParser(XmlOutputParser):
 
 
 class MochaJUnitOutputParser(XmlOutputParser):
-    def __init__(self, archiver):
-        super(MochaJUnitOutputParser, self).__init__(archiver)
+    def __init__(self, archiver_instance):
+        super(MochaJUnitOutputParser, self).__init__(archiver_instance)
         self.in_setup_or_teardown = False
 
     def _end_previous_test(self):
@@ -409,8 +408,8 @@ class MochaJUnitOutputParser(XmlOutputParser):
 
 
 class PytestJUnitOutputParser(XmlOutputParser):
-    def __init__(self, archiver):
-        super(PytestJUnitOutputParser, self).__init__(archiver)
+    def __init__(self, archiver_instance):
+        super(PytestJUnitOutputParser, self).__init__(archiver_instance)
         self.in_setup_or_teardown = False
         self._current_class_name = None
         self._current_test_name = None
@@ -559,13 +558,11 @@ class MSTestOutputParser(XmlOutputParser):
         'Failed': 'FAIL',
         }
 
-    def __init__(self, archiver):
-        super(MSTestOutputParser, self).__init__(archiver)
-
     def _report_test_run(self):
         self.archiver.begin_test_run('MSTest parser', None, 'MSTest', False, None)
 
-    def _sanitise_timestamp_format(self, timestamp):
+    @staticmethod
+    def _sanitise_timestamp_format(timestamp):
         # MSTest output timestamps use 7 digits for second fractions while python
         # only parses up to 6. Leaving out the last digit and colon in the timezone
         return timestamp[:26] + timestamp[27:30] + timestamp[31:]
@@ -643,7 +640,7 @@ def parse_xml(xml_file, output_format, connection, config, build_number_cache):
     output_format = output_format.lower()
     if not os.path.exists(xml_file):
         sys.exit('Could not find input file: ' + xml_file)
-    BUFFER_SIZE = 65536
+    buffer_size = 65536
     test_archiver = archiver.Archiver(connection, config, build_number_cache=build_number_cache)
     if output_format in SUPPORTED_OUTPUT_FORMATS:
         handler = SUPPORTED_OUTPUT_FORMATS[output_format](test_archiver)
@@ -652,10 +649,10 @@ def parse_xml(xml_file, output_format, connection, config, build_number_cache):
     parser = xml.sax.make_parser()
     parser.setContentHandler(handler)
     with open(xml_file, encoding="UTF-8") as file:
-        buffer = file.read(BUFFER_SIZE)
+        buffer = file.read(buffer_size)
         while buffer:
             parser.feed(buffer)
-            buffer = file.read(BUFFER_SIZE)
+            buffer = file.read(buffer_size)
     if len(test_archiver.stack) != 1:
         raise Exception('File parse error. Please check you used proper output format '
                         '(default: robotframework).')
@@ -684,12 +681,7 @@ def argument_parser():
     return parser
 
 def main():
-    if sys.version_info[0] < 3:
-        sys.exit('Unsupported Python version (' + str(sys.version_info.major) + '). Please use version 3.')
-
-    args = argument_parser().parse_args()
-    config = configs.Config(args, args.config_file)
-
+    config, args = configs.configuration(argument_parser)
     connection = archiver.database_connection(config)
 
     build_number_cache = {}
