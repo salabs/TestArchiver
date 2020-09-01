@@ -19,5 +19,5 @@ ALTER TABLE test_run ALTER COLUMN schema_version SET DEFAULT NULL;
 -- Adds missing index for log_message table
 CREATE INDEX test_log_message_index ON log_message(test_run_id, suite_id, test_id);
 
-INSERT INTO schema_updates (schema_version, initial_update, applied_by)
-VALUES (1, false, '{applied_by}');
+INSERT INTO schema_updates (schema_version, applied_by)
+VALUES (1, '{applied_by}');
