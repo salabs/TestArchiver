@@ -1,16 +1,17 @@
-name: Python package
+name: Basic pipeline
 
 on: [push]
 
 jobs:
-  build:
+  test-and-build:
 
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.6, 3.7]
+        python-version: [3.6, 3.7, 3.8]
 
     steps:
+      # Static analysis and unittests
     - uses: actions/checkout@v2
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
@@ -19,7 +20,9 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pylint==2.4.4 pytest mock setuptools wheel
+        pip install pylint==2.4.4 pytest mock
+        pip install setuptools wheel
+        pip install robotframework
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     - name: Lint with pylint
       run: |
@@ -30,12 +33,9 @@ jobs:
     - name: Archive unittest results
       if: ${{ always() }}
       run: >-
-        python3
-        -m
-        test_archiver.output_parser
+        python3 -m test_archiver.output_parser
         output.xml
         --database ${{ secrets.DEMO_ARCHIVE_NAME }}
-        --host ${{ secrets.DEMO_ARCHIVE_NAME }}
         --host ${{ secrets.ARCHIVE_HOST }}
         --user ${{ secrets.ARCHIVE_USER }}
         --pw ${{ secrets.ARCHIVE_PW }}
@@ -45,10 +45,55 @@ jobs:
         --team TestArchiver
         --series archiver_unittests
         --series ${GITHUB_REF##*/}
+
     # Test packaging
     - name: Test building package
       run: |
         python setup.py sdist bdist_wheel
-    - name: Test installing package
+    - name: Test installing package locally
       run: |
         python -m pip install dist/testarchiver-*.tar.gz
+        testarchiver --version
+        testarchive_schematool --version
+
+    # Test parsing different test fixtures
+    - name: Run robot fixture with listener
+      run: >-
+        robot
+        --listener test_archiver.ArchiverRobotListener:fixture.db
+        --pythonpath robot_tests/libraries:robot_tests/resources:.
+        --outputdir robot_tests/run1
+        --metadata team:"TestArchiver"
+        --metadata series:"Robot listener"
+        --metadata series2:Fixture#1
+        --exclude sleep
+        --nostatusrc
+        robot_tests/tests
+    - name: Run robot fixture second time
+      run: >-
+        robot
+        --pythonpath robot_tests/libraries:robot_tests/resources:.
+        --outputdir robot_tests/run2
+        --nostatusrc
+        robot_tests/tests
+    - name: Parse the output from second robot fixture run
+      run: >-
+        testarchiver
+        robot_tests/run2/output.xml
+        --database fixture.db
+        --repository TestArchiver
+        --team TestArchiver
+        --series Parser
+        --series Fixture#2
+    - name: Run fixture python unittests
+      run: |
+        pytest pytest/fixture_tests/ --junit-xml=pytest_output.xml || true
+    - name: Parse the output from python unittests fixture run
+      run: >-
+        testarchiver
+        pytest_output.xml
+        --format pytest-junit
+        --database fixture.db
+        --repository pytest
+        --team TestArchiver
+        --series Pytest
