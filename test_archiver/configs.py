@@ -1,5 +1,6 @@
 import argparse
 import json
+import sys
 
 from . import version
 
@@ -104,3 +105,10 @@ def base_argument_parser(description):
                         help=('Allow TestArchiver to perform MAJOR (backwards incompatible) schema '
                               'updates the test archive'))
     return parser
+
+def configuration(argument_parser):
+    if sys.version_info[0] < 3:
+        sys.exit('Unsupported Python version (' + str(sys.version_info.major) + '). Please use version 3.')
+
+    args = argument_parser().parse_args()
+    return Config(args, args.config_file), args
