@@ -5,8 +5,7 @@ CREATE TABLE schema_updates (
     initial_update boolean DEFAULT false,
     applied_by text
 );
-INSERT INTO schema_updates(schema_version, initial_update, applied_by)
-VALUES (2, true, '{applied_by}');
+INSERT INTO schema_updates(schema_version, initial_update, applied_by) VALUES (2, 1, '{applied_by}');
 
 CREATE TABLE test_series (
     id integer PRIMARY KEY AUTOINCREMENT,
