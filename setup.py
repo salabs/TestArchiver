@@ -1,13 +1,13 @@
 import setuptools
 
-from test_archiver.version import ARCHIVER_VERSION
+from test_archiver.version import dynamic_package_version
 
 with open("README.md", "r") as fh:
     LONG_DESCRIPTION = fh.read()
 
 setuptools.setup(
     name="testarchiver",
-    version=ARCHIVER_VERSION,
+    version=dynamic_package_version(),
     author="Tommi Oinonen",
     author_email="salabs-mail@siili.com",
     description="Tools for serialising test results to SQL database ",
