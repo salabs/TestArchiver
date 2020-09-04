@@ -7,24 +7,28 @@ The robot output.xml files can be imported using `testarchiver`.
 ```
 testarchiver --format robot --database test_archive.db output.xml
 ```
+This should create a SQLite database file named `test_archive.db` that contains the results.
 
-## With listener
+See main README.md for more details.
+
+## With Robot listener
 
 The project includes a listener that allows archiving the results using Robot Frameworks [Listener interface](https://robotframework.org/robotframework/latest/RobotFrameworkUserGuide.html#listener-interface)
 
 ```
-robot --pythonpath /path/to/test_archiver/ --listener test_archiver.ArchiverListener:test_archive.db:sqlite3 my_tests.robot
+robot --listener test_archiver.ArchiverRobotListener:test_archive.db:sqlite3 my_tests.robot
 ```
 
-This will create a SQLite database file named `test_archive.db` that contains the results.
+This should create a SQLite database file named `test_archive.db` that contains the results.
 
-`ArchiverListener:DBNAME:DBNEGINE[:DBUSER[:DBPASSWORD[:DBHOST:[DBPORT]]]]`
+Arguments for ArchiverRobotListener:
+`test_archiver.ArchiverRobotListener:DBNAME_OR_CONFIG:DBNEGINE[:DBUSER[:DBPASSWORD[:DBHOST:[DBPORT]]]]`
 
-# Fixture tests
+## Fixture tests
 
 The tests in this folder are simple ones demonstrating some features of Robot Framework. They can be used to generate data for TestArchiver.
 
-## Usage
+### Usage
 
 With windows, run `run.bat` from command line.
 

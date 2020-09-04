@@ -20,7 +20,7 @@ Experimental status here means that there is a parser that can take in e.g. gene
 Contributions for output parsers or listeners for different testing frameworks are appreciated. Contributing simply a fixture test set (that can be used to generate output files for developing a specific parser) is extremely helpful for any new framework.
 
 ## Installation
-`pip3 install testarchiver`
+`sudo -H python3 -m pip install testarchiver`
 
 ## Supported databases
 
@@ -50,6 +50,7 @@ positional arguments:
 
 optional arguments:
   -h, --help            show this help message and exit
+  --version, -v         show program's version number and exit
   --config CONFIG_FILE  path to JSON config file containing database
                         credentials
   --dbengine DB_ENGINE  Database engine, postgresql or sqlite (default)
@@ -86,7 +87,7 @@ optional arguments:
 
 ## Data model
 
-[Schema and data model](https://github.com/salabs/TestArchiver/tree/master/test_archiver/schemas)
+[Schema and data model](https://github.com/salabs/TestArchiver/tree/master/test_archiver/schemas) (NOTICE: this points to latest version)
 
 ## Useful metadata
 
