@@ -13,9 +13,9 @@ Each test set execution or parsed output file is mapped as a test_run in the dat
 -   `archiver_version` version of the archiver that was used to import the results
 -   `generator` metadata on the tool that produced the parsed output file (for Robot Framework the the robot and python version that were used to produce the output.xml)
 -   `generated` timestamp when the parsed output file was generated
--   `rpa` boolean weather the execution was actually a RPA (Robotic Process Automation task). This is mainly applicable to Robot Framework.
--   `dryrun` boolean weather this execution was actually a dryrun and not real tests against any system under test
--   `ignored` boolean weather this run is for some reason or another ignored as invalid results and therefore by default should be hidden from most APIs
+-   `rpa` boolean whether the execution was actually a RPA (Robotic Process Automation task). This is mainly applicable to Robot Framework.
+-   `dryrun` boolean whether this execution was actually a dryrun and not real tests against any system under test
+-   `ignored` boolean whether this run is for some reason or another ignored as invalid results and therefore by default should be hidden from most APIs
 
 ### Test series
 
@@ -87,7 +87,7 @@ Result fields are:
 
 -   `setup_elapsed` total time of the item setup (milliseconds)
 
--   `critical` weather the test is critical or not (boolean, Robot Framework specific null in other cases)
+-   `critical` whether the test is critical or not (boolean, Robot Framework specific null in other cases)
 
 ### Data linked to results objects
 
@@ -112,7 +112,7 @@ How the fingerprints are calculated for other frameworks depends on what data of
 The fingerprints can be used to compare executions of test cases. When the fingerprints differ between two consecutive executions of the same test case we can infer that the execution of the test case changed some how. On the other if two executions of a test case fail with the same fingerprint, the test encountered a similar problem (possibly the same issue).
 
 ## Schema versioning
-From version 2.0.0 onwards the tool will manage and enforce that the schema version of the database matches that of the archiver. The tool can perform the schema updates when explicitly allowed. But in most cases it is recommended to run the updates manually using the `database.py` script. The schema version and all the updates performed are recorded to `schema_updates` table. The updates are categorized to major and minor updates and allowing each type of update is handled separately. Minor (`--allow_minor_schema_updates`) updates should only include changes that keep the database compatible to anyone reading the archive. Major (`--allow_major_schema_updates`) updates can include changes that can be incompatiple to services reading the database.
+From version 2.0.0 onwards the tool will manage and enforce that the schema version of the database matches that of the archiver. The tool can perform the schema updates when explicitly allowed. But in most cases it is recommended to run the updates manually using the `database.py` script. The schema version and all the updates performed are recorded to `schema_updates` table. The updates are categorized to major and minor updates and allowing each type of update is handled separately. Minor (`--allow_minor_schema_updates`) updates should only include changes that keep the database compatible to anyone reading the archive. Major (`--allow_major_schema_updates`) updates can include changes that can be incompatible to services reading the database.
 
 ```
 python3 test_archiver/database.py --database test_archive.db --allow-major-schema-updates

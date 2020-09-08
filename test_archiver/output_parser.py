@@ -674,7 +674,7 @@ def argument_parser():
                         help=("Name of the test series (and optionally build number 'SERIES_NAME#BUILD_NUM' "
                               "or build id 'SERIES_NAME#BUILD_ID')"))
     parser.add_argument('--metadata', action='append', metavar='NAME:VALUE',
-                        help="Adds given metadata to the testrun. Expected format: 'NAME:VALUE'")
+                        help="Adds given metadata to the test run. Expected format: 'NAME:VALUE'")
 
     parser.add_argument('--change-engine-url', default=None,
                         help="Starts a listener that feeds results to ChangeEngine")

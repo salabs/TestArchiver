@@ -55,7 +55,7 @@ optional arguments:
                         credentials
   --dbengine DB_ENGINE  Database engine, postgresql or sqlite (default)
   --database DATABASE   database name
-  --host HOST           databse host name
+  --host HOST           database host name
   --user USER           database user
   --pw PASSWORD, --password PASSWORD
                         database password
@@ -79,7 +79,7 @@ optional arguments:
                         'SERIES_NAME#BUILD_NUM' or build id
                         'SERIES_NAME#BUILD_ID')
   --metadata NAME:VALUE
-                        Adds given metadata to the testrun. Expected format:
+                        Adds given metadata to the test run. Expected format:
                         'NAME:VALUE'
   --change-engine-url CHANGE_ENGINE_URL
                         Starts a listener that feeds results to ChangeEngine
@@ -147,7 +147,7 @@ The series can also be indicated using metadata. Any metadata with name prefixed
     - CLI arguments override options set in config file
 
 - 1.1.3 (2020-06-09)
-  * Performance fix for the schema existance check
+  * Performance fix for the schema existence check
   * Improved error messages:
     - Error when trying to archive results that have already been archived
     - Error when psycopg2 module is not found

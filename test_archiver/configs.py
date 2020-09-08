@@ -92,7 +92,7 @@ def base_argument_parser(description):
     parser.add_argument('--dbengine', dest='db_engine',
                         help='Database engine, postgresql or sqlite (default)')
     parser.add_argument('--database', help='database name')
-    parser.add_argument('--host', help='databse host name', default=None)
+    parser.add_argument('--host', help='database host name', default=None)
     parser.add_argument('--user', help='database user')
     parser.add_argument('--pw', '--password', dest='password', help='database password')
     parser.add_argument('--port', help='database port (default: 5432)')
