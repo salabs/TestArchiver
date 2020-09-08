@@ -20,7 +20,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pylint==2.4.4 pytest mock
+        pip install pylint==2.4.4 pytest mock testarchiver==2.0.0
         pip install setuptools wheel
         pip install robotframework
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
@@ -33,7 +33,7 @@ jobs:
     - name: Archive unittest results
       if: ${{ always() }}
       run: >-
-        python3 -m test_archiver.output_parser
+        testarchiver
         output.xml
         --database ${{ secrets.DEMO_ARCHIVE_NAME }}
         --host ${{ secrets.ARCHIVE_HOST }}
