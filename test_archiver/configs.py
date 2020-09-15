@@ -1,6 +1,7 @@
 import argparse
 import json
 import sys
+from collections import defaultdict
 
 from . import version
 
@@ -19,6 +20,18 @@ def parse_key_value_pairs(values):
         except Exception:
             raise Exception("Unsupported format for key-value pair: '{}' use NAME:VALUE".format(item))
     return pairs
+
+
+LOG_LEVEL_MAP = defaultdict(lambda: 100)
+LOG_LEVEL_MAP[None] = 0
+LOG_LEVEL_MAP["TRACE"] = 1
+LOG_LEVEL_MAP["DEBUG"] = 10
+LOG_LEVEL_MAP["INFO"] = 20
+LOG_LEVEL_MAP["WARN"] = 30
+LOG_LEVEL_MAP["ERROR"] = 40
+LOG_LEVEL_MAP["FAIL"] = 50
+
+LOG_LEVEL_CUT_OFF_OPTIONS = ('TRACE', 'DEBUG', 'INFO', 'WARN')
 
 
 class Config():
@@ -53,6 +66,13 @@ class Config():
         # If major updates are allowed then minor ones are as well
         self.allow_minor_schema_updates = self.allow_major_schema_updates or self.allow_minor_schema_updates
 
+        self.archive_keywords = self.resolve_option('archive_keywords', default=True, cast_as=bool)
+        self.archive_keyword_statistics = self.resolve_option('archive_keyword_statistics', default=True,
+                                                              cast_as=bool)
+
+        self.ignore_logs = self.resolve_option('ignore_logs', default=False, cast_as=bool)
+        self.ignore_logs_below = self.resolve_option('ignore_logs_below', default=None)
+
         self.change_engine_url = self.resolve_option('change_engine_url')
 
 
@@ -82,6 +102,9 @@ class Config():
             values.update(parse_key_value_pairs(self._cli_args.__getattribute__(name)))
         return values
 
+    def log_level_ignored(self, log_level):
+        return LOG_LEVEL_MAP[log_level] < LOG_LEVEL_MAP[self.ignore_logs_below]
+
 def base_argument_parser(description):
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument('--version', '-v', action='version',
@@ -104,6 +127,14 @@ def base_argument_parser(description):
     parser.add_argument('--allow-major-schema-updates', action='store_true', default=None,
                         help=('Allow TestArchiver to perform MAJOR (backwards incompatible) schema '
                               'updates the test archive'))
+    parser.add_argument('--no-keywords', dest='archive_keywords', action='store_false',
+                        default=None, help='Do not archive keyword data')
+    parser.add_argument('--no-keyword-stats', dest='archive_keyword_statistics', action='store_false',
+                        default=None, help='Do not archive keyword statistics')
+    parser.add_argument('--ignore-logs-below', default=None, choices=LOG_LEVEL_CUT_OFF_OPTIONS,
+                        help=('Sets a cut off level for archived log messages. '
+                              'By default archives all available log messages.'))
+    parser.add_argument('--ignore-logs', action='store_true', help='Do not archive any log messages')
     return parser
 
 def configuration(argument_parser):

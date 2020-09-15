@@ -3,13 +3,6 @@
 import unittest
 from mock import Mock
 
-# from configs import Config
-# from archiver import Archiver, FingerprintedItem, Suite, Keyword
-
-# # These classes are renamed to avoid problems with some test case collection scripts
-# from archiver import TestItem as TestItem
-# from archiver import TestRun as TestRun
-# from archiver import Test as TestCase
 from test_archiver import configs, archiver
 
 class TestTestItem(unittest.TestCase):
@@ -128,6 +121,120 @@ class TestFingerprintedItem(unittest.TestCase):
 
         self.item._execution_path = 'path-to-foo'
         self.assertEqual(self.item.execution_path(), 'path-to-foo')
+
+
+class TestCase(unittest.TestCase):
+
+    def setUp(self):
+        self.mock_db = Mock()
+
+    def test_keywords_are_not_archived(self):
+        config = configs.Config(file_config={'archive_keywords': False})
+        sut_archiver = archiver.Archiver(self.mock_db, config)
+        sut_archiver.begin_suite('Some suite of tests')
+        test_case = sut_archiver.begin_test('Some test case')
+        test_case.subtree_fingerprints = ['abcdef1234567890']
+
+        keyword = sut_archiver.begin_keyword('Fake kw', 'unittests', 'mock')
+        keyword.subtree_fingerprints = ['abcdef1234567890']
+        keyword.insert_results()
+        test_case.insert_results()
+        self.mock_db.insert_or_ignore.assert_not_called()
+        self.assertEqual(len(sut_archiver.keyword_statistics), 0)
+
+
+class TestKeyword(unittest.TestCase):
+
+    def setUp(self):
+        self.mock_db = Mock()
+
+    def test_keyword_is_inserted_by_default(self):
+        config = configs.Config(file_config={})
+        sut_archiver = archiver.Archiver(self.mock_db, config)
+        sut_archiver.begin_suite('Some suite of tests')
+        sut_archiver.begin_test('Some test case')
+
+        keyword = sut_archiver.begin_keyword('Fake kw', 'unittests', 'mock')
+        keyword.insert_results()
+        self.mock_db.insert_or_ignore.assert_called_once()
+        self.assertEqual(len(sut_archiver.keyword_statistics), 1)
+
+    def test_keyword_statistics_are_not_collected(self):
+        config = configs.Config(file_config={'archive_keyword_statistics': False})
+        sut_archiver = archiver.Archiver(self.mock_db, config)
+        sut_archiver.begin_suite('Some suite of tests')
+        sut_archiver.begin_test('Some test case')
+
+        keyword = sut_archiver.begin_keyword('Fake kw', 'unittests', 'mock')
+        keyword.insert_results()
+        self.mock_db.insert_or_ignore.assert_called_once()
+        self.assertEqual(len(sut_archiver.keyword_statistics), 0)
+
+    def test_keywords_are_not_archived(self):
+        config = configs.Config(file_config={'archive_keywords': False})
+        sut_archiver = archiver.Archiver(self.mock_db, config)
+        sut_archiver.begin_suite('Some suite of tests')
+        sut_archiver.begin_test('Some test case')
+
+        keyword = sut_archiver.begin_keyword('Fake kw', 'unittests', 'mock')
+        keyword.subtree_fingerprints = ['abcdef1234567890']
+        keyword.insert_results()
+        self.mock_db.insert_or_ignore.assert_not_called()
+        self.assertEqual(len(sut_archiver.keyword_statistics), 0)
+
+
+class TestLogMessage(unittest.TestCase):
+
+    def setUp(self):
+        self.mock_db = Mock()
+
+    def test_insert_not_ignored_by_default(self):
+        config = configs.Config(file_config={})
+        sut_archiver = archiver.Archiver(self.mock_db, config)
+        sut_archiver.begin_suite('Some suite of tests')
+
+        message = archiver.LogMessage(sut_archiver, 'WARN', 'some_timestamp')
+        message.insert('Some log message')
+        self.mock_db.insert.assert_called_once()
+        message = archiver.LogMessage(sut_archiver, 'INFO', 'some_timestamp')
+        message.insert('Some log message')
+        self.assertEqual(self.mock_db.insert.call_count, 2)
+        message = archiver.LogMessage(sut_archiver, 'TRACE', 'some_timestamp')
+        message.insert('Some log message')
+        self.assertEqual(self.mock_db.insert.call_count, 3)
+
+    def test_insert_adheres_to_log_level_cut_off(self):
+        config = configs.Config(file_config={'ignore_logs_below': 'WARN'})
+        sut_archiver = archiver.Archiver(self.mock_db, config)
+        sut_archiver.begin_suite('Some suite of tests')
+
+        message = archiver.LogMessage(sut_archiver, 'WARN', 'some_timestamp')
+        message.insert('Some log message')
+        self.mock_db.insert.assert_called_once()
+        message = archiver.LogMessage(sut_archiver, 'INFO', 'some_timestamp')
+        message.insert('Some log message')
+        self.mock_db.insert.assert_called_once()
+        message = archiver.LogMessage(sut_archiver, 'TRACE', 'some_timestamp')
+        message.insert('Some log message')
+        self.mock_db.insert.assert_called_once()
+
+    def test_logs_not_inserted_when_logs_ignored(self):
+        config = configs.Config(file_config={'ignore_logs': True})
+        sut_archiver = archiver.Archiver(self.mock_db, config)
+        sut_archiver.begin_suite('Some suite of tests')
+
+        message = archiver.LogMessage(sut_archiver, 'WARN', 'some_timestamp')
+        message.insert('Some log message')
+        self.mock_db.insert.assert_not_called()
+        message = archiver.LogMessage(sut_archiver, 'INFO', 'some_timestamp')
+        message.insert('Some log message')
+        self.mock_db.insert.assert_not_called()
+        message = archiver.LogMessage(sut_archiver, 'TRACE', 'some_timestamp')
+        message.insert('Some log message')
+        self.mock_db.insert.assert_not_called()
+        message = archiver.LogMessage(sut_archiver, 'FOO', 'some_timestamp')
+        message.insert('Some log message')
+        self.mock_db.insert.assert_not_called()
 
 
 class TestArchiverClass(unittest.TestCase):

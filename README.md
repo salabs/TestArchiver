@@ -68,6 +68,12 @@ optional arguments:
   --allow-major-schema-updates
                         Allow TestArchiver to perform MAJOR (backwards
                         incompatible) schema updates the test archive
+  --no-keywords         Do not archive keyword data
+  --no-keyword-stats    Do not archive keyword statistics
+  --ignore-logs-below {TRACE,DEBUG,INFO,WARN}
+                        Sets a cut off level for archived log messages. By
+                        default archives all available log messages.
+  --ignore-logs         Do not archive any log messages
   --format {robot,robotframework,xunit,junit,mocha-junit,pytest-junit,mstest}
                         output format (default: robotframework)
   --repository REPOSITORY
@@ -113,7 +119,14 @@ If the tests are executed in a CI environment the build number/id is an excellen
 The series can also be indicated using metadata. Any metadata with name prefixed with `series` are interpreted as series information. This is especially useful when using listeners. For example when using Robot Framework metadata `--metadata team:A-Team --metadata series:JENKINS_JOB_NAME#BUILD_NUMBER`
 
 # Release notes
-- 2.0.0 (TBD)
+- 2.1.0 (TBD)
+  * New options for controlling archiving of keywords and log messages
+    - `--no-keywords` for ignoring all keyword data
+    - `--no-keyword-stats` for not collecting keyword statistics data
+    - `--ignore-logs` for not collecting any log message data
+    - `--ignore-logs-below` for ignoring all log messages below the given log level
+
+- 2.0.0 (2020-09-04)
   * Distribution as pip package `pip3 install testarchiver` and it installs:
     - `testarchiver` script (aka: output_parser.py)
     - `testarchive_schematool` script (aka: database.py)

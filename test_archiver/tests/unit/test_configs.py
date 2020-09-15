@@ -73,5 +73,36 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(config.allow_minor_schema_updates, True)
         self.assertEqual(config.allow_major_schema_updates, True)
 
+    def test_log_level_ignored(self):
+        fake_cli_args = argparse.Namespace()
+        config = configs.Config(cli_args=fake_cli_args)
+        self.assertFalse(config.log_level_ignored('TRACE'))
+        self.assertFalse(config.log_level_ignored('DEBUG'))
+        self.assertFalse(config.log_level_ignored('INFO'))
+        self.assertFalse(config.log_level_ignored('WARN'))
+        self.assertFalse(config.log_level_ignored('ERROR'))
+        self.assertFalse(config.log_level_ignored('FAIL'))
+        self.assertFalse(config.log_level_ignored('OTHER_FOOBAR'))
+
+        fake_cli_args = argparse.Namespace(ignore_logs_below='INFO')
+        config = configs.Config(cli_args=fake_cli_args)
+        self.assertTrue(config.log_level_ignored('TRACE'))
+        self.assertTrue(config.log_level_ignored('DEBUG'))
+        self.assertFalse(config.log_level_ignored('INFO'))
+        self.assertFalse(config.log_level_ignored('WARN'))
+        self.assertFalse(config.log_level_ignored('ERROR'))
+        self.assertFalse(config.log_level_ignored('FAIL'))
+        self.assertFalse(config.log_level_ignored('OTHER_FOOBAR'))
+
+        fake_cli_args = argparse.Namespace(ignore_logs_below='WARN')
+        config = configs.Config(cli_args=fake_cli_args)
+        self.assertTrue(config.log_level_ignored('TRACE'))
+        self.assertTrue(config.log_level_ignored('DEBUG'))
+        self.assertTrue(config.log_level_ignored('INFO'))
+        self.assertFalse(config.log_level_ignored('WARN'))
+        self.assertFalse(config.log_level_ignored('ERROR'))
+        self.assertFalse(config.log_level_ignored('FAIL'))
+        self.assertFalse(config.log_level_ignored('OTHER_FOOBAR'))
+
 if __name__ == '__main__':
     unittest.main()
