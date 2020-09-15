@@ -24,19 +24,6 @@ SUPPORTED_TIMESTAMP_FORMATS = (
 
 MAX_LOG_MESSAGE_LENGTH = 2000
 
-ARCHIVED_LOG_LEVELS = (
-        "TRACE",
-        "DEBUG",
-        "INFO",
-        "WARN",
-        "ERROR",
-        "FAIL",
-    )
-
-ARCHIVE_KEYWORDS = True
-ARCHIVE_KEYWORD_STATISTICS = True
-
-
 
 class TestItem:
     def __init__(self, archiver):
@@ -345,11 +332,11 @@ class Test(FingerprintedItem):
                     'execution_path': self.execution_path()}
             data.update(self.status_and_fingerprint_values())
             self.archiver.db.insert('test_result', data)
-            if self.subtree_fingerprints:
+            if self.subtree_fingerprints and self.archiver.config.archive_keywords:
                 data = {'fingerprint': self.execution_fingerprint, 'keyword': None, 'library': None,
                         'status': self.execution_status, 'arguments': self.arguments}
                 self.archiver.db.insert_or_ignore('keyword_tree', data, ['fingerprint'])
-            if ARCHIVE_KEYWORDS:
+            if self.archiver.config.archive_keywords:
                 self.insert_subtrees()
             self.insert_tags()
             self.parent_item.child_test_ids.append(self.id)
@@ -365,9 +352,7 @@ class Test(FingerprintedItem):
         call_index = 0
         for subtree in self.subtree_fingerprints:
             data = {'fingerprint': self.execution_fingerprint,
-                    'subtree': subtree,
-                    'call_index': call_index
-                    }
+                    'subtree': subtree, 'call_index': call_index}
             key_values = ['fingerprint', 'subtree', 'call_index']
             self.archiver.db.insert_or_ignore('tree_hierarchy', data, key_values)
             call_index += 1
@@ -389,12 +374,12 @@ class Keyword(FingerprintedItem):
     def insert_results(self):
         if self.kw_type == 'teardown' and self.status == 'FAIL':
             self.parent_item.failed_by_teardown = True
-        if ARCHIVE_KEYWORDS:
+        if self.archiver.config.archive_keywords:
             data = {'fingerprint': self.fingerprint, 'keyword': self.name, 'library': self.library,
                     'status': self.status, 'arguments': self.arguments}
             self.archiver.db.insert_or_ignore('keyword_tree', data, ['fingerprint'])
             self.insert_subtrees()
-            if ARCHIVE_KEYWORD_STATISTICS:
+            if self.archiver.config.archive_keyword_statistics:
                 self.update_statistics()
 
     def insert_subtrees(self):
@@ -449,7 +434,8 @@ class LogMessage(TestItem):
         self.id = None
 
     def insert(self, content):
-        if self.log_level in ARCHIVED_LOG_LEVELS:
+        if (not self.archiver.config.ignore_logs and
+                not self.archiver.config.log_level_ignored(self.log_level)):
             data = {'test_run_id': self.test_run_id(), 'timestamp': self.timestamp,
                     'log_level': self.log_level, 'message': content[:MAX_LOG_MESSAGE_LENGTH],
                     'test_id': self.parent_test().id if self.parent_test() else None,
@@ -547,7 +533,7 @@ class Archiver:
         if not self.test_series:
             self.report_series('default series', None)
         self.report_series('All builds', None)
-        if ARCHIVE_KEYWORDS and ARCHIVE_KEYWORD_STATISTICS:
+        if self.config.archive_keywords and self.config.archive_keyword_statistics:
             self.report_keyword_statistics()
 
         self.db.commit()

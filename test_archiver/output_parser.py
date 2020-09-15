@@ -71,7 +71,7 @@ class RobotFrameworkOutputParser(XmlOutputParser):
             pass
         elif name == 'msg':
             self.archiver.begin_log_message(attrs.getValue('level'), attrs.getValue('timestamp'))
-            if attrs.getValue('level') not in archiver.ARCHIVED_LOG_LEVELS:
+            if self.archiver.config.log_level_ignored(attrs.getValue('level')):
                 self.skipping_content = True
         elif name == 'status':
             critical = attrs.getValue('critical') == 'yes' if 'critical' in attrs.getNames() else None
