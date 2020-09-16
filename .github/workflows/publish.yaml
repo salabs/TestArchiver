@@ -2,12 +2,11 @@ name: Publish Testarchiver to Pypi
 
 on:
   push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
     branches:
       - master
       - develop
-  create:
-    branches:
-      - refs/tags/*
 jobs:
     build-and-publish:
       name:
