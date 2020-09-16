@@ -119,7 +119,7 @@ If the tests are executed in a CI environment the build number/id is an excellen
 The series can also be indicated using metadata. Any metadata with name prefixed with `series` are interpreted as series information. This is especially useful when using listeners. For example when using Robot Framework metadata `--metadata team:A-Team --metadata series:JENKINS_JOB_NAME#BUILD_NUMBER`
 
 # Release notes
-- 2.1.0 (TBD)
+- 2.1.0 (2020-09-16)
   * New options for controlling archiving of keywords and log messages
     - `--no-keywords` for ignoring all keyword data
     - `--no-keyword-stats` for not collecting keyword statistics data
