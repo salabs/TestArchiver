@@ -2,7 +2,7 @@
 
 import sys
 from hashlib import sha1
-from datetime import datetime
+from datetime import datetime, timedelta
 from collections import defaultdict
 
 from . import database, version, archiver_listeners
@@ -97,6 +97,8 @@ class FingerprintedItem(TestItem):
         self._execution_path = None
         self._child_counters = defaultdict(lambda: 0)
 
+        self._time_adjust_secs = archiver.config.time_adjust_secs
+
     def insert_results(self):
         raise NotImplementedError()
 
@@ -108,8 +110,8 @@ class FingerprintedItem(TestItem):
         self.start_time = start_time
         self.end_time = end_time
         if self.start_time and self.end_time:
-            start = timestamp_to_datetime(self.start_time)
-            end = timestamp_to_datetime(self.end_time)
+            start = adjusted_timestamp_to_datetime(self.start_time, self._time_adjust_secs)
+            end = adjusted_timestamp_to_datetime(self.end_time, self._time_adjust_secs)
             self.elapsed_time = int((end - start).total_seconds()*1000)
         elif elapsed is not None:
             self.elapsed_time = elapsed
@@ -432,11 +434,13 @@ class LogMessage(TestItem):
         self.log_level = log_level
         self.timestamp = timestamp
         self.id = None
+        self._time_adjust_secs = archiver.config.time_adjust_secs
 
     def insert(self, content):
         if (not self.archiver.config.ignore_logs and
                 not self.archiver.config.log_level_ignored(self.log_level)):
-            data = {'test_run_id': self.test_run_id(), 'timestamp': self.timestamp,
+            data = {'test_run_id': self.test_run_id(),
+                    'timestamp': adjusted_timestamp(self.timestamp, self._time_adjust_secs),
                     'log_level': self.log_level, 'message': content[:MAX_LOG_MESSAGE_LENGTH],
                     'test_id': self.parent_test().id if self.parent_test() else None,
                     'suite_id': self.parent_suite().id,
@@ -445,6 +449,7 @@ class LogMessage(TestItem):
 
     def execution_path(self):
         return self.parent_item.execution_path()
+
 
 def database_connection(config):
     return database.get_connection_and_check_schema(config)
@@ -673,3 +678,21 @@ def timestamp_to_datetime(timestamp):
         except ValueError:
             pass
     raise Exception("timestamp: '{}' is in unsupported format".format(timestamp))
+
+
+def adjusted_timestamp_to_datetime(timestamp, time_adjust_secs=0):
+    adjusted_datetime = timestamp_to_datetime(timestamp)
+    adjustment = abs(time_adjust_secs)
+    if time_adjust_secs > 0:
+        adjusted_datetime = adjusted_datetime + timedelta(seconds=adjustment)
+    elif time_adjust_secs < 0:
+        adjusted_datetime = adjusted_datetime - timedelta(seconds=adjustment)
+    return adjusted_datetime
+
+
+def adjusted_timestamp(timestamp, time_adjust_secs=0):
+    adjusted_stamp = timestamp
+    if time_adjust_secs != 0:
+        adjusted_datetime = adjusted_timestamp_to_datetime(timestamp, time_adjust_secs)
+        adjusted_stamp = adjusted_datetime.isoformat(timespec='milliseconds')
+    return adjusted_stamp

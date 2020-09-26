@@ -75,6 +75,8 @@ class Config():
 
         self.change_engine_url = self.resolve_option('change_engine_url')
 
+        self.time_adjust_secs = self.resolve_option('time_adjust_secs', default=0, cast_as=int)
+
 
     def resolve_option(self, name, default=None, cast_as=str):
         value = None
@@ -135,6 +137,8 @@ def base_argument_parser(description):
                         help=('Sets a cut off level for archived log messages. '
                               'By default archives all available log messages.'))
     parser.add_argument('--ignore-logs', action='store_true', help='Do not archive any log messages')
+    parser.add_argument('--time-adjust-secs', dest='time_adjust_secs', default=0,
+                        help='Adjust time in timestamps by given seconds')
     return parser
 
 def configuration(argument_parser):
