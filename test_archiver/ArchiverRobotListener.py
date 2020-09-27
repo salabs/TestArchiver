@@ -10,7 +10,7 @@ class ArchiverRobotListener:
     ROBOT_LISTENER_API_VERSION = 2
 
     def __init__(self, config_file_or_database,
-                 db_engine=None, user=None, pw=None, host=None, port=5432):
+                 db_engine=None, user=None, pw=None, host=None, port=5432, adjust_with_system_timezone=False):
         if not db_engine:
             config = configs.Config(file_config=config_file_or_database)
         else:
@@ -20,6 +20,13 @@ class ArchiverRobotListener:
                                                  'password': pw,
                                                  'host': host,
                                                  'port': port})
+        if adjust_with_system_timezone:
+            import time
+            if time.daylight == 0:
+                config.time_adjust_secs = time.timezone
+            else:
+                config.time_adjust_secs = time.altzone
+
         database = archiver.database_connection(config)
         self.archiver = archiver.Archiver(database, config)
         self.archiver.test_type = "Robot Framework"
