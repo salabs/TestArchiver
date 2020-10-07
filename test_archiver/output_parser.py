@@ -585,7 +585,7 @@ class PhpJUnitOutputParser(XmlOutputParser):
             if('file' not in attrs.getNames() and 'name' in attrs.getNames()):
                 suite_name = attrs.getValue('name').split('/')[-1]
                 print(suite_name)
-            elif(name == 'testsuites'):
+            elif name == 'testsuites':
                 suite_name = 'phpunit'
             else:
                 suite_name = attrs.getValue('name') if 'name' in attrs.getNames() else DEFAULT_SUITE_NAME
@@ -594,7 +594,8 @@ class PhpJUnitOutputParser(XmlOutputParser):
             failures = int(attrs.getValue('failures')) if 'failures' in attrs.getNames() else 0
             suite_status = 'PASS' if errors + failures == 0 else 'FAIL'
             elapsed = int(float(attrs.getValue('time'))*1000) if 'time' in attrs.getNames() else None
-            timestamp = attrs.getValue('timestamp') if 'timestamp' in attrs.getNames() else datetime.datetime.now().isoformat()
+            time_now = datetime.datetime.now().isoformat()
+            timestamp = attrs.getValue('timestamp') if 'timestamp' in attrs.getNames() else time_now
             self.archiver.begin_status(suite_status, start_time=timestamp, elapsed=elapsed)
         elif name == 'testcase':
             class_name = attrs.getValue('classname')
