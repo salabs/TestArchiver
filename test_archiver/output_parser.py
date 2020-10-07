@@ -3,7 +3,7 @@
 import os.path
 import sys
 import xml.sax
-
+import datetime
 from . import archiver, configs
 
 
@@ -556,6 +556,119 @@ class PytestJUnitOutputParser(XmlOutputParser):
             print("WARNING: ending unknown item '{}'".format(name))
         self._current_content = []
 
+class PhpJUnitOutputParser(XmlOutputParser):
+
+    def _report_test_run(self):
+        self.archiver.begin_test_run('php JUnit parser', None, 'phpunit', False, None)
+
+    def _handle_suites_from_class_name(self, class_name):
+        next_suite_stack = class_name.split('.')
+        current_suites = self.archiver.current_suites()
+        next_suite_stack.insert(0, current_suites[0].name)
+        common_suites = 0
+        for i, current_suite in enumerate(current_suites):
+            if i >= len(next_suite_stack) or current_suite.name != next_suite_stack[i]:
+                break
+            common_suites += 1
+        for i in range(common_suites, len(current_suites)):
+            self.archiver.end_suite()
+        for i in range(common_suites, len(next_suite_stack)):
+            self.archiver.begin_suite(next_suite_stack[i])
+
+    def _detect_test_setup_or_teardown_from_stack_trace(self, trace):
+        print(trace)
+        if 'tearDownAfterClass' in trace:
+            self.archiver.keyword('tearDownClass', 'python', 'teardown', 'FAIL')
+
+    def startElement(self, name, attrs):
+        if name == 'testrun':
+            self._report_test_run()
+            if 'project' in attrs.getNames():
+                self.archiver.metadata['project'] = attrs.getValue('project')
+            if 'name' in attrs.getNames():
+                self.archiver.metadata['test run name'] = attrs.getValue('name')
+        elif name in ('testsuite', 'testsuites'):
+            if not self.archiver.test_run_id:
+                self._report_test_run()
+            if('file' not in attrs.getNames() and 'name' in attrs.getNames()):
+                suite_name = attrs.getValue('name').split('/')[-1]
+                print(suite_name)
+            elif(name == 'testsuites'):
+                suite_name = 'phpunit'
+            else:
+                suite_name = attrs.getValue('name') if 'name' in attrs.getNames() else DEFAULT_SUITE_NAME
+            self.archiver.begin_suite(suite_name)
+            errors = int(attrs.getValue('errors')) if 'errors' in attrs.getNames() else 0
+            failures = int(attrs.getValue('failures')) if 'failures' in attrs.getNames() else 0
+            suite_status = 'PASS' if errors + failures == 0 else 'FAIL'
+            elapsed = int(float(attrs.getValue('time'))*1000) if 'time' in attrs.getNames() else None
+            timestamp = attrs.getValue('timestamp') if 'timestamp' in attrs.getNames() else datetime.datetime.now().isoformat()
+            self.archiver.begin_status(suite_status, start_time=timestamp, elapsed=elapsed)
+        elif name == 'testcase':
+            class_name = attrs.getValue('classname')
+            self.archiver.begin_test(attrs.getValue('name'), class_name=class_name)
+            elapsed = int(float(attrs.getValue('time'))*1000)
+            self.archiver.begin_status('PASS', elapsed=elapsed)
+        elif name == 'failure':
+            self.archiver.update_status('FAIL')
+            try:
+                self.archiver.log_message('FAIL', attrs.getValue('type'))
+            except KeyError:
+                print("Ignoring empty message attribute in failure element")
+                # jest-junit does not add 'message' attribute to 'failure' xml element
+                # https://github.com/jest-community/jest-junit
+        elif name == 'error':
+            self.archiver.update_status('FAIL')
+            try:
+                self.archiver.log_message('ERROR', attrs.getValue('type'))
+            except KeyError:
+                print("Ignoring empty message attribute in failure element")
+                # jest-junit does not add 'message' attribute to 'failure' xml element
+                # https://github.com/jest-community/jest-junit
+        elif name == 'skipped':
+            self.archiver.update_status('SKIPPED')
+            if 'message' in attrs.getNames():
+                self.archiver.log_message('INFO', attrs.getValue('type'))
+        elif name in ('system-out', 'system-err'):
+            pass
+        elif name == 'properties':
+            pass
+        elif name == 'property':
+            self.archiver.metadata(attrs.getValue('name'), attrs.getValue('value'))
+        else:
+            print("WARNING: begin unknown item '{}'".format(name))
+
+    def endElement(self, name):
+        if name in []:
+            self.excluding = False
+        elif self.excluding:
+            self.skipping_content = False
+        elif name == 'testrun':
+            pass
+        elif name in ('testsuite', 'testsuites'):
+            self.archiver.end_suite()
+        elif name == 'testcase':
+            self.archiver.end_test()
+        elif name == 'failure':
+            content = self.content()
+            self._detect_test_setup_or_teardown_from_stack_trace(content)
+            self.archiver.log_message('FAIL', content)
+        elif name == 'error':
+            content = self.content()
+            self._detect_test_setup_or_teardown_from_stack_trace(content)
+            self.archiver.log_message('ERROR', content)
+        elif name == 'system-out':
+            self.archiver.log_message('INFO', self.content())
+        elif name == 'system-err':
+            self.archiver.log_message('ERROR', self.content())
+        elif name in ('properties', 'property'):
+            pass
+        elif name == 'skipped':
+            pass
+        else:
+            print("WARNING: ending unknown item '{}'".format(name))
+        self._current_content = []
+
 
 class MSTestOutputParser(XmlOutputParser):
     # Currently only inital support for unittests
@@ -644,6 +757,7 @@ SUPPORTED_OUTPUT_FORMATS = {
     'mocha-junit': MochaJUnitOutputParser,
     'pytest-junit': PytestJUnitOutputParser,
     'mstest': MSTestOutputParser,
+    'php-junit': PhpJUnitOutputParser,
 }
 
 
