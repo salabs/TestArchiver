@@ -138,7 +138,18 @@ def base_argument_parser(description):
                               'By default archives all available log messages.'))
     parser.add_argument('--ignore-logs', action='store_true', help='Do not archive any log messages')
     parser.add_argument('--time-adjust-secs', dest='time_adjust_secs', default=0,
-                        help='Adjust time in timestamps by given seconds')
+                        help='Adjust time in timestamps by given seconds. This can be used to change time to utc '
+                             'before writing the results to database, especially if the test system uses local time, '
+                             'such as robot framework. '
+                             'For example if test were run in Finland (GMT+3) in summer (+1hr), calculate total hours '
+                             'by minutes and seconds and invert to adjust in correct direction, i.e. -(3+1)*60*60, so '
+                             '--time-adjust-secs -14400. '
+                             'This option is useful if you are archiving in a different location to where tests are '
+                             'run.'
+                             'If you are running tests and archiving in same timezone, time-adjust-with-system-timezone'
+                             ' may be a better option. '
+                             'This option may be used in conjunction with --time-adjust-with-system-timezone if '
+                             'desired.')
     return parser
 
 def configuration(argument_parser):
