@@ -1,6 +1,7 @@
 # pylint: disable=C0103
 
 import sys
+import time
 from hashlib import sha1
 from datetime import datetime, timedelta
 from collections import defaultdict
@@ -23,6 +24,21 @@ SUPPORTED_TIMESTAMP_FORMATS = (
     )
 
 MAX_LOG_MESSAGE_LENGTH = 2000
+
+
+class TimeAdjust:
+    def __init__(self, secs, adjust_to_system):
+        self._time_adjust_secs = secs
+        self._adjust_to_system = adjust_to_system
+
+    def secs(self):
+        secs = self._time_adjust_secs
+        if self._adjust_to_system:
+            if time.daylight == 0:
+                secs = secs + time.timezone
+            else:
+                secs = secs + time.altzone
+        return secs
 
 
 class TestItem:
