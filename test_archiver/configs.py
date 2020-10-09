@@ -77,6 +77,9 @@ class Config():
 
         self.time_adjust_secs = self.resolve_option('time_adjust_secs', default=0, cast_as=int)
 
+        self.time_adjust_with_system_timezone = self.resolve_option('time_adjust_with_system_timezone',
+                                                                    default=False, cast_as=bool)
+
 
     def resolve_option(self, name, default=None, cast_as=str):
         value = None
@@ -150,6 +153,17 @@ def base_argument_parser(description):
                              ' may be a better option. '
                              'This option may be used in conjunction with --time-adjust-with-system-timezone if '
                              'desired.')
+    parser.add_argument('--time-adjust-with-system-timezone', dest='time_adjust_with_system_timezone', default=None,
+                        action='store_false',
+                        help='Adjust the time in timestamps by the system timezone (including daylight savings adjust).'
+                             ' If you are archiving tests in the same timezone as you are running tests, setting this '
+                             'option will ensure time written to the database is in UTC/GMT time. This assumes that if '
+                             'multiple computers are used that their timezone and daylight savings settings are '
+                             'identical. '
+                             'Take care also that you do not run tests just before a daylight savings time adjust and '
+                             'archive just after, as times will be out by one hour. This could easily happen if long '
+                             'running tests cross a timezone adjust boundary. '
+                             'This option may be used in conjunction with --time-adjust-secs.')
     return parser
 
 def configuration(argument_parser):
