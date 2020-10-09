@@ -20,12 +20,8 @@ class ArchiverRobotListener:
                                                  'password': pw,
                                                  'host': host,
                                                  'port': port})
-        if adjust_with_system_timezone:
-            import time
-            if time.daylight == 0:
-                config.time_adjust_secs = time.timezone
-            else:
-                config.time_adjust_secs = time.altzone
+
+        config.time_adjust_with_system_timezone = adjust_with_system_timezone
 
         database = archiver.database_connection(config)
         self.archiver = archiver.Archiver(database, config)

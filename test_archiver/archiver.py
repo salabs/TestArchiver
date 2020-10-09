@@ -113,7 +113,8 @@ class FingerprintedItem(TestItem):
         self._execution_path = None
         self._child_counters = defaultdict(lambda: 0)
 
-        self._time_adjust_secs = archiver.config.time_adjust_secs
+        self._time_adjust = TimeAdjust(archiver.config.time_adjust_secs,
+                                       archiver.config.time_adjust_with_system_timezone)
 
     def insert_results(self):
         raise NotImplementedError()
@@ -126,8 +127,8 @@ class FingerprintedItem(TestItem):
         self.start_time = start_time
         self.end_time = end_time
         if self.start_time and self.end_time:
-            start = adjusted_timestamp_to_datetime(self.start_time, self._time_adjust_secs)
-            end = adjusted_timestamp_to_datetime(self.end_time, self._time_adjust_secs)
+            start = adjusted_timestamp_to_datetime(self.start_time, self._time_adjust.secs())
+            end = adjusted_timestamp_to_datetime(self.end_time, self._time_adjust.secs())
             self.elapsed_time = int((end - start).total_seconds()*1000)
         elif elapsed is not None:
             self.elapsed_time = elapsed
@@ -450,13 +451,14 @@ class LogMessage(TestItem):
         self.log_level = log_level
         self.timestamp = timestamp
         self.id = None
-        self._time_adjust_secs = archiver.config.time_adjust_secs
+        self._time_adjust = TimeAdjust(archiver.config.time_adjust_secs,
+                                       archiver.config.time_adjust_with_system_timezone)
 
     def insert(self, content):
         if (not self.archiver.config.ignore_logs and
                 not self.archiver.config.log_level_ignored(self.log_level)):
             data = {'test_run_id': self.test_run_id(),
-                    'timestamp': adjusted_timestamp(self.timestamp, self._time_adjust_secs),
+                    'timestamp': adjusted_timestamp(self.timestamp, self._time_adjust.secs()),
                     'log_level': self.log_level, 'message': content[:MAX_LOG_MESSAGE_LENGTH],
                     'test_id': self.parent_test().id if self.parent_test() else None,
                     'suite_id': self.parent_suite().id,
