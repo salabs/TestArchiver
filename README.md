@@ -118,7 +118,36 @@ If the tests are executed in a CI environment the build number/id is an excellen
 
 The series can also be indicated using metadata. Any metadata with name prefixed with `series` are interpreted as series information. This is especially useful when using listeners. For example when using Robot Framework metadata `--metadata team:A-Team --metadata series:JENKINS_JOB_NAME#BUILD_NUMBER`
 
+## Timestamp adjustment
+
+Some test frameworks use local time in their timestamps. For archiving into databases this can be problematic if tests
+are viewed and or run in different timezones. To address this two ways to adjust the time back to GMT/UTC are provided.
+
+The first allows the user to apply an adjustment of a fixed time in seconds of their choosing. This is useful for cases
+where tests were already run and the place/timezone where they were run are known. This option is useful if you are
+archiving in a different location to where tests are  run. The time value provided as an option is added to the 
+timestamp. Care must be taken with places where summer time is different (usually +1hr).
+
+For example if test were run in Finland (GMT+2), plus 1 hour in summer, calculate total hours by minutes and seconds 
+and invert to adjust in correct direction, i.e. -(2+1)*60*60, so --time-adjust-secs -10800 in summer time, 
+and -7200 otherwise. 
+
+The second provides for automated adjustment based on the system timezone and/or daylight savings if it applies. This
+is useful if the tests and archiving are performed in the same place and time.
+This assumes that if multiple computers are used that their timezone and daylight savings settings are identical.
+Care must also be taken that tests are not run just before a daylight savings time adjust and archived just after
+as times will be out by one hour. This could easily happen if long running tests cross a timezone adjust boundary.
+This can be set using --time_adjust_with_system_timezone.
+
+The ArchiverRobotListener allows for the second option if its adjust_with_system_timezone argument is set to True.
+
+
 # Release notes
+- tbd
+  * Ability to adjust times as reported by timestamps in test results.
+    - `time-adjust-secs` allows for manual adjustment of the timestamps with given value
+    - `time-adjust-with-system-timezone` allows for automatic adjustment of timestamps by timezone and/or daylight savings.
+
 - 2.1.0 (2020-09-16)
   * New options for controlling archiving of keywords and log messages
     - `--no-keywords` for ignoring all keyword data
