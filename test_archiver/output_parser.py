@@ -135,6 +135,9 @@ class RobotFrameworkOutputParser(XmlOutputParser):
 
 
 class XUnitOutputParser(XmlOutputParser):
+    def __init__(self, archiver_instance):
+        super(XUnitOutputParser, self).__init__(archiver_instance)
+        self.archiver.test_type = "xunit"
 
     def startElement(self, name, attrs):
         if name in []:
@@ -205,6 +208,9 @@ class XUnitOutputParser(XmlOutputParser):
 
 
 class JUnitOutputParser(XmlOutputParser):
+    def __init__(self, archiver_instance):
+        super(JUnitOutputParser, self).__init__(archiver_instance)
+        self.archiver.test_type = "junit"
 
     def _report_test_run(self):
         self.archiver.begin_test_run('JUnit parser', None, 'JUnit', False, None)
@@ -292,6 +298,7 @@ class MochaJUnitOutputParser(XmlOutputParser):
     def __init__(self, archiver_instance):
         super(MochaJUnitOutputParser, self).__init__(archiver_instance)
         self.in_setup_or_teardown = False
+        self.archiver.test_type = "mocha-junit"
 
     def _end_previous_test(self):
         if self.archiver.current_item_is_test():
@@ -413,6 +420,7 @@ class PytestJUnitOutputParser(XmlOutputParser):
         self.in_setup_or_teardown = False
         self._current_class_name = None
         self._current_test_name = None
+        self.archiver.test_type = "pytest-junit"
 
     def _report_test_run(self):
         self.archiver.begin_test_run('pytest JUnit parser', None, 'pytest', False, None)
@@ -551,6 +559,9 @@ class PytestJUnitOutputParser(XmlOutputParser):
 
 class MSTestOutputParser(XmlOutputParser):
     # Currently only inital support for unittests
+    def __init__(self, archiver_instance):
+        super(MSTestOutputParser, self).__init__(archiver_instance)
+        self.archiver.test_type = "mstest"
 
     EXCLUDED_SECTIONS = ('TestSettings', 'ResultSummary', 'TestDefinitions', 'TestLists', 'TestEntries')
     STATUS_MAPPING = {
