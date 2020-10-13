@@ -154,7 +154,7 @@ def base_argument_parser(description):
                              'This option may be used in conjunction with --time-adjust-with-system-timezone if '
                              'desired.')
     parser.add_argument('--time-adjust-with-system-timezone', dest='time_adjust_with_system_timezone', default=None,
-                        action='store_false',
+                        action='store_true',
                         help='Adjust the time in timestamps by the system timezone (including daylight savings adjust).'
                              ' If you are archiving tests in the same timezone as you are running tests, setting this '
                              'option will ensure time written to the database is in UTC/GMT time. This assumes that if '
