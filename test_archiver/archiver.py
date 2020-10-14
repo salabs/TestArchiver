@@ -313,6 +313,12 @@ class Suite(FingerprintedItem):
         if isinstance(self.parent_item, TestRun) and self.archiver.additional_metadata:
             for name in self.archiver.additional_metadata:
                 self.metadata[name] = self.archiver.additional_metadata[name]
+        if self.archiver.config.time_adjust_secs != 0:
+            self.metadata["time_adjust_secs"] = self.archiver.config.time_adjust_secs
+        if self.archiver.config.time_adjust_with_system_timezone:
+            time_adjust = TimeAdjust(self.archiver.config.time_adjust_secs,
+                                     self.archiver.config.time_adjust_with_system_timezone)
+            self.metadata["time_adjust_secs_total"] = time_adjust.secs()
         for name in self.metadata:
             content = self.metadata[name]
             data = {'name': name, 'value': content,
