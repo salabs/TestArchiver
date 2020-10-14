@@ -92,7 +92,7 @@ class Config():
         try:
             return value if value is None else cast_as(value)
         except ValueError as value_error:
-            print("Error: incompatiple value for option '{}'".format(name))
+            print("Error: incompatible value for option '{}'".format(name))
             raise value_error
 
     def resolve_list_option(self, name):
