@@ -5,8 +5,6 @@ class BasicTest extends TestCase
 {
     public function testTrueFalse(): void
     {
-        sleep(3);
-
         $this->assertTrue(false);
     }
 }

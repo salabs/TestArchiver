@@ -553,24 +553,9 @@ class PhpJUnitOutputParser(XmlOutputParser):
     def _report_test_run(self):
         self.archiver.begin_test_run('php JUnit parser', None, 'phpunit', False, None)
 
-    def _handle_suites_from_class_name(self, class_name):
-        next_suite_stack = class_name.split('.')
-        current_suites = self.archiver.current_suites()
-        next_suite_stack.insert(0, current_suites[0].name)
-        common_suites = 0
-        for i, current_suite in enumerate(current_suites):
-            if i >= len(next_suite_stack) or current_suite.name != next_suite_stack[i]:
-                break
-            common_suites += 1
-        for i in range(common_suites, len(current_suites)):
-            self.archiver.end_suite()
-        for i in range(common_suites, len(next_suite_stack)):
-            self.archiver.begin_suite(next_suite_stack[i])
-
     def _detect_test_setup_or_teardown_from_stack_trace(self, trace):
-        print(trace)
         if 'tearDownAfterClass' in trace:
-            self.archiver.keyword('tearDownClass', 'python', 'teardown', 'FAIL')
+            self.archiver.keyword('tearDownClass', 'phpunit', 'teardown', 'FAIL')
 
     def startElement(self, name, attrs):
         if name == 'testrun':
@@ -584,7 +569,6 @@ class PhpJUnitOutputParser(XmlOutputParser):
                 self._report_test_run()
             if('file' not in attrs.getNames() and 'name' in attrs.getNames()):
                 suite_name = attrs.getValue('name').split('/')[-1]
-                print(suite_name)
             elif name == 'testsuites':
                 suite_name = 'phpunit'
             else:
@@ -606,6 +590,7 @@ class PhpJUnitOutputParser(XmlOutputParser):
             self.archiver.update_status('FAIL')
             try:
                 self.archiver.log_message('FAIL', attrs.getValue('type'))
+                self.archiver.keyword(attrs.getValue('type'), 'phpunit', 'kw', 'FAIL')
             except KeyError:
                 print("Ignoring empty message attribute in failure element")
                 # jest-junit does not add 'message' attribute to 'failure' xml element
@@ -648,7 +633,6 @@ class PhpJUnitOutputParser(XmlOutputParser):
             self.archiver.log_message('FAIL', content)
         elif name == 'error':
             content = self.content()
-            self._detect_test_setup_or_teardown_from_stack_trace(content)
             self.archiver.log_message('ERROR', content)
         elif name == 'system-out':
             self.archiver.log_message('INFO', self.content())

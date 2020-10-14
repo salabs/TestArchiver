@@ -38,9 +38,9 @@ class DependenciesTest extends TestCase
     /**
      * @depends testPassWithParam
      */
-    public function testDependencyVariableWithPass($a): void
+    public function testDependencyVariableWithPass($first): void
     {
-        $this->assertSame('first', $a);
+        $this->assertSame('first', $first);
     }
 
     public function failingAdditionsData(): array
