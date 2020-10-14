@@ -137,9 +137,27 @@ is useful if the tests and archiving are performed in the same place and time.
 This assumes that if multiple computers are used that their timezone and daylight savings settings are identical.
 Care must also be taken that tests are not run just before a daylight savings time adjust and archived just after
 as times will be out by one hour. This could easily happen if long running tests cross a timezone adjust boundary.
-This can be set using --time_adjust_with_system_timezone.
+This can be set using --time-adjust-with-system-timezone.
 
 The ArchiverRobotListener allows for the second option if its adjust_with_system_timezone argument is set to True.
+
+To ensure any of the optional adjustments are traceable, two meta data values are added to the suites' test run.
+If time-adjust-secs is set to a value, time_adjust_secs with that value is written to the suite_metadata table.
+If `--time-adjust-with-system-timezone` option is included, then the addition of the time-adjust-secs and the
+system timezone is written to the suite_metadata tables as time_adjust_secs_total.
+
+e.g with command line
+
+    output_parser.py --time-adjust-secs -3600 --time-adjust-with-system-timezone ...
+
+the following values would be added to suite_metadata table for (GMT+2)
+
+ - time_adjust_secs with value -3600
+ - time_adjust_secs_total with -10800.
+
+This example is mimicking adding daylight savings (1hr = 3600 secs) onto
+a system offset secs of 7200 (GMT+2). i.e. if the computer being used had the 'daylight savings' setting
+of and you want to manually add it during archiving.
 
 
 # Release notes
