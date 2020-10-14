@@ -141,28 +141,28 @@ def base_argument_parser(description):
                               'By default archives all available log messages.'))
     parser.add_argument('--ignore-logs', action='store_true', help='Do not archive any log messages')
     parser.add_argument('--time-adjust-secs', dest='time_adjust_secs', default=0,
-                        help='Adjust time in timestamps by given seconds. This can be used to change time to utc '
-                             'before writing the results to database, especially if the test system uses local time, '
-                             'such as robot framework. '
-                             'For example if test were run in Finland (GMT+3) in summer (+1hr), calculate total hours '
-                             'by minutes and seconds and invert to adjust in correct direction, i.e. -(3+1)*60*60, so '
-                             '--time-adjust-secs -14400. '
-                             'This option is useful if you are archiving in a different location to where tests are '
-                             'run.'
-                             'If you are running tests and archiving in same timezone, time-adjust-with-system-timezone'
-                             ' may be a better option. '
-                             'This option may be used in conjunction with --time-adjust-with-system-timezone if '
-                             'desired.')
-    parser.add_argument('--time-adjust-with-system-timezone', dest='time_adjust_with_system_timezone', default=None,
-                        action='store_true',
-                        help='Adjust the time in timestamps by the system timezone (including daylight savings adjust).'
-                             ' If you are archiving tests in the same timezone as you are running tests, setting this '
-                             'option will ensure time written to the database is in UTC/GMT time. This assumes that if '
-                             'multiple computers are used that their timezone and daylight savings settings are '
-                             'identical. '
-                             'Take care also that you do not run tests just before a daylight savings time adjust and '
-                             'archive just after, as times will be out by one hour. This could easily happen if long '
-                             'running tests cross a timezone adjust boundary. '
+                        help='Adjust time in timestamps by given seconds. This can be used to change time '
+                             'to utc before writing the results to database, especially if the test system '
+                             'uses local time, such as robot framework. '
+                             'For example if test were run in Finland (GMT+3) in summer (+1hr), calculate '
+                             'total hours by minutes and seconds and invert to adjust in correct direction,'
+                             ' i.e. -(3+1)*60*60, so --time-adjust-secs -14400. '
+                             'This option is useful if you are archiving in a different location to where '
+                             'tests are run.'
+                             'If you are running tests and archiving in same timezone, '
+                             'time-adjust-with-system-timezone may be a better option. '
+                             'This option may be used in conjunction with '
+                             '--time-adjust-with-system-timezone if desired.')
+    parser.add_argument('--time-adjust-with-system-timezone', dest='time_adjust_with_system_timezone',
+                        default=None, action='store_true',
+                        help='Adjust the time in timestamps by the system timezone (including daylight '
+                             'savings adjust). If you are archiving tests in the same timezone as you are '
+                             'running tests, setting this option will ensure time written to the database '
+                             'is in UTC/GMT time. This assumes that if multiple computers are used that '
+                             'their timezone and daylight savings settings are identical. '
+                             'Take care also that you do not run tests just before a daylight savings time '
+                             'adjust and archive just after, as times will be out by one hour. This could '
+                             'easily happen if long running tests cross a timezone adjust boundary. '
                              'This option may be used in conjunction with --time-adjust-secs.')
     return parser
 
