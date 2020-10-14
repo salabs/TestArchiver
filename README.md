@@ -148,7 +148,7 @@ system timezone is written to the suite_metadata tables as time_adjust_secs_tota
 
 e.g with command line
 
-    output_parser.py --time-adjust-secs -3600 --time-adjust-with-system-timezone ...
+`output_parser.py --time-adjust-secs -3600 --time-adjust-with-system-timezone ...`
 
 the following values would be added to suite_metadata table for (GMT+2)
 
