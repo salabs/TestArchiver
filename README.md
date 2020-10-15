@@ -161,7 +161,7 @@ of and you want to manually add it during archiving.
 
 
 # Release notes
-- tbd
+- 2.2.0 (TBD)
   * Ability to adjust times as reported by timestamps in test results.
     - `time-adjust-secs` allows for manual adjustment of the timestamps with given value
     - `time-adjust-with-system-timezone` allows for automatic adjustment of timestamps by timezone and/or daylight savings.
