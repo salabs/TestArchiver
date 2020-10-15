@@ -1,8 +1,9 @@
 # pylint: disable=C0103
 
 import sys
+import time
 from hashlib import sha1
-from datetime import datetime
+from datetime import datetime, timedelta
 from collections import defaultdict
 
 from . import database, version, archiver_listeners
@@ -23,6 +24,21 @@ SUPPORTED_TIMESTAMP_FORMATS = (
     )
 
 MAX_LOG_MESSAGE_LENGTH = 2000
+
+
+class TimeAdjust:
+    def __init__(self, secs, adjust_to_system):
+        self._time_adjust_secs = secs
+        self._adjust_to_system = adjust_to_system
+
+    def secs(self):
+        secs = self._time_adjust_secs
+        if self._adjust_to_system:
+            if time.daylight == 0:
+                secs = secs + time.timezone
+            else:
+                secs = secs + time.altzone
+        return secs
 
 
 class TestItem:
@@ -97,6 +113,9 @@ class FingerprintedItem(TestItem):
         self._execution_path = None
         self._child_counters = defaultdict(lambda: 0)
 
+        self._time_adjust = TimeAdjust(archiver.config.time_adjust_secs,
+                                       archiver.config.time_adjust_with_system_timezone)
+
     def insert_results(self):
         raise NotImplementedError()
 
@@ -108,8 +127,8 @@ class FingerprintedItem(TestItem):
         self.start_time = start_time
         self.end_time = end_time
         if self.start_time and self.end_time:
-            start = timestamp_to_datetime(self.start_time)
-            end = timestamp_to_datetime(self.end_time)
+            start = adjusted_timestamp_to_datetime(self.start_time, self._time_adjust.secs())
+            end = adjusted_timestamp_to_datetime(self.end_time, self._time_adjust.secs())
             self.elapsed_time = int((end - start).total_seconds()*1000)
         elif elapsed is not None:
             self.elapsed_time = elapsed
@@ -294,6 +313,12 @@ class Suite(FingerprintedItem):
         if isinstance(self.parent_item, TestRun) and self.archiver.additional_metadata:
             for name in self.archiver.additional_metadata:
                 self.metadata[name] = self.archiver.additional_metadata[name]
+        if self.archiver.config.time_adjust_secs != 0:
+            self.metadata["time_adjust_secs"] = self.archiver.config.time_adjust_secs
+        if self.archiver.config.time_adjust_with_system_timezone:
+            time_adjust = TimeAdjust(self.archiver.config.time_adjust_secs,
+                                     self.archiver.config.time_adjust_with_system_timezone)
+            self.metadata["time_adjust_secs_total"] = time_adjust.secs()
         for name in self.metadata:
             content = self.metadata[name]
             data = {'name': name, 'value': content,
@@ -432,11 +457,14 @@ class LogMessage(TestItem):
         self.log_level = log_level
         self.timestamp = timestamp
         self.id = None
+        self._time_adjust = TimeAdjust(archiver.config.time_adjust_secs,
+                                       archiver.config.time_adjust_with_system_timezone)
 
     def insert(self, content):
         if (not self.archiver.config.ignore_logs and
                 not self.archiver.config.log_level_ignored(self.log_level)):
-            data = {'test_run_id': self.test_run_id(), 'timestamp': self.timestamp,
+            data = {'test_run_id': self.test_run_id(),
+                    'timestamp': adjusted_timestamp(self.timestamp, self._time_adjust.secs()),
                     'log_level': self.log_level, 'message': content[:MAX_LOG_MESSAGE_LENGTH],
                     'test_id': self.parent_test().id if self.parent_test() else None,
                     'suite_id': self.parent_suite().id,
@@ -445,6 +473,7 @@ class LogMessage(TestItem):
 
     def execution_path(self):
         return self.parent_item.execution_path()
+
 
 def database_connection(config):
     return database.get_connection_and_check_schema(config)
@@ -673,3 +702,21 @@ def timestamp_to_datetime(timestamp):
         except ValueError:
             pass
     raise Exception("timestamp: '{}' is in unsupported format".format(timestamp))
+
+
+def adjusted_timestamp_to_datetime(timestamp, time_adjust_secs=0):
+    adjusted_datetime = timestamp_to_datetime(timestamp)
+    adjustment = abs(time_adjust_secs)
+    if time_adjust_secs > 0:
+        adjusted_datetime = adjusted_datetime + timedelta(seconds=adjustment)
+    elif time_adjust_secs < 0:
+        adjusted_datetime = adjusted_datetime - timedelta(seconds=adjustment)
+    return adjusted_datetime
+
+
+def adjusted_timestamp(timestamp, time_adjust_secs=0):
+    adjusted_stamp = timestamp
+    if time_adjust_secs != 0:
+        adjusted_datetime = adjusted_timestamp_to_datetime(timestamp, time_adjust_secs)
+        adjusted_stamp = adjusted_datetime.isoformat(timespec='milliseconds')
+    return adjusted_stamp
