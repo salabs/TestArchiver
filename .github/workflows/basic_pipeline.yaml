@@ -31,7 +31,9 @@ jobs:
       run: |
         PYTHONPATH=. pytest test_archiver/tests/ --junit-xml=output.xml
     - name: Archive unittest results
-      if: ${{ always() && (secrets.DEMO_ARCHIVE_NAME != 0) }}
+      with:
+        archive-name: ${{ secrets.DEMO_ARCHIVE_NAME }}
+      if: ${{ always() && (env.archive-name != 0) }}
       run: >-
         testarchiver
         output.xml
