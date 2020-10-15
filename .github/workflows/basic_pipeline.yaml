@@ -9,6 +9,8 @@ jobs:
     strategy:
       matrix:
         python-version: [3.6, 3.7, 3.8]
+    env:
+      archive-name: ${{ secrets.DEMO_ARCHIVE_NAME }}
 
     steps:
       # Static analysis and unittests
@@ -31,8 +33,6 @@ jobs:
       run: |
         PYTHONPATH=. pytest test_archiver/tests/ --junit-xml=output.xml
     - name: Archive unittest results
-      with:
-        archive-name: ${{ secrets.DEMO_ARCHIVE_NAME }}
       if: ${{ always() && (env.archive-name != 0) }}
       run: >-
         testarchiver
