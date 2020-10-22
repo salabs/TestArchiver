@@ -34,11 +34,7 @@ class ChangeEngineListener(DefaultListener):
         self.report_changes(self.tests, changes)
 
     def report_changes(self, tests, changes):
-        tests_data = []
-        for test in tests:
-            tests_data.append({'name': test.full_name, 'status': test.status,
-                               'subtype': self.archiver.test_type, 'repository': self.archiver.repository})
-        data = {"tests": tests_data, "changes": changes}
+        data = {"tests": self._filter_tests(tests), "changes": changes}
         url = "{}/result/".format(self.change_engine_url)
         request = Request(url)
         request.add_header('Content-Type', 'application/json;')
@@ -47,3 +43,13 @@ class ChangeEngineListener(DefaultListener):
         if response.getcode() != 200:
             print("ERROR: ChangeEngine update failed. Return code: {}".format(response.getcode()))
             print(response.read())
+
+    def _filter_tests(self, tests):
+        return [
+            {
+                'name': test.full_name,
+                'status': test.status,
+                'subtype': self.archiver.test_type,
+                'repository': self.archiver.repository
+            } for test in tests if test.status != "SKIPPED"
+        ]
