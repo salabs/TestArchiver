@@ -208,7 +208,8 @@ class FingerprintedItem(TestItem):
                 'setup_status': self.setup_status,
                 'execution_status': self.execution_status,
                 'teardown_status': self.teardown_status,
-                'start_time': self.start_time,
+                'start_time': adjusted_timestamp(self.start_time, self._time_adjust.secs())
+                              if self.start_time else None,
                 'elapsed': self.elapsed_time,
                 'setup_elapsed': self.elapsed_time_setup,
                 'execution_elapsed': self.elapsed_time_execution,
@@ -256,7 +257,8 @@ class TestRun(FingerprintedItem):
         super(TestRun, self).__init__(archiver, '')
         data = {'archived_using': archived_using,
                 'archiver_version': version.ARCHIVER_VERSION,
-                'generated': generated,
+                'generated': adjusted_timestamp(generated, self._time_adjust.secs())
+                             if generated else None,
                 'generator': generator,
                 'rpa': rpa,
                 'dryrun': dryrun,
