@@ -717,8 +717,6 @@ def adjusted_timestamp_to_datetime(timestamp, time_adjust_secs=0):
 
 
 def adjusted_timestamp(timestamp, time_adjust_secs=0):
-    adjusted_stamp = timestamp
-    if time_adjust_secs != 0:
-        adjusted_datetime = adjusted_timestamp_to_datetime(timestamp, time_adjust_secs)
-        adjusted_stamp = adjusted_datetime.isoformat(timespec='milliseconds')
+    adjusted_datetime = adjusted_timestamp_to_datetime(timestamp, time_adjust_secs)
+    adjusted_stamp = adjusted_datetime.isoformat(timespec='milliseconds')
     return adjusted_stamp
