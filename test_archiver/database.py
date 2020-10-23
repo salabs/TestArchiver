@@ -1,6 +1,7 @@
 # pylint: disable=E1101
 
 import os
+import json
 import sqlite3
 from pathlib import Path
 
@@ -8,6 +9,10 @@ try:
     import psycopg2
 except ImportError:
     psycopg2 = None
+try:
+    import pymysql as mysql_connector
+except ImportError:
+    mysql_connector = None
 
 from . import version, configs
 
@@ -29,6 +34,8 @@ def get_connection_and_check_schema(config):
             raise Exception("--host or --user options should not be used "
                             "with default sqlite3 database engine")
         connection = SQLiteDatabase(config)
+    elif config.db_engine in 'mysql':
+        connection = MySqlDatabase(config)
     if connection:
         connection.check_and_update_schema()
         return connection
@@ -436,6 +443,153 @@ class SQLiteDatabase(BaseDatabase):
             (value, ) = row
             return value
         return None
+
+
+class MySqlDatabase(PostgresqlDatabase):
+    """
+    Inherit PostgresqlDatabase and override those methods which have different sql statements.
+    """
+
+    UndefinedTableError = mysql_connector.ProgrammingError if mysql_connector else None
+
+    def _db_engine_identifier(self):
+        return 'mysql'
+
+    def _connect(self):
+        if not mysql_connector:
+            raise Exception("ERROR: Trying to use MySql database but PyMySQL is not installed! "
+                            "Try for example: 'pip install PyMySQL'")
+
+        self._connection = mysql_connector.connect(
+            host=self.host,
+            database=self.database,
+            user=self.user,
+            password=self.password,
+            port=self.port
+        )
+
+    def _initialize_schema(self):
+        try:
+            self._execute("SELECT TOP '1' FROM test_run;")
+        except mysql_connector.ProgrammingError:
+            self._connection.rollback()
+            schema_file = os.path.join(os.path.dirname(__file__), 'schemas/schema_mysql.sql')
+            self._run_script(schema_file)
+            return True
+        return False
+
+    def _run_script(self, script_file):
+        with open(script_file) as file:
+            self._execute_multi(file.read().format(applied_by=version.ARCHIVER_VERSION))
+            self.commit()
+
+    def _handle_values(self, values):
+        handled_values = []
+        for value in values:
+            if type(value) == list:
+                v = json.dumps(value)
+                handled_values.append(v)
+            elif type(value) == str and value.lower() in ('true', 'false'):
+                v = (value.lower() == 'true')
+                handled_values.append(v)
+            else:
+                handled_values.append(value)
+        return handled_values
+
+    def return_id_or_insert_and_return_id(self, table, data, key_fields):
+        row_id = self._fetch_id(table, data, key_fields)
+        if not row_id:
+            sql = ("INSERT IGNORE INTO {table}({fields}) VALUES ({value_placeholders}); "
+                   "SELECT last_insert_id();")
+            keys = list(data)
+            sql = sql.format(
+                table=table,
+                fields=','.join(keys),
+                value_placeholders=','.join(['%s' for _ in keys])
+                )
+            row = self._execute_multi_and_fetchone(sql, [data[key] for key in keys])
+            (row_id, ) = row
+        return row_id
+
+    def insert_and_return_id(self, table, data, key_fields=None):
+        mysql_reserved = ['generated']
+        sql = "INSERT IGNORE INTO {table}({fields}) VALUES ({value_placeholders}); SELECT last_insert_id();"
+        keys = list(data)
+        fields = []
+        for key in keys:
+            field = key
+            field = "`{}`".format(key) if field in mysql_reserved else key
+            fields.append(field)
+
+        sql = sql.format(
+            table=table,
+            fields=','.join(fields),
+            value_placeholders=','.join(['%s' for _ in keys])
+            )
+        row = self._execute_multi_and_fetchone(sql, [data[key] for key in keys])
+        if row:
+            (row_id, ) = row
+        else:
+            row_id = self._fetch_id(table, data, key_fields)
+        return row_id
+
+    def insert_or_ignore(self, table, data, key_fields=None):
+        sql = "INSERT IGNORE INTO {table}({fields}) VALUES ({value_placeholders});"
+        keys = list(data)
+        sql = sql.format(
+            table=table,
+            fields=','.join(keys),
+            value_placeholders=','.join(['%s' for _ in keys])
+            )
+        self._execute(sql, [data[key] for key in keys])
+
+    def insert(self, table, data):
+        sql = "INSERT INTO {table}({fields}) VALUES ({value_placeholders});"
+        keys = list(data)
+        sql = sql.format(
+            table=table,
+            fields=','.join(keys),
+            value_placeholders=','.join(['%s' for _ in keys]),
+            )
+        try:
+            self._execute(sql, [data[key] for key in keys])
+        except (mysql_connector.IntegrityError):
+            raise IntegrityError()
+
+    def _execute_multi(self, sql, values=None):
+        if values is None:
+            values = []
+        values = self._handle_values(values)
+        cursor = self._connection.cursor()
+        lines = sql.split(";")
+        try:
+            # Rudimentary parse through string to execute multiple sql statements
+            for statement in lines:
+                if statement.strip():
+                    cursor.execute(statement, values)
+                    self.commit()
+        finally:
+            cursor.close()
+
+    def _execute_multi_and_fetchone(self, sql, values=None):
+        if values is None:
+            values = []
+        values = self._handle_values(values)
+        cursor = self._connection.cursor()
+        row = None
+        lines = sql.split(";")
+        try:
+            # Rudimentary parse through file to split sql statements
+            for line in lines:
+                statement = line.strip()
+                if statement:
+                    v = values if 'VALUES' in statement else None
+                    cursor.execute(statement, v)
+                    row = cursor.fetchone()
+                    self.commit()
+        finally:
+            cursor.close()
+        return row
 
 
 def argument_parser():
