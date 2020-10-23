@@ -20,8 +20,7 @@ class ArchiverRobotListener:
                                                  'password': pw,
                                                  'host': host,
                                                  'port': port})
-
-        config.time_adjust_with_system_timezone = adjust_with_system_timezone
+            config.time_adjust_with_system_timezone = adjust_with_system_timezone
 
         database = archiver.database_connection(config)
         self.archiver = archiver.Archiver(database, config)
