@@ -184,6 +184,7 @@ class PostgresqlDatabase(BaseDatabase):
             user=self.user,
             password=self.password,
             sslmode='require' if self.require_ssl else 'prefer',
+            port=self.port
         )
 
     def _initialize_schema(self):
