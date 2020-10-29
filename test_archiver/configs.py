@@ -118,7 +118,7 @@ def base_argument_parser(description):
                         help='path to JSON config file containing database credentials')
 
     parser.add_argument('--dbengine', dest='db_engine',
-                        help='Database engine, postgresql or sqlite (default)')
+                        help='Database engine, postgresql, mysql or sqlite (default)')
     parser.add_argument('--database', help='database name')
     parser.add_argument('--host', help='database host name', default=None)
     parser.add_argument('--user', help='database user')
