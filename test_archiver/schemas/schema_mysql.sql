@@ -1,3 +1,4 @@
+SET SESSION sql_mode = 'ANSI_QUOTES';
 CREATE TABLE schema_updates (
     id serial PRIMARY KEY,
     schema_version int UNIQUE NOT NULL,
@@ -20,7 +21,7 @@ CREATE TABLE test_run (
     archived_using varchar(200),
     archiver_version varchar(200),
     generator varchar(200),
-    `generated` timestamp,
+    "generated" timestamp,
     rpa boolean,
     dryrun boolean,
     ignored boolean DEFAULT false,
