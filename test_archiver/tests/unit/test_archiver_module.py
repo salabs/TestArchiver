@@ -1,9 +1,12 @@
 # pylint: disable=W0212
 
 import unittest
+import datetime
 from mock import Mock
 
 from test_archiver import configs, archiver
+
+some_timestamp = datetime.datetime.now().isoformat(timespec='milliseconds')
 
 class TestTestItem(unittest.TestCase):
 
@@ -193,13 +196,13 @@ class TestLogMessage(unittest.TestCase):
         sut_archiver = archiver.Archiver(self.mock_db, config)
         sut_archiver.begin_suite('Some suite of tests')
 
-        message = archiver.LogMessage(sut_archiver, 'WARN', 'some_timestamp')
+        message = archiver.LogMessage(sut_archiver, 'WARN', some_timestamp)
         message.insert('Some log message')
         self.mock_db.insert.assert_called_once()
-        message = archiver.LogMessage(sut_archiver, 'INFO', 'some_timestamp')
+        message = archiver.LogMessage(sut_archiver, 'INFO', some_timestamp)
         message.insert('Some log message')
         self.assertEqual(self.mock_db.insert.call_count, 2)
-        message = archiver.LogMessage(sut_archiver, 'TRACE', 'some_timestamp')
+        message = archiver.LogMessage(sut_archiver, 'TRACE', some_timestamp)
         message.insert('Some log message')
         self.assertEqual(self.mock_db.insert.call_count, 3)
 
@@ -208,13 +211,13 @@ class TestLogMessage(unittest.TestCase):
         sut_archiver = archiver.Archiver(self.mock_db, config)
         sut_archiver.begin_suite('Some suite of tests')
 
-        message = archiver.LogMessage(sut_archiver, 'WARN', 'some_timestamp')
+        message = archiver.LogMessage(sut_archiver, 'WARN', some_timestamp)
         message.insert('Some log message')
         self.mock_db.insert.assert_called_once()
-        message = archiver.LogMessage(sut_archiver, 'INFO', 'some_timestamp')
+        message = archiver.LogMessage(sut_archiver, 'INFO', some_timestamp)
         message.insert('Some log message')
         self.mock_db.insert.assert_called_once()
-        message = archiver.LogMessage(sut_archiver, 'TRACE', 'some_timestamp')
+        message = archiver.LogMessage(sut_archiver, 'TRACE', some_timestamp)
         message.insert('Some log message')
         self.mock_db.insert.assert_called_once()
 
@@ -223,16 +226,16 @@ class TestLogMessage(unittest.TestCase):
         sut_archiver = archiver.Archiver(self.mock_db, config)
         sut_archiver.begin_suite('Some suite of tests')
 
-        message = archiver.LogMessage(sut_archiver, 'WARN', 'some_timestamp')
+        message = archiver.LogMessage(sut_archiver, 'WARN', some_timestamp)
         message.insert('Some log message')
         self.mock_db.insert.assert_not_called()
-        message = archiver.LogMessage(sut_archiver, 'INFO', 'some_timestamp')
+        message = archiver.LogMessage(sut_archiver, 'INFO', some_timestamp)
         message.insert('Some log message')
         self.mock_db.insert.assert_not_called()
-        message = archiver.LogMessage(sut_archiver, 'TRACE', 'some_timestamp')
+        message = archiver.LogMessage(sut_archiver, 'TRACE', some_timestamp)
         message.insert('Some log message')
         self.mock_db.insert.assert_not_called()
-        message = archiver.LogMessage(sut_archiver, 'FOO', 'some_timestamp')
+        message = archiver.LogMessage(sut_archiver, 'FOO', some_timestamp)
         message.insert('Some log message')
         self.mock_db.insert.assert_not_called()
 
