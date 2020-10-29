@@ -486,12 +486,12 @@ class MySqlDatabase(PostgresqlDatabase):
     def _handle_values(self, values):
         handled_values = []
         for value in values:
-            if type(value) == list:
-                v = json.dumps(value)
-                handled_values.append(v)
-            elif type(value) == str and value.lower() in ('true', 'false'):
-                v = (value.lower() == 'true')
-                handled_values.append(v)
+            if isinstance(value, list):
+                json_value = json.dumps(value)
+                handled_values.append(json_value)
+            elif isinstance(value, str) and value.lower() in ('true', 'false'):
+                json_value = (value.lower() == 'true')
+                handled_values.append(json_value)
             else:
                 handled_values.append(value)
         return handled_values
@@ -553,7 +553,7 @@ class MySqlDatabase(PostgresqlDatabase):
             )
         try:
             self._execute(sql, [data[key] for key in keys])
-        except (mysql_connector.IntegrityError):
+        except mysql_connector.IntegrityError:
             raise IntegrityError()
 
     def _execute_multi(self, sql, values=None):
@@ -583,8 +583,8 @@ class MySqlDatabase(PostgresqlDatabase):
             for line in lines:
                 statement = line.strip()
                 if statement:
-                    v = values if 'VALUES' in statement else None
-                    cursor.execute(statement, v)
+                    values_or_none = values if 'VALUES' in statement else None
+                    cursor.execute(statement, values_or_none)
                     row = cursor.fetchone()
                     self.commit()
         finally:
