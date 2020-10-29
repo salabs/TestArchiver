@@ -53,7 +53,7 @@ optional arguments:
   --version, -v         show program's version number and exit
   --config CONFIG_FILE  path to JSON config file containing database
                         credentials
-  --dbengine DB_ENGINE  Database engine, postgresql or sqlite (default)
+  --dbengine DB_ENGINE  Database engine, postgresql, mysql or sqlite (default)
   --database DATABASE   database name
   --host HOST           database host name
   --user USER           database user
@@ -165,6 +165,7 @@ of and you want to manually add it during archiving.
   * Ability to adjust times as reported by timestamps in test results.
     - `time-adjust-secs` allows for manual adjustment of the timestamps with given value
     - `time-adjust-with-system-timezone` allows for automatic adjustment of timestamps by timezone and/or daylight savings.
+  * MySQL support
 
 - 2.1.0 (2020-09-16)
   * New options for controlling archiving of keywords and log messages
