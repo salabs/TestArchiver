@@ -16,7 +16,7 @@ class TestTestItem(unittest.TestCase):
     def test_parent_suite(self):
         self.assertEqual(self.item.parent_suite(), None)
 
-        test_run = archiver.TestRun(self.archiver, 'unittests', 'never', 'unittests', None, None)
+        test_run = archiver.TestRun(self.archiver, 'unittests', None, 'unittests', None, None)
         self.archiver.stack.append(test_run)
         self.assertEqual(self.item.parent_suite(), None)
 
@@ -35,7 +35,7 @@ class TestTestItem(unittest.TestCase):
     def test_parent_test(self):
         self.assertEqual(self.item.parent_test(), None)
 
-        test_run = archiver.TestRun(self.archiver, 'unittests', 'never', 'unittests', None, None)
+        test_run = archiver.TestRun(self.archiver, 'unittests', None, 'unittests', None, None)
         self.archiver.stack.append(test_run)
         self.assertEqual(self.item.parent_test(), None)
 
@@ -58,7 +58,7 @@ class TestTestItem(unittest.TestCase):
     def test_parent_item(self):
         self.assertEqual(self.item._parent_item(), None)
 
-        test_run = archiver.TestRun(self.archiver, 'unittests', 'never', 'unittests', None, None)
+        test_run = archiver.TestRun(self.archiver, 'unittests', None, 'unittests', None, None)
         self.archiver.stack.append(test_run)
         self.assertEqual(self.item._parent_item(), test_run)
 
@@ -82,7 +82,7 @@ class TestTestItem(unittest.TestCase):
         self.assertEqual(self.item.test_run_id(), None)
 
         self.mock_db.insert_and_return_id.return_value = 1234
-        self.archiver.begin_test_run('unittests', 'never', 'unittests', None, None)
+        self.archiver.begin_test_run('unittests', None, 'unittests', None, None)
         self.assertEqual(self.item.test_run_id(), 1234)
 
 
@@ -256,7 +256,7 @@ class TestArchiverClass(unittest.TestCase):
         self.assertEqual(suite3.execution_path(), 'path-to-s1-s2')
 
     def test_test_execution_paths_are_set(self):
-        self.archiver.begin_test_run('unittests', 'never', 'unittests', None, None)
+        self.archiver.begin_test_run('unittests', None, 'unittests', None, None)
         suite1 = self.archiver.begin_suite('mock suite 1', execution_path='path-to-s1')
         self.assertEqual(suite1.execution_path(), 'path-to-s1')
 
@@ -275,7 +275,7 @@ class TestArchiverClass(unittest.TestCase):
         self.assertEqual(suite3.execution_path(), 'path-to-s11-t2')
 
     def test_keyword_and_log_message_execution_paths_are_generated(self):
-        self.archiver.begin_test_run('unittests', 'never', 'unittests', None, None)
+        self.archiver.begin_test_run('unittests', None, 'unittests', None, None)
         suite1 = self.archiver.begin_suite('mock suite 1')
         self.assertEqual(suite1.execution_path(), 's1')
 
