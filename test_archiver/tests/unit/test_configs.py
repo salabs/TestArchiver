@@ -2,8 +2,8 @@ import argparse
 import unittest
 import mock
 
-#from configs import Config, parse_key_value_pairs
 from test_archiver import configs
+
 
 class TestHelperFunctions(unittest.TestCase):
 
@@ -18,6 +18,7 @@ class TestHelperFunctions(unittest.TestCase):
 
 FAKE_CONFIG_FILE_DATA = {'database': 'archive.db', 'user': 'worker_user', 'port': 1234,
                          'metadata': {'version': '1.2.3', 'environment': 'integration'}}
+
 
 class TestConfig(unittest.TestCase):
 
@@ -103,6 +104,19 @@ class TestConfig(unittest.TestCase):
         self.assertFalse(config.log_level_ignored('ERROR'))
         self.assertFalse(config.log_level_ignored('FAIL'))
         self.assertFalse(config.log_level_ignored('OTHER_FOOBAR'))
+
+
+class TestexEcutionContext(unittest.TestCase):
+
+    def test_execution_context(self):
+        fake_cli_args = argparse.Namespace(execution_context='PR')
+        config = configs.Config(cli_args=fake_cli_args)
+        self.assertEqual(config.execution_context, 'PR')
+
+        fake_cli_args = argparse.Namespace()
+        config = configs.Config(cli_args=fake_cli_args)
+        self.assertEqual(config.execution_context, 'default')
+
 
 if __name__ == '__main__':
     unittest.main()
