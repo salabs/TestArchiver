@@ -34,12 +34,12 @@ def main():
             if args.files:
                 changes.add(current_file)
 
-        if args.context:
+        if args.change_context:
             match = re.search(BLOCK_PATTERN, line)
             if match:
-                context = match.group(1)
-                if context:
-                    changes.add('{}{}{}'.format(current_file, args.separator, context))
+                change_context = match.group(1)
+                if change_context:
+                    changes.add('{}{}{}'.format(current_file, args.separator, change_context))
 
         try:
             line = input()
@@ -54,8 +54,8 @@ def argument_parser():
     parser = argparse.ArgumentParser(description=DESCRIPTION, epilog=USAGE_EXAMPLE)
     parser.add_argument('--no-files', dest='files', action='store_false',
                         help='Do not list files')
-    parser.add_argument('--no-context', dest='context', action='store_false',
-                        help='Do not list contexts')
+    parser.add_argument('--no-change-context', dest='change_context', action='store_false',
+                        help='Do not list change contexts')
     parser.add_argument('--separator', dest='separator', default=DEFAULT_CONTEXT_SEPARATOR,
                         help='Context separator string used between file name and context')
     return parser
