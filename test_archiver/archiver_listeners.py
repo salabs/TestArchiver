@@ -34,11 +34,10 @@ class ChangeEngineListener(DefaultListener):
         self.report_changes(self.tests, changes)
 
     def report_changes(self, tests, changes):
-        data = {"tests": self._filter_tests(tests), "changes": changes}
         url = "{}/result/".format(self.change_engine_url)
         request = Request(url)
         request.add_header('Content-Type', 'application/json;')
-        body = json.dumps(data)
+        body = json.dumps(self._format_body(tests, changes))
         response = urlopen(request, body.encode("utf-8"))
         if response.getcode() != 200:
             print("ERROR: ChangeEngine update failed. Return code: {}".format(response.getcode()))
@@ -53,3 +52,10 @@ class ChangeEngineListener(DefaultListener):
                 'repository': self.archiver.repository
             } for test in tests if test.status != "SKIPPED"
         ]
+
+    def _format_body(self, tests, changes):
+        return {
+            "tests": self._filter_tests(tests),
+            "changes": changes,
+            "context": self.archiver.execution_context
+        }

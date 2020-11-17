@@ -5,9 +5,11 @@ from collections import defaultdict
 
 from . import version
 
+
 def read_config_file(file_name):
     with open(file_name, 'r') as config_file:
         return json.load(config_file)
+
 
 def parse_key_value_pairs(values):
     if isinstance(values, dict):
@@ -34,7 +36,7 @@ LOG_LEVEL_MAP["FAIL"] = 50
 LOG_LEVEL_CUT_OFF_OPTIONS = ('TRACE', 'DEBUG', 'INFO', 'WARN')
 
 
-class Config():
+class Config:
 
     def __init__(self, cli_args=None, file_config=None):
         self._cli_args = cli_args
@@ -79,7 +81,7 @@ class Config():
 
         self.time_adjust_with_system_timezone = self.resolve_option('time_adjust_with_system_timezone',
                                                                     default=False, cast_as=bool)
-
+        self.execution_context = self.resolve_option('execution_context', default='default', cast_as=str)
 
     def resolve_option(self, name, default=None, cast_as=str):
         value = None
@@ -165,6 +167,7 @@ def base_argument_parser(description):
                              'easily happen if long running tests cross a timezone adjust boundary. '
                              'This option may be used in conjunction with --time-adjust-secs.')
     return parser
+
 
 def configuration(argument_parser):
     if sys.version_info[0] < 3:

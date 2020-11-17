@@ -90,6 +90,7 @@ class SutFingerprintedItem(archiver.FingerprintedItem):
     def _execution_path_identifier(self):
         return 'sut'
 
+
 class TestFingerprintedItem(unittest.TestCase):
 
     def setUp(self):
@@ -296,6 +297,9 @@ class TestArchiverClass(unittest.TestCase):
         self.archiver.end_keyword()
         keyword3 = self.archiver.begin_keyword('mock kw', 'unitests', 'kw')
         self.assertEqual(keyword3.execution_path(), 's1-t1-k1-k2')
+
+    def test_execution_context(self):
+        self.assertEqual(self.archiver.execution_context, 'default')
 
 if __name__ == '__main__':
     unittest.main()
