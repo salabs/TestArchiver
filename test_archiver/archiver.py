@@ -494,6 +494,7 @@ class Archiver:
         self.keyword_statistics = {}
         self.build_number_cache = build_number_cache or {}
         self.execution_context = config.execution_context
+        self.changes = config.changes
 
         self.time_adjust = TimeAdjust(config.time_adjust_secs,
                                       config.time_adjust_with_system_timezone)
