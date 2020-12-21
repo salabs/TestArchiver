@@ -128,58 +128,58 @@ def base_argument_parser(description):
 
     group = parser.add_argument_group('Database connection')
     group.add_argument('--dbengine', dest='db_engine',
-                        help='Database engine, postgresql or sqlite (default)')
+                       help='Database engine, postgresql or sqlite (default)')
     group.add_argument('--database', help='database name')
     group.add_argument('--host', help='database host name', default=None)
     group.add_argument('--user', help='database user')
     group.add_argument('--pw', '--password', dest='password', help='database password')
     group.add_argument('--port', help='database port (default: 5432)')
     group.add_argument('--dont-require-ssl', dest='require_ssl', action='store_false', default=None,
-                        help='Disable the default behavior to require ssl from the target database.')
+                       help='Disable the default behavior to require ssl from the target database.')
 
     group = parser.add_argument_group('Schema updates')
     group.add_argument('--allow-minor-schema-updates', action='store_true', default=None,
-                        help=('Allow TestArchiver to perform MINOR (backwards compatible) schema '
-                              'updates the test archive'))
+                       help=('Allow TestArchiver to perform MINOR (backwards compatible) schema '
+                             'updates the test archive'))
     group.add_argument('--allow-major-schema-updates', action='store_true', default=None,
-                        help=('Allow TestArchiver to perform MAJOR (backwards incompatible) schema '
-                              'updates the test archive'))
+                       help=('Allow TestArchiver to perform MAJOR (backwards incompatible) schema '
+                             'updates the test archive'))
 
     group = parser.add_argument_group('Limit archived data')
     group.add_argument('--no-keywords', dest='archive_keywords', action='store_false',
-                        default=None, help='Do not archive keyword data')
+                       default=None, help='Do not archive keyword data')
     group.add_argument('--no-keyword-stats', dest='archive_keyword_statistics', action='store_false',
-                        default=None, help='Do not archive keyword statistics')
+                       default=None, help='Do not archive keyword statistics')
     group.add_argument('--ignore-logs-below', default=None, choices=LOG_LEVEL_CUT_OFF_OPTIONS,
-                        help=('Sets a cut off level for archived log messages. '
-                              'By default archives all available log messages.'))
+                       help=('Sets a cut off level for archived log messages. '
+                             'By default archives all available log messages.'))
     group.add_argument('--ignore-logs', action='store_true', help='Do not archive any log messages')
 
     group = parser.add_argument_group('Adjust timestamps')
     group.add_argument('--time-adjust-secs', dest='time_adjust_secs', default=0,
-                        help='Adjust time in timestamps by given seconds. This can be used to change time '
-                             'to utc before writing the results to database, especially if the test system '
-                             'uses local time, such as robot framework. '
-                             'For example if test were run in Finland (GMT+3) in summer (+1hr), calculate '
-                             'total hours by minutes and seconds and invert to adjust in correct direction,'
-                             ' i.e. -(3+1)*60*60, so --time-adjust-secs -14400. '
-                             'This option is useful if you are archiving in a different location to where '
-                             'tests are run.'
-                             'If you are running tests and archiving in same timezone, '
-                             'time-adjust-with-system-timezone may be a better option. '
-                             'This option may be used in conjunction with '
-                             '--time-adjust-with-system-timezone if desired.')
+                       help='Adjust time in timestamps by given seconds. This can be used to change time '
+                            'to utc before writing the results to database, especially if the test system '
+                            'uses local time, such as robot framework. '
+                            'For example if test were run in Finland (GMT+3) in summer (+1hr), calculate '
+                            'total hours by minutes and seconds and invert to adjust in correct direction,'
+                            ' i.e. -(3+1)*60*60, so --time-adjust-secs -14400. '
+                            'This option is useful if you are archiving in a different location to where '
+                            'tests are run.'
+                            'If you are running tests and archiving in same timezone, '
+                            'time-adjust-with-system-timezone may be a better option. '
+                            'This option may be used in conjunction with '
+                            '--time-adjust-with-system-timezone if desired.')
     group.add_argument('--time-adjust-with-system-timezone', dest='time_adjust_with_system_timezone',
-                        default=None, action='store_true',
-                        help='Adjust the time in timestamps by the system timezone (including daylight '
-                             'savings adjust). If you are archiving tests in the same timezone as you are '
-                             'running tests, setting this option will ensure time written to the database '
-                             'is in UTC/GMT time. This assumes that if multiple computers are used that '
-                             'their timezone and daylight savings settings are identical. '
-                             'Take care also that you do not run tests just before a daylight savings time '
-                             'adjust and archive just after, as times will be out by one hour. This could '
-                             'easily happen if long running tests cross a timezone adjust boundary. '
-                             'This option may be used in conjunction with --time-adjust-secs.')
+                       default=None, action='store_true',
+                       help='Adjust the time in timestamps by the system timezone (including daylight '
+                            'savings adjust). If you are archiving tests in the same timezone as you are '
+                            'running tests, setting this option will ensure time written to the database '
+                            'is in UTC/GMT time. This assumes that if multiple computers are used that '
+                            'their timezone and daylight savings settings are identical. '
+                            'Take care also that you do not run tests just before a daylight savings time '
+                            'adjust and archive just after, as times will be out by one hour. This could '
+                            'easily happen if long running tests cross a timezone adjust boundary. '
+                            'This option may be used in conjunction with --time-adjust-secs.')
     return parser
 
 
