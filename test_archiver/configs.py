@@ -48,6 +48,7 @@ class Config:
         self._resolve_options()
 
     def _resolve_options(self):
+        # Database connection
         self.database = self.resolve_option('database', default='test_archive')
         self.user = self.resolve_option('user')
         self.password = self.resolve_option('password')
@@ -56,11 +57,13 @@ class Config:
         self.db_engine = self.resolve_option('db_engine', default='sqlite')
         self.require_ssl = self.resolve_option('require_ssl', default=True, cast_as=bool)
 
+        # Test metadata
         self.team = self.resolve_option('team')
         self.repository = self.resolve_option('repository', default='default repo')
         self.series = self.resolve_list_option('series')
         self.metadata = self.resolve_map_option('metadata')
 
+        # Schema updates
         self.allow_major_schema_updates = self.resolve_option('allow_major_schema_updates',
                                                               default=False, cast_as=bool)
         self.allow_minor_schema_updates = self.resolve_option('allow_minor_schema_updates',
@@ -68,20 +71,22 @@ class Config:
         # If major updates are allowed then minor ones are as well
         self.allow_minor_schema_updates = self.allow_major_schema_updates or self.allow_minor_schema_updates
 
+        # Limit archived data
         self.archive_keywords = self.resolve_option('archive_keywords', default=True, cast_as=bool)
         self.archive_keyword_statistics = self.resolve_option('archive_keyword_statistics', default=True,
                                                               cast_as=bool)
-
         self.ignore_logs = self.resolve_option('ignore_logs', default=False, cast_as=bool)
         self.ignore_logs_below = self.resolve_option('ignore_logs_below', default=None)
 
-        self.change_engine_url = self.resolve_option('change_engine_url')
-
+        # Adjust timestamps
         self.time_adjust_secs = self.resolve_option('time_adjust_secs', default=0, cast_as=int)
-
         self.time_adjust_with_system_timezone = self.resolve_option('time_adjust_with_system_timezone',
                                                                     default=False, cast_as=bool)
+
+        # ChangeEngine listener
+        self.change_engine_url = self.resolve_option('change_engine_url')
         self.execution_context = self.resolve_option('execution_context', default='default', cast_as=str)
+
 
     def resolve_option(self, name, default=None, cast_as=str):
         value = None
@@ -117,32 +122,41 @@ def base_argument_parser(description):
     parser.add_argument('--version', '-v', action='version',
                         version='%(prog)s {}'.format(version.ARCHIVER_VERSION))
     parser.add_argument('--config', dest='config_file',
-                        help='path to JSON config file containing database credentials')
+                        help=('Path to JSON config file containing database credentials and other '
+                              'configurations. Options given on command line will override options '
+                              'set in a config file.'))
 
-    parser.add_argument('--dbengine', dest='db_engine',
+    group = parser.add_argument_group('Database connection')
+    group.add_argument('--dbengine', dest='db_engine',
                         help='Database engine, postgresql or sqlite (default)')
-    parser.add_argument('--database', help='database name')
-    parser.add_argument('--host', help='database host name', default=None)
-    parser.add_argument('--user', help='database user')
-    parser.add_argument('--pw', '--password', dest='password', help='database password')
-    parser.add_argument('--port', help='database port (default: 5432)')
-    parser.add_argument('--dont-require-ssl', dest='require_ssl', action='store_false', default=None,
+    group.add_argument('--database', help='database name')
+    group.add_argument('--host', help='database host name', default=None)
+    group.add_argument('--user', help='database user')
+    group.add_argument('--pw', '--password', dest='password', help='database password')
+    group.add_argument('--port', help='database port (default: 5432)')
+    group.add_argument('--dont-require-ssl', dest='require_ssl', action='store_false', default=None,
                         help='Disable the default behavior to require ssl from the target database.')
-    parser.add_argument('--allow-minor-schema-updates', action='store_true', default=None,
+
+    group = parser.add_argument_group('Schema updates')
+    group.add_argument('--allow-minor-schema-updates', action='store_true', default=None,
                         help=('Allow TestArchiver to perform MINOR (backwards compatible) schema '
                               'updates the test archive'))
-    parser.add_argument('--allow-major-schema-updates', action='store_true', default=None,
+    group.add_argument('--allow-major-schema-updates', action='store_true', default=None,
                         help=('Allow TestArchiver to perform MAJOR (backwards incompatible) schema '
                               'updates the test archive'))
-    parser.add_argument('--no-keywords', dest='archive_keywords', action='store_false',
+
+    group = parser.add_argument_group('Limit archived data')
+    group.add_argument('--no-keywords', dest='archive_keywords', action='store_false',
                         default=None, help='Do not archive keyword data')
-    parser.add_argument('--no-keyword-stats', dest='archive_keyword_statistics', action='store_false',
+    group.add_argument('--no-keyword-stats', dest='archive_keyword_statistics', action='store_false',
                         default=None, help='Do not archive keyword statistics')
-    parser.add_argument('--ignore-logs-below', default=None, choices=LOG_LEVEL_CUT_OFF_OPTIONS,
+    group.add_argument('--ignore-logs-below', default=None, choices=LOG_LEVEL_CUT_OFF_OPTIONS,
                         help=('Sets a cut off level for archived log messages. '
                               'By default archives all available log messages.'))
-    parser.add_argument('--ignore-logs', action='store_true', help='Do not archive any log messages')
-    parser.add_argument('--time-adjust-secs', dest='time_adjust_secs', default=0,
+    group.add_argument('--ignore-logs', action='store_true', help='Do not archive any log messages')
+
+    group = parser.add_argument_group('Adjust timestamps')
+    group.add_argument('--time-adjust-secs', dest='time_adjust_secs', default=0,
                         help='Adjust time in timestamps by given seconds. This can be used to change time '
                              'to utc before writing the results to database, especially if the test system '
                              'uses local time, such as robot framework. '
@@ -155,7 +169,7 @@ def base_argument_parser(description):
                              'time-adjust-with-system-timezone may be a better option. '
                              'This option may be used in conjunction with '
                              '--time-adjust-with-system-timezone if desired.')
-    parser.add_argument('--time-adjust-with-system-timezone', dest='time_adjust_with_system_timezone',
+    group.add_argument('--time-adjust-with-system-timezone', dest='time_adjust_with_system_timezone',
                         default=None, action='store_true',
                         help='Adjust the time in timestamps by the system timezone (including daylight '
                              'savings adjust). If you are archiving tests in the same timezone as you are '

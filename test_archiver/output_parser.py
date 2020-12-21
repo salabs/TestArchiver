@@ -558,6 +558,10 @@ class PytestJUnitOutputParser(XmlOutputParser):
 
 class PhpJUnitOutputParser(XmlOutputParser):
 
+    def __init__(self, archiver_instance):
+        super(PhpJUnitOutputParser, self).__init__(archiver_instance)
+        self.archiver.test_type = "php-junit"
+
     def _report_test_run(self):
         self.archiver.begin_test_run('php JUnit parser', None, 'phpunit', False, None)
 
@@ -773,6 +777,7 @@ def argument_parser():
     parser = configs.base_argument_parser('Parse test automation output.xml files to SQL database.')
     parser.add_argument('output_files', nargs='+',
                         help='list of test output files to parse in to the test archive')
+
     parser.add_argument('--format', help='output format (default: robotframework)', default='robotframework',
                         choices=SUPPORTED_OUTPUT_FORMATS, type=str.lower)
 
@@ -786,16 +791,16 @@ def argument_parser():
     parser.add_argument('--metadata', action='append', metavar='NAME:VALUE',
                         help="Adds given metadata to the test run. Expected format: 'NAME:VALUE'")
 
-    parser.add_argument('--change-engine-url', default=None,
+    group = parser.add_argument_group('ChangeEngine')
+    group.add_argument('--change-engine-url', default=None,
                         help="Starts a listener that feeds results to ChangeEngine")
-    parser.add_argument('--execution-context', default='default',
+    group.add_argument('--execution-context', default='default',
                         help='To separate data from different build pipelines for ChangeEngine '
                              'prioritization. Example if same changes or tests may be used to '
                              'verify app in Android and iOS platforms, then it would be good to '
                              'separate the result from different builds pipelines/platforms. The '
                              'ChangeEngine prioritization might not give correct result if different '
-                             'results from different platforms are mixed together.'
-                        )
+                             'results from different platforms are mixed together.')
     return parser
 
 
