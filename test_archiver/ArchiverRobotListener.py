@@ -14,14 +14,14 @@ class ArchiverRobotListener:
         if not db_engine:
             config = configs.Config(file_config=config_file_or_database)
         else:
-            config = configs.Config(file_config={'database': config_file_or_database,
-                                                 'db_engine': db_engine,
-                                                 'user': user,
-                                                 'password': pw,
-                                                 'host': host,
-                                                 'port': port})
-
-        config.time_adjust_with_system_timezone = adjust_with_system_timezone
+            config = configs.Config(file_config={
+                'database': config_file_or_database,
+                'db_engine': db_engine,
+                'user': user,
+                'password': pw,
+                'host': host,
+                'port': port,
+                'time_adjust_with_system_timezone': adjust_with_system_timezone})
 
         database = archiver.database_connection(config)
         self.archiver = archiver.Archiver(database, config)

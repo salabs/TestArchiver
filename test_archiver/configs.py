@@ -153,10 +153,11 @@ def base_argument_parser(description):
     group.add_argument('--ignore-logs-below', default=None, choices=LOG_LEVEL_CUT_OFF_OPTIONS,
                        help=('Sets a cut off level for archived log messages. '
                              'By default archives all available log messages.'))
-    group.add_argument('--ignore-logs', action='store_true', help='Do not archive any log messages')
+    group.add_argument('--ignore-logs', action='store_true', default=None,
+                       help='Do not archive any log messages')
 
     group = parser.add_argument_group('Adjust timestamps')
-    group.add_argument('--time-adjust-secs', dest='time_adjust_secs', default=0,
+    group.add_argument('--time-adjust-secs', dest='time_adjust_secs',
                        help='Adjust time in timestamps by given seconds. This can be used to change time '
                             'to utc before writing the results to database, especially if the test system '
                             'uses local time, such as robot framework. '

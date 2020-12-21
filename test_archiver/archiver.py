@@ -34,10 +34,10 @@ class TimeAdjust:
     def secs(self):
         secs = self._time_adjust_secs
         if self._adjust_to_system:
-            if time.daylight == 0:
-                secs = secs + time.timezone
-            else:
+            if time.daylight != 0 and time.localtime().tm_isdst:
                 secs = secs + time.altzone
+            else:
+                secs = secs + time.timezone
         return secs
 
 
@@ -113,9 +113,6 @@ class FingerprintedItem(TestItem):
         self._execution_path = None
         self._child_counters = defaultdict(lambda: 0)
 
-        self._time_adjust = TimeAdjust(archiver.config.time_adjust_secs,
-                                       archiver.config.time_adjust_with_system_timezone)
-
     def insert_results(self):
         raise NotImplementedError()
 
@@ -127,8 +124,8 @@ class FingerprintedItem(TestItem):
         self.start_time = start_time
         self.end_time = end_time
         if self.start_time and self.end_time:
-            start = adjusted_timestamp_to_datetime(self.start_time, self._time_adjust.secs())
-            end = adjusted_timestamp_to_datetime(self.end_time, self._time_adjust.secs())
+            start = adjusted_timestamp_to_datetime(self.start_time, self.archiver.time_adjust.secs())
+            end = adjusted_timestamp_to_datetime(self.end_time, self.archiver.time_adjust.secs())
             self.elapsed_time = int((end - start).total_seconds()*1000)
         elif elapsed is not None:
             self.elapsed_time = elapsed
@@ -310,15 +307,15 @@ class Suite(FingerprintedItem):
 
     def insert_metadata(self):
         # If the top suite add/override metadata with metadata given to archiver
-        if isinstance(self.parent_item, TestRun) and self.archiver.additional_metadata:
-            for name in self.archiver.additional_metadata:
-                self.metadata[name] = self.archiver.additional_metadata[name]
-        if self.archiver.config.time_adjust_secs != 0:
-            self.metadata["time_adjust_secs"] = self.archiver.config.time_adjust_secs
-        if self.archiver.config.time_adjust_with_system_timezone:
-            time_adjust = TimeAdjust(self.archiver.config.time_adjust_secs,
-                                     self.archiver.config.time_adjust_with_system_timezone)
-            self.metadata["time_adjust_secs_total"] = time_adjust.secs()
+        if isinstance(self.parent_item, TestRun):
+            if self.archiver.additional_metadata:
+                for name in self.archiver.additional_metadata:
+                    self.metadata[name] = self.archiver.additional_metadata[name]
+            if self.archiver.config.time_adjust_secs != 0:
+                self.metadata["time_adjust_secs"] = self.archiver.config.time_adjust_secs
+            if self.archiver.config.time_adjust_with_system_timezone:
+                self.metadata["time_adjust_secs_total"] = self.archiver.time_adjust.secs()
+
         for name in self.metadata:
             content = self.metadata[name]
             data = {'name': name, 'value': content,
@@ -464,7 +461,7 @@ class LogMessage(TestItem):
         if (not self.archiver.config.ignore_logs and
                 not self.archiver.config.log_level_ignored(self.log_level)):
             data = {'test_run_id': self.test_run_id(),
-                    'timestamp': adjusted_timestamp(self.timestamp, self._time_adjust.secs()),
+                    'timestamp': adjusted_timestamp(self.timestamp, self.archiver.time_adjust.secs()),
                     'log_level': self.log_level, 'message': content[:MAX_LOG_MESSAGE_LENGTH],
                     'test_id': self.parent_test().id if self.parent_test() else None,
                     'suite_id': self.parent_suite().id,
@@ -497,6 +494,9 @@ class Archiver:
         self.keyword_statistics = {}
         self.build_number_cache = build_number_cache or {}
         self.execution_context = config.execution_context
+
+        self.time_adjust = TimeAdjust(config.time_adjust_secs,
+                                      config.time_adjust_with_system_timezone)
 
         self.listeners = []
         if config.change_engine_url:
