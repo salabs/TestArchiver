@@ -793,7 +793,7 @@ def argument_parser():
 
     group = parser.add_argument_group('ChangeEngine')
     group.add_argument('--change-engine-url', default=None,
-                        help="Starts a listener that feeds results to ChangeEngine")
+                       help="Starts a listener that feeds results to ChangeEngine")
     group.add_argument('--execution-context', default='default',
                        help='To separate data from different build pipelines for ChangeEngine '
                             'prioritization. Example if same changes or tests may be used to '
