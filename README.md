@@ -6,14 +6,16 @@ And [Epimetheus](https://github.com/salabs/Epimetheus) is the tool for browsing 
 
 ## Testing framework support
 
-| Framework       | Status                    | Fixture test status | Parser option |
-| --------------- | ------------------------- | ------------------- | ------------- |
-| Robot Framework | [Supported](robot_tests/) | Done                | robot         |
-| Mocha           | [Supported](mocha_tests/) | Done                | mocha-junit   |
-| JUnit           | Experimental              | Missing             | junit         |
-| xUnit           | Experimental              | Missing             | xunit         |
-| MSTest          | Experimental              | Missing             | mstest        |
-| pytest          | [Supported](pytest/)      | Done                | pytest-junit  |
+| Framework       | Status                      | Fixture test status | Parser option |
+| --------------- | --------------------------- | ------------------- | ------------- |
+| Robot Framework | [Supported](robot_tests/)   | Done                | robot         |
+| Mocha           | [Supported](mocha_tests/)   | Done                | mocha-junit   |
+| pytest          | [Supported](pytest/)        | Done                | pytest-junit  |
+| PHPUnit         | [Supported](phpunit_tests/) | Done                | php-junit     |
+| JUnit           | Experimental                | Missing             | junit         |
+| xUnit           | Experimental                | Missing             | xunit         |
+| MSTest          | Experimental                | Missing             | mstest        |
+
 
 Experimental status here means that there is a parser that can take in e.g. generic JUnit formatted output but there is no specific test set or any extensive testing or active development for the parser.
 
@@ -51,30 +53,11 @@ positional arguments:
 optional arguments:
   -h, --help            show this help message and exit
   --version, -v         show program's version number and exit
-  --config CONFIG_FILE  path to JSON config file containing database
-                        credentials
-  --dbengine DB_ENGINE  Database engine, postgresql or sqlite (default)
-  --database DATABASE   database name
-  --host HOST           database host name
-  --user USER           database user
-  --pw PASSWORD, --password PASSWORD
-                        database password
-  --port PORT           database port (default: 5432)
-  --dont-require-ssl    Disable the default behavior to require ssl from the
-                        target database.
-  --allow-minor-schema-updates
-                        Allow TestArchiver to perform MINOR (backwards
-                        compatible) schema updates the test archive
-  --allow-major-schema-updates
-                        Allow TestArchiver to perform MAJOR (backwards
-                        incompatible) schema updates the test archive
-  --no-keywords         Do not archive keyword data
-  --no-keyword-stats    Do not archive keyword statistics
-  --ignore-logs-below {TRACE,DEBUG,INFO,WARN}
-                        Sets a cut off level for archived log messages. By
-                        default archives all available log messages.
-  --ignore-logs         Do not archive any log messages
-  --format {robot,robotframework,xunit,junit,mocha-junit,pytest-junit,mstest}
+  --config CONFIG_FILE  Path to JSON config file containing database
+                        credentials and other configurations. Options given on
+                        command line will override options set in a config
+                        file.
+  --format {robot,robotframework,xunit,junit,mocha-junit,pytest-junit,mstest,php-junit}
                         output format (default: robotframework)
   --repository REPOSITORY
                         The repository of the test cases. Used to
@@ -87,8 +70,77 @@ optional arguments:
   --metadata NAME:VALUE
                         Adds given metadata to the test run. Expected format:
                         'NAME:VALUE'
+
+Database connection:
+  --dbengine DB_ENGINE  Database engine, postgresql or sqlite (default)
+  --database DATABASE   database name
+  --host HOST           database host name
+  --user USER           database user
+  --pw PASSWORD, --password PASSWORD
+                        database password
+  --port PORT           database port (default: 5432)
+  --dont-require-ssl    Disable the default behavior to require ssl from the
+                        target database.
+
+Schema updates:
+  --allow-minor-schema-updates
+                        Allow TestArchiver to perform MINOR (backwards
+                        compatible) schema updates the test archive
+  --allow-major-schema-updates
+                        Allow TestArchiver to perform MAJOR (backwards
+                        incompatible) schema updates the test archive
+
+Limit archived data:
+  --no-keywords         Do not archive keyword data
+  --no-keyword-stats    Do not archive keyword statistics
+  --ignore-logs-below {TRACE,DEBUG,INFO,WARN}
+                        Sets a cut off level for archived log messages. By
+                        default archives all available log messages.
+  --ignore-logs         Do not archive any log messages
+
+Adjust timestamps:
+  --time-adjust-secs TIME_ADJUST_SECS
+                        Adjust time in timestamps by given seconds. This can
+                        be used to change time to utc before writing the
+                        results to database, especially if the test system
+                        uses local time, such as robot framework. For example
+                        if test were run in Finland (GMT+3) in summer (+1hr),
+                        calculate total hours by minutes and seconds and
+                        invert to adjust in correct direction, i.e.
+                        -(3+1)*60*60, so --time-adjust-secs -14400. This
+                        option is useful if you are archiving in a different
+                        location to where tests are run.If you are running
+                        tests and archiving in same timezone, time-adjust-
+                        with-system-timezone may be a better option. This
+                        option may be used in conjunction with --time-adjust-
+                        with-system-timezone if desired.
+  --time-adjust-with-system-timezone
+                        Adjust the time in timestamps by the system timezone
+                        (including daylight savings adjust). If you are
+                        archiving tests in the same timezone as you are
+                        running tests, setting this option will ensure time
+                        written to the database is in UTC/GMT time. This
+                        assumes that if multiple computers are used that their
+                        timezone and daylight savings settings are identical.
+                        Take care also that you do not run tests just before a
+                        daylight savings time adjust and archive just after,
+                        as times will be out by one hour. This could easily
+                        happen if long running tests cross a timezone adjust
+                        boundary. This option may be used in conjunction with
+                        --time-adjust-secs.
+
+ChangeEngine:
   --change-engine-url CHANGE_ENGINE_URL
                         Starts a listener that feeds results to ChangeEngine
+  --execution-context EXECUTION_CONTEXT
+                        To separate data from different build pipelines for
+                        ChangeEngine prioritization. Example if same changes
+                        or tests may be used to verify app in Android and iOS
+                        platforms, then it would be good to separate the
+                        result from different builds pipelines/platforms. The
+                        ChangeEngine prioritization might not give correct
+                        result if different results from different platforms
+                        are mixed together.
 ```
 
 ## Data model
@@ -161,7 +213,7 @@ of and you want to manually add it during archiving.
 
 
 # Release notes
-- 2.2.0 (TBD)
+- 2.2.0 (2020-12-21)
   * Ability to adjust times as reported by timestamps in test results.
     - `--time-adjust-secs` allows for manual adjustment of the timestamps with given value
     - `--time-adjust-with-system-timezone` allows for automatic adjustment of timestamps by timezone and/or daylight savings.
