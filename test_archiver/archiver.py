@@ -630,9 +630,9 @@ class Archiver:
 
     def end_test(self, attributes=None):
         if attributes:
+            critical = attributes['critical'] == 'yes' if 'critical' in attributes else None
             self.current_item(Test).update_status(attributes['status'], attributes['starttime'],
-                                                  attributes['endtime'],
-                                                  critical=attributes['critical'] == 'yes')
+                                                  attributes['endtime'], critical=critical)
             self.current_item(Test).tags = attributes['tags']
         self.current_item(Test).finish()
         test = self.stack.pop()
