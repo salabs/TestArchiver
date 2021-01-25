@@ -817,7 +817,7 @@ Json file which contains information from the changed files for each repo. The f
                             'ChangeEngine prioritization might not give correct result if different '
                             'results from different platforms are mixed together.')
     group.add_argument('--changes', default=None,
-                        help=changes_help)
+                       help=changes_help)
     return parser
 
 
