@@ -87,7 +87,7 @@ class Config:
         self.change_engine_url = self.resolve_option('change_engine_url')
         self.execution_context = self.resolve_execution_context()
         self.changes = self.resolve_changes()
-        self.
+        self.execution_id = self.resolve_option('execution_id', default='Not set')
 
     def resolve_option(self, name, default=None, cast_as=str):
         if self._cli_args and name in self._cli_args and self._cli_args.__getattribute__(name) is not None:
