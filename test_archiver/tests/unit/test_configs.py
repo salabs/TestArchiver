@@ -177,6 +177,15 @@ class TestexEcutionContext(unittest.TestCase):
         changes = configs.Config(fake_cli_args).changes
         self.assertEqual(changes, [])
 
+    def test_execution_id(self):
+        fake_cli_args = argparse.Namespace(execution_id='job_name_here')
+        execution_id = configs.Config(fake_cli_args).execution_id
+        assert execution_id == 'job_name_here', 'Execution-id should be correct'
+
+        fake_cli_args = argparse.Namespace()
+        execution_id = configs.Config(fake_cli_args).execution_id
+        assert execution_id == 'Not set', 'Execution-id should be correct'
+
 
 if __name__ == '__main__':
     unittest.main()
