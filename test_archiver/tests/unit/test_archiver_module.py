@@ -304,6 +304,9 @@ class TestArchiverClass(unittest.TestCase):
     def test_changes(self):
         self.assertEqual(self.archiver.changes, [])
 
+    def test_execution_id(self):
+        assert self.archiver.execution_id == "Not set"
+
 
 if __name__ == '__main__':
     unittest.main()
