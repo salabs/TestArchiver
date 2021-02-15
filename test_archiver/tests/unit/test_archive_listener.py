@@ -11,6 +11,7 @@ def listener():
     mock_archiver.test_type = 'something'
     mock_archiver.repository = 'somewhere'
     mock_archiver.execution_context = 'PR'
+    mock_archiver.execution_id = 'job-name-here'
     engine = ChangeEngineListener(mock_archiver, 'tidii')
     mock_suite = Mock()
     mock_suite.metadata = {'changes': 'path/to/changes'}
@@ -60,10 +61,11 @@ def test_change_engine_listener_execution_context(listener):
     test1.full_name = "pytest.test_suite.test_a1"
     test1.status = "PASS"
     body = listener._format_body([test1])
-    assert len(body) == 3, "tests, changes and context must be present"
+    assert len(body) == 4, "tests, changes and context must be present"
     assert body["changes"] == ['path/to/changes']
     assert body["tests"]
     assert body["context"] == "PR"
+    assert body["execution_id"] == "job-name-here"
 
 
 def test_changes(listener_changes):
@@ -71,7 +73,7 @@ def test_changes(listener_changes):
     test1.full_name = 'pytest.test_suite.test_a1'
     test1.status = 'PASS'
     body = listener_changes._format_body([test1])
-    assert len(body) == 3, 'tests, changes and context must be present'
+    assert len(body) == 4, 'tests, changes and context must be present'
     changes = body['changes']
     assert len(changes) == 1
     change = changes[0]
@@ -79,3 +81,4 @@ def test_changes(listener_changes):
     assert change['repository'] == 'RepoA'
     assert change['item_type'] == 'my_item_type'
     assert change['subtype'] == 'my_sub_item_type'
+    assert body["execution_id"] == "job-name-here"

@@ -63,5 +63,6 @@ class ChangeEngineListener(DefaultListener):
         return {
             "tests": self._filter_tests(tests),
             "changes": self._format_changes(),
-            "context": self.archiver.execution_context
+            "context": self.archiver.execution_context,
+            "execution_id": self.archiver.execution_id,
         }
