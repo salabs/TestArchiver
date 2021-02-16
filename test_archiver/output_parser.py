@@ -819,8 +819,8 @@ Json file which contains information from the changed files for each repo. The f
     group.add_argument('--changes', default=None,
                        help=changes_help)
     group.add_argument('--execution-id', default='default',
-                       help='Identifier or version of the tested application for given execution-context. Stored '
-                            'in ChangeEngine and returned by "last_update" query.')
+                       help='Identifier or version of the tested application for given execution-context. '
+                            'Stored in ChangeEngine and returned by "last_update" query.')
     return parser
 
 
