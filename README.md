@@ -213,6 +213,11 @@ of and you want to manually add it during archiving.
 
 
 # Release notes
+- 2.3.0 (2021-03-16)
+  * Better support for feeding changes and execution context for ChangeEngine
+    - `--changes` for feeding changes information
+    - `--execution-id` Identifier or version of the tested application for given execution-context. Stored in ChangeEngine and returned by `last_update` query.
+
 - 2.2.0 (2020-12-21)
   * Ability to adjust times as reported by timestamps in test results.
     - `--time-adjust-secs` allows for manual adjustment of the timestamps with given value

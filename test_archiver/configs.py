@@ -44,7 +44,8 @@ class Config:
             self._file_config = read_config_file(file_config)
         else:
             self._file_config = file_config or {}
-
+        self._changes = 'changes'
+        self._default = 'default'
         self._resolve_options()
 
     def _resolve_options(self):
@@ -82,14 +83,13 @@ class Config:
         self.time_adjust_secs = self.resolve_option('time_adjust_secs', default=0, cast_as=int)
         self.time_adjust_with_system_timezone = self.resolve_option('time_adjust_with_system_timezone',
                                                                     default=False, cast_as=bool)
-
         # ChangeEngine listener
         self.change_engine_url = self.resolve_option('change_engine_url')
-        self.execution_context = self.resolve_option('execution_context', default='default', cast_as=str)
-
+        self.execution_context = self.resolve_execution_context()
+        self.changes = self.resolve_changes()
+        self.execution_id = self.resolve_option('execution_id', default='Not set')
 
     def resolve_option(self, name, default=None, cast_as=str):
-        value = None
         if self._cli_args and name in self._cli_args and self._cli_args.__getattribute__(name) is not None:
             value = self._cli_args.__getattribute__(name)
         else:
@@ -101,6 +101,24 @@ class Config:
         except ValueError as value_error:
             print("Error: incompatible value for option '{}'".format(name))
             raise value_error
+
+    def resolve_execution_context(self):
+        execution_context = self.resolve_option('execution_context')
+        if execution_context is None:
+            changes = self.resolve_option(self._changes)
+            if changes is None:
+                execution_context = self._default
+            else:
+                data = read_config_file(changes)
+                execution_context = data.get('context', self._default)
+        return execution_context
+
+    def resolve_changes(self):
+        changes_file = self.resolve_option(self._changes)
+        if changes_file is None:
+            return []
+        data = read_config_file(changes_file)
+        return data.get(self._changes, [])
 
     def resolve_list_option(self, name):
         values = self._file_config.get(name, [])
@@ -116,6 +134,7 @@ class Config:
 
     def log_level_ignored(self, log_level):
         return LOG_LEVEL_MAP[log_level] < LOG_LEVEL_MAP[self.ignore_logs_below]
+
 
 def base_argument_parser(description):
     parser = argparse.ArgumentParser(description=description)

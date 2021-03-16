@@ -19,6 +19,29 @@ class TestHelperFunctions(unittest.TestCase):
 FAKE_CONFIG_FILE_DATA = {'database': 'archive.db', 'user': 'worker_user', 'port': 1234,
                          'metadata': {'version': '1.2.3', 'environment': 'integration'}}
 
+FAKE_CHANGES_FILE_DATA_1 = {
+    "context": "Integration",
+    "changes": [
+        {
+            "name": "/path/to/file.py",
+            "repository": "RepoA",
+            "item_type": "my_item_type",
+            "subtype": "my_subtype"
+        }
+    ]
+}
+
+FAKE_CHANGES_FILE_DATA_2 = {
+    "changes": [
+        {
+            "name": "/path/to/file.py",
+            "repository": "RepoA",
+            "item_type": "my_item_type",
+            "subtype": "my_sub_item_type"
+        }
+    ]
+}
+
 
 class TestConfig(unittest.TestCase):
 
@@ -116,6 +139,52 @@ class TestexEcutionContext(unittest.TestCase):
         fake_cli_args = argparse.Namespace()
         config = configs.Config(cli_args=fake_cli_args)
         self.assertEqual(config.execution_context, 'default')
+
+    @mock.patch('test_archiver.configs.read_config_file', return_value=FAKE_CHANGES_FILE_DATA_1)
+    def test_execution_context_and_changes(self, fake_changes_file_data):
+        fake_cli_args = argparse.Namespace(execution_context='PR', changes='foobar.json')
+        config = configs.Config(fake_cli_args)
+        self.assertEqual(config.execution_context, 'PR')
+
+        fake_cli_args = argparse.Namespace(changes='foobar.json')
+        config = configs.Config(fake_cli_args)
+        self.assertEqual(config.execution_context, 'Integration')
+
+    @mock.patch('test_archiver.configs.read_config_file', return_value=FAKE_CHANGES_FILE_DATA_2)
+    def test_execution_context_when_not_set_in_changes(self, fake_changes_file_data):
+        fake_cli_args = argparse.Namespace(changes='foobar.json')
+        config = configs.Config(fake_cli_args)
+        self.assertEqual(config.execution_context, 'default')
+
+    @mock.patch('test_archiver.configs.read_config_file', return_value=FAKE_CHANGES_FILE_DATA_1)
+    def test_changes(self, fake_changes_file_data):
+        fake_cli_args = argparse.Namespace(changes='foobar.json')
+        changes = configs.Config(fake_cli_args).changes
+        self.assertTrue(len(changes) == 1)
+        self.assertEqual(changes[0]['name'], '/path/to/file.py')
+        self.assertEqual(changes[0]['repository'], 'RepoA')
+        self.assertEqual(changes[0]['item_type'], 'my_item_type')
+        self.assertEqual(changes[0]['subtype'], 'my_subtype')
+
+    @mock.patch('test_archiver.configs.read_config_file', return_value={})
+    def test_changes_when_no_changes_in_file(self, fake_changes_file_data):
+        fake_cli_args = argparse.Namespace(changes='foobar.json')
+        changes = configs.Config(fake_cli_args).changes
+        self.assertEqual(changes, [])
+
+    def test_changes_when_no_changes(self):
+        fake_cli_args = argparse.Namespace()
+        changes = configs.Config(fake_cli_args).changes
+        self.assertEqual(changes, [])
+
+    def test_execution_id(self):
+        fake_cli_args = argparse.Namespace(execution_id='job_name_here')
+        execution_id = configs.Config(fake_cli_args).execution_id
+        assert execution_id == 'job_name_here', 'Execution-id should be correct'
+
+        fake_cli_args = argparse.Namespace()
+        execution_id = configs.Config(fake_cli_args).execution_id
+        assert execution_id == 'Not set', 'Execution-id should be correct'
 
 
 if __name__ == '__main__':

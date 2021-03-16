@@ -6,7 +6,6 @@ import xml.sax
 import datetime
 from . import archiver, configs
 
-
 DEFAULT_SUITE_NAME = 'Unnamed suite'
 
 
@@ -66,7 +65,7 @@ class RobotFrameworkOutputParser(XmlOutputParser):
             kw_type = attrs.getValue('type') if 'type' in attrs.getNames() else 'Keyword'
             library = attrs.getValue('library') if 'library' in attrs.getNames() else ''
             self.archiver.begin_keyword(name, library, kw_type)
-            #self.archiver.set_execution_path(attrs.getValue('id'))
+            # self.archiver.set_execution_path(attrs.getValue('id'))
         elif name == 'arg':
             pass
         elif name == 'msg':
@@ -148,19 +147,19 @@ class XUnitOutputParser(XmlOutputParser):
             if not self.archiver.test_run_id:
                 self.archiver.begin_test_run(
                     'xUnit parser', None, 'xUnit', False, None
-                    )
+                )
             suite_name = attrs.getValue('name') if 'name' in attrs.getNames() else DEFAULT_SUITE_NAME
             self.archiver.begin_suite(suite_name)
             errors = int(attrs.getValue('errors')) if 'errors' in attrs.getNames() else 0
             failures = int(attrs.getValue('failures')) if 'failures' in attrs.getNames() else 0
             suite_status = 'PASS' if errors + failures == 0 else 'FAIL'
-            elapsed = int(float(attrs.getValue('time'))*1000) if 'time' in attrs.getNames() else None
+            elapsed = int(float(attrs.getValue('time')) * 1000) if 'time' in attrs.getNames() else None
             timestamp = attrs.getValue('timestamp') if 'timestamp' in attrs.getNames() else None
             self.archiver.begin_status(suite_status, start_time=timestamp, elapsed=elapsed)
         elif name == 'testcase':
             class_name = attrs.getValue('classname')
             self.archiver.begin_test(attrs.getValue('name'), class_name=class_name)
-            elapsed = int(float(attrs.getValue('time'))*1000)
+            elapsed = int(float(attrs.getValue('time')) * 1000)
             self.archiver.begin_status('PASS', elapsed=elapsed)
         elif name == 'failure':
             self.archiver.update_status('FAIL')
@@ -234,13 +233,13 @@ class JUnitOutputParser(XmlOutputParser):
             errors = int(attrs.getValue('errors')) if 'errors' in attrs.getNames() else 0
             failures = int(attrs.getValue('failures')) if 'failures' in attrs.getNames() else 0
             suite_status = 'PASS' if errors + failures == 0 else 'FAIL'
-            elapsed = int(float(attrs.getValue('time'))*1000) if 'time' in attrs.getNames() else None
+            elapsed = int(float(attrs.getValue('time')) * 1000) if 'time' in attrs.getNames() else None
             timestamp = attrs.getValue('timestamp') if 'timestamp' in attrs.getNames() else None
             self.archiver.begin_status(suite_status, start_time=timestamp, elapsed=elapsed)
         elif name == 'testcase':
             class_name = attrs.getValue('classname')
             self.archiver.begin_test(attrs.getValue('name'), class_name=class_name)
-            elapsed = int(float(attrs.getValue('time'))*1000)
+            elapsed = int(float(attrs.getValue('time')) * 1000)
             self.archiver.begin_status('PASS', elapsed=elapsed)
         elif name == 'failure':
             self.archiver.update_status('FAIL')
@@ -313,7 +312,7 @@ class MochaJUnitOutputParser(XmlOutputParser):
     def startElement(self, name, attrs):
         if name == 'testsuites':
             self.archiver.begin_test_run('Mocha-JUnit parser', None, attrs.getValue('name'), False, None)
-            #self.archiver.begin_suite(attrs.getValue('name'))
+            # self.archiver.begin_suite(attrs.getValue('name'))
         elif name == 'testsuite':
             suite_name = attrs.getValue('name')
             if not suite_name:
@@ -327,12 +326,12 @@ class MochaJUnitOutputParser(XmlOutputParser):
             if parent_suite:
                 suite_name = suite_name.split('.')[-1]
             self.archiver.begin_suite(suite_name)
-            elapsed = int(float(attrs.getValue('time'))*1000) if 'time' in attrs.getNames() else None
+            elapsed = int(float(attrs.getValue('time')) * 1000) if 'time' in attrs.getNames() else None
             timestamp = attrs.getValue('timestamp') if 'timestamp' in attrs.getNames() else None
             self.archiver.begin_status('PASS', start_time=timestamp, elapsed=elapsed)
         elif name == 'testcase':
             class_name = attrs.getValue('classname')
-            elapsed = int(float(attrs.getValue('time'))*1000)
+            elapsed = int(float(attrs.getValue('time')) * 1000)
             # If test name contains substring "hook for" it is actually a setup/teardown phase
             # for another test or suite
             if "hook for" in str(class_name):
@@ -487,7 +486,7 @@ class PytestJUnitOutputParser(XmlOutputParser):
             errors = int(attrs.getValue('errors')) if 'errors' in attrs.getNames() else 0
             failures = int(attrs.getValue('failures')) if 'failures' in attrs.getNames() else 0
             suite_status = 'PASS' if errors + failures == 0 else 'FAIL'
-            elapsed = int(float(attrs.getValue('time'))*1000) if 'time' in attrs.getNames() else None
+            elapsed = int(float(attrs.getValue('time')) * 1000) if 'time' in attrs.getNames() else None
             timestamp = attrs.getValue('timestamp') if 'timestamp' in attrs.getNames() else None
             self.archiver.begin_status(suite_status, start_time=timestamp, elapsed=elapsed)
         elif name == 'testcase':
@@ -500,7 +499,7 @@ class PytestJUnitOutputParser(XmlOutputParser):
                     self._begin_new_test(class_name, test_name)
             else:
                 self._begin_new_test(class_name, test_name)
-            elapsed = int(float(attrs.getValue('time'))*1000)
+            elapsed = int(float(attrs.getValue('time')) * 1000)
             self.archiver.begin_status('PASS', elapsed=elapsed)
         elif name == 'failure':
             self.archiver.update_status('FAIL')
@@ -556,6 +555,7 @@ class PytestJUnitOutputParser(XmlOutputParser):
             print("WARNING: ending unknown item '{}'".format(name))
         self._current_content = []
 
+
 class PhpJUnitOutputParser(XmlOutputParser):
 
     def __init__(self, archiver_instance):
@@ -579,7 +579,7 @@ class PhpJUnitOutputParser(XmlOutputParser):
         elif name in ('testsuite', 'testsuites'):
             if not self.archiver.test_run_id:
                 self._report_test_run()
-            if('file' not in attrs.getNames() and 'name' in attrs.getNames()):
+            if ('file' not in attrs.getNames() and 'name' in attrs.getNames()):
                 suite_name = attrs.getValue('name').split('/')[-1]
             elif name == 'testsuites':
                 suite_name = 'phpunit'
@@ -589,14 +589,14 @@ class PhpJUnitOutputParser(XmlOutputParser):
             errors = int(attrs.getValue('errors')) if 'errors' in attrs.getNames() else 0
             failures = int(attrs.getValue('failures')) if 'failures' in attrs.getNames() else 0
             suite_status = 'PASS' if errors + failures == 0 else 'FAIL'
-            elapsed = int(float(attrs.getValue('time'))*1000) if 'time' in attrs.getNames() else None
+            elapsed = int(float(attrs.getValue('time')) * 1000) if 'time' in attrs.getNames() else None
             time_now = datetime.datetime.now().isoformat()
             timestamp = attrs.getValue('timestamp') if 'timestamp' in attrs.getNames() else time_now
             self.archiver.begin_status(suite_status, start_time=timestamp, elapsed=elapsed)
         elif name == 'testcase':
             class_name = attrs.getValue('classname')
             self.archiver.begin_test(attrs.getValue('name'), class_name=class_name)
-            elapsed = int(float(attrs.getValue('time'))*1000)
+            elapsed = int(float(attrs.getValue('time')) * 1000)
             self.archiver.begin_status('PASS', elapsed=elapsed)
         elif name == 'failure':
             self.archiver.update_status('FAIL')
@@ -669,7 +669,7 @@ class MSTestOutputParser(XmlOutputParser):
     STATUS_MAPPING = {
         'Passed': 'PASS',
         'Failed': 'FAIL',
-        }
+    }
 
     def _report_test_run(self):
         self.archiver.begin_test_run('MSTest parser', None, 'MSTest', False, None)
@@ -774,6 +774,21 @@ def parse_xml(xml_file, output_format, connection, config, build_number_cache):
 
 
 def argument_parser():
+    changes_help = """\
+Json file which contains information from the changed files for each repo. The file should be formatted like this:
+
+{
+    "context": "The execution context, same as --execution-context and command line will override this setting.",
+    "changes": [
+        {
+            "name": "string representing the changed item, for example file path", 
+            "repository": "Repository (optional), for separating between changed items with identical names.",
+            "item_type": "Separating items (optional) and for filtering subsets when prioritising",
+            "subtype": "(optional, for separating items for filtering subsets when prioritising"
+        }
+    ]
+}
+    """
     parser = configs.base_argument_parser('Parse test automation output.xml files to SQL database.')
     parser.add_argument('output_files', nargs='+',
                         help='list of test output files to parse in to the test archive')
@@ -801,6 +816,11 @@ def argument_parser():
                             'separate the result from different builds pipelines/platforms. The '
                             'ChangeEngine prioritization might not give correct result if different '
                             'results from different platforms are mixed together.')
+    group.add_argument('--changes', default=None,
+                       help=changes_help)
+    group.add_argument('--execution-id', default='default',
+                       help='Identifier or version of the tested application for given execution-context. '
+                            'Stored in ChangeEngine and returned by "last_update" query.')
     return parser
 
 
