@@ -1,9 +1,10 @@
 # pylint: disable=R0912,R0915
 
+import datetime
 import os.path
 import sys
 import xml.sax
-import datetime
+
 from . import archiver, configs
 
 DEFAULT_SUITE_NAME = 'Unnamed suite'
@@ -11,7 +12,7 @@ DEFAULT_SUITE_NAME = 'Unnamed suite'
 
 class XmlOutputParser(xml.sax.handler.ContentHandler):
     def __init__(self, archiver_instance):
-        super(XmlOutputParser, self).__init__()
+        super().__init__()
         self.archiver = archiver_instance
         self._current_content = []
         self.excluding = False
@@ -39,7 +40,7 @@ class RobotFrameworkOutputParser(XmlOutputParser):
     EXCLUDED_SECTIONS = ('statistics', 'errors')
 
     def __init__(self, archiver_instance):
-        super(RobotFrameworkOutputParser, self).__init__(archiver_instance)
+        super().__init__(archiver_instance)
         self.archiver.test_type = "Robot Framework"
 
     def startElement(self, name, attrs):
@@ -48,12 +49,13 @@ class RobotFrameworkOutputParser(XmlOutputParser):
         elif self.excluding:
             self.skipping_content = True
         elif name == 'robot':
+            generator = attrs.get('generator')
             self.archiver.begin_test_run('RF parser',
                                          attrs.get('generated'),
-                                         attrs.get('generator'),
+                                         generator,
                                          attrs.get('rpa') if 'rpa' in attrs.getNames() else False,
                                          None,
-                                         )
+                                        )
         elif name == 'suite':
             execution_path = attrs.getValue('id') if 'id' in attrs.getNames() else None
             self.archiver.begin_suite(attrs.getValue('name'), execution_path=execution_path)
@@ -61,11 +63,24 @@ class RobotFrameworkOutputParser(XmlOutputParser):
             execution_path = attrs.getValue('id') if 'id' in attrs.getNames() else None
             self.archiver.begin_test(attrs.getValue('name'), execution_path=execution_path)
         elif name == 'kw':
-            name = attrs.getValue('name') if 'name' in attrs.getNames() else '${EMPTY}'
+            name = attrs.getValue('name') if 'name' in attrs.getNames() else ''
             kw_type = attrs.getValue('type') if 'type' in attrs.getNames() else 'Keyword'
             library = attrs.getValue('library') if 'library' in attrs.getNames() else ''
             self.archiver.begin_keyword(name, library, kw_type)
-            # self.archiver.set_execution_path(attrs.getValue('id'))
+        elif name == 'for':
+            self.archiver.begin_keyword('FOR', '', 'FOR')
+            self.archiver.update_arguments(attrs.getValue('flavor'))
+        elif name == 'iter':
+            self.archiver.begin_keyword('FOR ITERATION', '', 'FOR ITERATION')
+        elif name == 'branch':
+            self.archiver.begin_keyword(attrs.getValue('type'), '', attrs.getValue('type'))
+            if 'condition' in attrs.getNames():
+                self.archiver.update_arguments(attrs.getValue('condition'))
+        elif name == 'var':
+            if 'name' in attrs.getNames():
+                self.archiver.update_arguments(attrs.getValue('name'))
+        elif name == 'value':
+            pass
         elif name == 'arg':
             pass
         elif name == 'msg':
@@ -78,19 +93,17 @@ class RobotFrameworkOutputParser(XmlOutputParser):
                                        attrs.getValue('endtime'), critical=critical)
         elif name == 'assign':
             pass
-        elif name == 'var':
-            pass
         elif name == 'timeout':
             pass
         elif name == 'tag':
             pass
-        elif name == 'item':  # metadata item
+        elif name == 'item':  # metadata item # <RF4.0
             self.archiver.begin_metadata(attrs.getValue('name'))
         elif name == 'meta':  # metadata item # RF4.0
             self.archiver.begin_metadata(attrs.getValue('name'))
         elif name == 'doc':
             pass
-        elif name in ('arguments', 'tags', 'metadata', 'for', 'iter', 'value'):
+        elif name in ('arguments', 'tags', 'metadata', 'if'):
             pass
         else:
             print("WARNING: begin unknown item '{}'".format(name))
@@ -108,6 +121,12 @@ class RobotFrameworkOutputParser(XmlOutputParser):
             self.archiver.end_test()
         elif name == 'kw':
             self.archiver.end_keyword()
+        elif name == 'for':
+            self.archiver.end_keyword()
+        elif name == 'iter':
+            self.archiver.end_keyword()
+        elif name == 'branch':
+            self.archiver.end_keyword()
         elif name == 'arg':
             self.archiver.update_arguments(self.content())
         elif name == 'msg':
@@ -118,7 +137,9 @@ class RobotFrameworkOutputParser(XmlOutputParser):
         elif name == 'assign':
             pass
         elif name == 'var':
-            pass
+            self.archiver.update_arguments(self.content())
+        elif name == 'value':
+            self.archiver.update_arguments(self.content())
         elif name == 'timeout':
             pass
         elif name == 'tag':
@@ -130,7 +151,7 @@ class RobotFrameworkOutputParser(XmlOutputParser):
             self.archiver.end_metadata(self.content())
         elif name == 'doc':
             pass
-        elif name in ('arguments', 'tags', 'metadata', 'for', 'iter', 'value'):
+        elif name in ('arguments', 'tags', 'metadata', 'if'):
             pass
         else:
             print("WARNING: ending unknown item '{}'".format(name))
@@ -785,7 +806,7 @@ Json file which contains information from the changed files for each repo. The f
     "context": "The execution context, same as --execution-context and command line will override this setting.",
     "changes": [
         {
-            "name": "string representing the changed item, for example file path", 
+            "name": "string representing the changed item, for example file path",
             "repository": "Repository (optional), for separating between changed items with identical names.",
             "item_type": "Separating items (optional) and for filtering subsets when prioritising",
             "subtype": "(optional, for separating items for filtering subsets when prioritising"
