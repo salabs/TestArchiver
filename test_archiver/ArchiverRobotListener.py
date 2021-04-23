@@ -49,7 +49,13 @@ class ArchiverRobotListener:
         self.archiver.end_test(attrs)
 
     def start_keyword(self, name, attrs):
-        self.archiver.begin_keyword(attrs['kwname'], attrs['libname'], attrs['type'], attrs['args'])
+        kw_type = attrs['type']
+        contol_structure = kw_type.lower() in ('if', 'else if', 'else', 'for', 'for iteration')
+        name = attrs['type'] if contol_structure else attrs['kwname']
+        library = attrs['libname']
+        arguments = [attrs['kwname']] if contol_structure else attrs['args']
+        arguments = [] if len(arguments) == 1 and arguments[0] == '' else arguments
+        self.archiver.begin_keyword(name, library, kw_type, arguments)
 
     def end_keyword(self, name, attrs):
         self.archiver.end_keyword(attrs)

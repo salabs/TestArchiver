@@ -16,9 +16,6 @@ Template and for loops
     FOR                      ${item}                IN                     @{ITEMS}
                              ${item}                Robot
     END
-    FOR                       ${index}               IN RANGE               5
-                              Framework              @{ITEMS}[${index}]
-    END
 
 *** Keywords ***
 The result of ${calculation} should be ${expected}
