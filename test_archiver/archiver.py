@@ -135,6 +135,7 @@ class FingerprintedItem(TestItem):
         return self.full_name
 
     def finish(self):
+        self.execution_path() # Make sure this is called before exiting any item
         self.handle_child_statuses()
         if not self.status:
             if self.execution_status:
