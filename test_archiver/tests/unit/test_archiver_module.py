@@ -293,10 +293,10 @@ class TestArchiverClass(unittest.TestCase):
         keyword1 = self.archiver.begin_keyword('mock kw', 'unitests', 'setup')
         self.assertEqual(keyword1.execution_path(), 's1-t1-k1')
         keyword2 = self.archiver.begin_keyword('mock kw', 'unitests', 'kw')
-        self.assertEqual(keyword2.execution_path(), 's1-t1-k1-k1')
         self.archiver.end_keyword()
         keyword3 = self.archiver.begin_keyword('mock kw', 'unitests', 'kw')
         self.assertEqual(keyword3.execution_path(), 's1-t1-k1-k2')
+        self.assertEqual(keyword2.execution_path(), 's1-t1-k1-k1')
 
     def test_execution_context(self):
         self.assertEqual(self.archiver.execution_context, 'default')
