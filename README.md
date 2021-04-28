@@ -213,6 +213,10 @@ of and you want to manually add it during archiving.
 
 
 # Release notes
+- 2.4.0 (2021-04-28)
+  * Updates to support archiving Robot Framework 4.0
+  * Fixes bug in execution path calculation for log messages
+
 - 2.3.0 (2021-03-16)
   * Better support for feeding changes and execution context for ChangeEngine
     - `--changes` for feeding changes information
