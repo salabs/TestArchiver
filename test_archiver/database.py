@@ -180,6 +180,7 @@ class PostgresqlDatabase(BaseDatabase):
 
         self._connection = psycopg2.connect(
             host=self.host,
+            port=self.port,
             database=self.database,
             user=self.user,
             password=self.password,
