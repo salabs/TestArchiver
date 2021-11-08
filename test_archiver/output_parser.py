@@ -849,7 +849,11 @@ Json file which contains information from the changed files for each repo. The f
 
 
 def main():
-    config, args = configs.configuration(argument_parser)
+
+    args = argument_parser().parse_args()
+    config = configs.Config()
+    config.resolve(args)
+
     connection = archiver.database_connection(config)
 
     build_number_cache = {}
