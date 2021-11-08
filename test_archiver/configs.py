@@ -37,16 +37,28 @@ LOG_LEVEL_MAP["FAIL"] = 50
 LOG_LEVEL_CUT_OFF_OPTIONS = ('TRACE', 'DEBUG', 'INFO', 'WARN')
 
 
-class Config:
+class Singleton(type):
+    _instance = {}
 
-    def __init__(self, cli_args=None, file_config=None):
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instance:
+            cls._instance[cls] = super(Singleton, cls).__call__(*args, **kwargs)
+        return cls._instance[cls]
+
+
+class Config(object, metaclass=Singleton):
+
+    def __init__(self):
+        self._changes = 'changes'
+        self._default = 'default'
+
+    def resolve(self, cli_args):
         self._cli_args = cli_args
+        file_config = cli_args.config_file
         if isinstance(file_config, str):
             self._file_config = read_config_file(file_config)
         else:
             self._file_config = file_config or {}
-        self._changes = 'changes'
-        self._default = 'default'
         self._resolve_options()
 
     def _resolve_options(self):
