@@ -91,6 +91,7 @@ class Config(object, metaclass=Singleton):
                                                               cast_as=bool)
         self.ignore_logs = self.resolve_option('ignore_logs', default=False, cast_as=bool)
         self.ignore_logs_below = self.resolve_option('ignore_logs_below', default=None)
+        self.max_log_message_length = self.resolve_option('max_log_message_length', cast_as=str, default='2000')
 
         # Adjust timestamps
         self.time_adjust_secs = self.resolve_option('time_adjust_secs', default=0, cast_as=int)
@@ -187,6 +188,11 @@ def base_argument_parser(description):
                              'By default archives all available log messages.'))
     group.add_argument('--ignore-logs', action='store_true', default=None,
                        help='Do not archive any log messages')
+    group.add_argument('--max_log_message_length',
+                       help="""Specify how many characters of the log message that is archived.
+                               full: archives the complete log.
+                               positive integers: archives number of characters from the beginning.
+                               negative integers: archives number of characters from the end.""")
 
     group = parser.add_argument_group('Adjust timestamps')
     group.add_argument('--time-adjust-secs', dest='time_adjust_secs',

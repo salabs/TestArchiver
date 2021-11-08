@@ -7,6 +7,9 @@ from datetime import datetime, timedelta
 from collections import defaultdict
 
 from . import database, version, archiver_listeners
+from .configs import Config
+
+config = Config()
 
 SUPPORTED_TIMESTAMP_FORMATS = (
         "%Y%m%d %H:%M:%S.%f",
@@ -22,8 +25,6 @@ SUPPORTED_TIMESTAMP_FORMATS = (
         "%Y-%m-%dT%H:%M:%S",
         "%Y-%m-%dT%H:%M:%S.%f%z",
     )
-
-MAX_LOG_MESSAGE_LENGTH = 2000
 
 
 class TimeAdjust:
@@ -461,9 +462,16 @@ class LogMessage(TestItem):
     def insert(self, content):
         if (not self.archiver.config.ignore_logs and
                 not self.archiver.config.log_level_ignored(self.log_level)):
+            message_length = config.max_log_message_length
+            if message_length == 'full':
+                message = content
+            elif type(message_length) == int and message_length < 0:
+                message = content[message_length:]
+            else:
+                message = type(message_length) == int and content[:message_length]
             data = {'test_run_id': self.test_run_id(),
                     'timestamp': adjusted_timestamp(self.timestamp, self.archiver.time_adjust.secs()),
-                    'log_level': self.log_level, 'message': content[:MAX_LOG_MESSAGE_LENGTH],
+                    'log_level': self.log_level, 'message': message,
                     'test_id': self.parent_test().id if self.parent_test() else None,
                     'suite_id': self.parent_suite().id,
                     'execution_path': self.execution_path()}
