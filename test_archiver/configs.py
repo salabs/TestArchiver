@@ -47,6 +47,7 @@ class Singleton(type):
 
 
 class Config(object, metaclass=Singleton):
+    # pylint: disable=attribute-defined-outside-init
 
     def __init__(self):
         self._changes = 'changes'
