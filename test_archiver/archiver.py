@@ -512,7 +512,7 @@ class Archiver:
                 print("PARSING ERROR - printing current stack:")
                 for item in self.stack:
                     print(item.__class__.__name__)
-                raise Exception("Expected to end '{}' but '{}' currently in stack".format(
+                raise Exception("Expected to have '{}' but had '{}' currently in stack".format(
                     expected_type,
                     item.__class__.__name__))
         return item

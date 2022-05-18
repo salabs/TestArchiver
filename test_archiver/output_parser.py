@@ -477,12 +477,15 @@ class PytestJUnitOutputParser(XmlOutputParser):
         elif error == 'test teardown failure':
             self.in_setup_or_teardown = True
         else:
+            self.archiver.begin_keyword(error, 'python', 'kw')
+            self.archiver.update_status('FAIL')
             self.archiver.log_message(log_level, error)
 
     def _detect_test_setup_or_teardown_from_stack_trace(self, trace):
         if 'def tearDown(self' in trace:
             self.archiver.keyword('test', 'python', 'teardown', 'FAIL')
         elif 'def tearDownClass(cls' in trace:
+            self.archiver.end_keyword()
             self.archiver.end_test()
             self.archiver.keyword('tearDownClass', 'python', 'teardown', 'FAIL')
         elif 'def setUp(self' in trace:
