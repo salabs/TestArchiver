@@ -467,10 +467,10 @@ class LogMessage(TestItem):
             message_length = config.max_log_message_length
             if message_length == 'full':
                 message = content
-            elif type(message_length) == int and message_length < 0:
+            elif isinstance(message_length, int) and message_length < 0:
                 message = content[message_length:]
             else:
-                message = type(message_length) == int and content[:message_length]
+                message = isinstance(message_length, int) and content[:message_length]
             data = {'test_run_id': self.test_run_id(),
                     'timestamp': adjusted_timestamp(self.timestamp, self.archiver.time_adjust.secs()),
                     'log_level': self.log_level, 'message': message,
@@ -483,8 +483,8 @@ class LogMessage(TestItem):
         return self.parent_item.execution_path()
 
 
-def database_connection(config):
-    return database.get_connection_and_check_schema(config)
+def database_connection(configuration):
+    return database.get_connection_and_check_schema(configuration)
 
 
 class Archiver:

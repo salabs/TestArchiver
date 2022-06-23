@@ -46,21 +46,23 @@ class Singleton(type):
         return cls._instance[cls]
 
 
-class Config(object, metaclass=Singleton):
+class Config(metaclass=Singleton):
     # pylint: disable=attribute-defined-outside-init
 
     def __init__(self):
         self._changes = 'changes'
         self._default = 'default'
+        self.resolve()
 
-    def resolve(self, cli_args):
+    def resolve(self, *, cli_args=None, file_config=None):
         self._cli_args = cli_args
-        file_config = cli_args.config_file
+        file_config = file_config or (getattr(cli_args, 'config_file', None) if cli_args else None)
         if isinstance(file_config, str):
             self._file_config = read_config_file(file_config)
         else:
             self._file_config = file_config or {}
         self._resolve_options()
+        return self
 
     def _resolve_options(self):
         # Database connection
@@ -92,7 +94,8 @@ class Config(object, metaclass=Singleton):
                                                               cast_as=bool)
         self.ignore_logs = self.resolve_option('ignore_logs', default=False, cast_as=bool)
         self.ignore_logs_below = self.resolve_option('ignore_logs_below', default=None)
-        self.max_log_message_length = self.resolve_option('max_log_message_length', cast_as=str, default='2000')
+        self.max_log_message_length = self.resolve_option('max_log_message_length', cast_as=str,
+                                                          default='2000')
 
         # Adjust timestamps
         self.time_adjust_secs = self.resolve_option('time_adjust_secs', default=0, cast_as=int)
@@ -228,4 +231,6 @@ def configuration(argument_parser):
         sys.exit('Unsupported Python version (' + str(sys.version_info.major) + '). Please use version 3.')
 
     args = argument_parser().parse_args()
-    return Config(args, args.config_file), args
+    config = Config()
+    config.resolve(cli_args=args)
+    return config, args

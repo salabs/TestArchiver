@@ -11,10 +11,11 @@ class ArchiverRobotListener:
 
     def __init__(self, config_file_or_database,
                  db_engine=None, user=None, pw=None, host=None, port=5432, adjust_with_system_timezone=False):
+        config = configs.Config()
         if not db_engine:
-            config = configs.Config(file_config=config_file_or_database)
+            config.resolve(file_config=config_file_or_database)
         else:
-            config = configs.Config(file_config={
+            config.resolve(file_config={
                 'database': config_file_or_database,
                 'db_engine': db_engine,
                 'user': user,

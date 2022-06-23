@@ -1,3 +1,4 @@
+
 # pylint: disable=W0212
 
 import os
@@ -23,7 +24,8 @@ class TestSchemaCheckingAndUpdatesWithMockDatabase(unittest.TestCase):
         self.mock_db_class = MockDatabase
 
     def test_check_and_update_schema_initializes_schema(self):
-        mock_db = self.mock_db_class(configs.Config())
+        config = configs.Config().resolve()
+        mock_db = self.mock_db_class(config)
         mock_db._latest_update_applied.return_value = None
         mock_db._initialize_schema.return_value = True
 
@@ -32,7 +34,8 @@ class TestSchemaCheckingAndUpdatesWithMockDatabase(unittest.TestCase):
         mock_db._run_script.assert_not_called()
 
     def test_check_and_update_schema_runs_updates_on_v1_schema_when_allowed(self):
-        config = configs.Config(file_config={'allow_major_schema_updates': True})
+        config = configs.Config()
+        config.resolve(file_config={'allow_major_schema_updates': True})
         mock_db = self.mock_db_class(config)
         mock_db._latest_update_applied.return_value = None
         mock_db._initialize_schema.return_value = False
@@ -106,7 +109,9 @@ class TestSqliteDatabase(unittest.TestCase):
         # Create database file for each test case
         temp_db = '{}.{}.db'.format(self.__class__.__name__, self._testMethodName)
         full_path = os.path.join(self.__class__.dir_path, temp_db)
-        self.database = database.SQLiteDatabase(configs.Config(file_config={'database': full_path}))
+        config = configs.Config()
+        config.resolve(file_config={'database': full_path})
+        self.database = database.SQLiteDatabase(config)
         self.assertTrue(self.database._initialize_schema())
 
     def tearDown(self):

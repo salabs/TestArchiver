@@ -130,7 +130,8 @@ class TestCase(unittest.TestCase):
         self.mock_db = Mock()
 
     def test_keywords_are_not_archived(self):
-        config = configs.Config(file_config={'archive_keywords': False})
+        config = configs.Config()
+        config.resolve(file_config={'archive_keywords': False})
         sut_archiver = archiver.Archiver(self.mock_db, config)
         sut_archiver.begin_suite('Some suite of tests')
         test_case = sut_archiver.begin_test('Some test case')
@@ -150,7 +151,8 @@ class TestKeyword(unittest.TestCase):
         self.mock_db = Mock()
 
     def test_keyword_is_inserted_by_default(self):
-        config = configs.Config(file_config={})
+        config = configs.Config()
+        config.resolve()
         sut_archiver = archiver.Archiver(self.mock_db, config)
         sut_archiver.begin_suite('Some suite of tests')
         sut_archiver.begin_test('Some test case')
@@ -161,7 +163,8 @@ class TestKeyword(unittest.TestCase):
         self.assertEqual(len(sut_archiver.keyword_statistics), 1)
 
     def test_keyword_statistics_are_not_collected(self):
-        config = configs.Config(file_config={'archive_keyword_statistics': False})
+        config = configs.Config()
+        config.resolve(file_config={'archive_keyword_statistics': False})
         sut_archiver = archiver.Archiver(self.mock_db, config)
         sut_archiver.begin_suite('Some suite of tests')
         sut_archiver.begin_test('Some test case')
@@ -172,7 +175,8 @@ class TestKeyword(unittest.TestCase):
         self.assertEqual(len(sut_archiver.keyword_statistics), 0)
 
     def test_keywords_are_not_archived(self):
-        config = configs.Config(file_config={'archive_keywords': False})
+        config = configs.Config()
+        config.resolve(file_config={'archive_keywords': False})
         sut_archiver = archiver.Archiver(self.mock_db, config)
         sut_archiver.begin_suite('Some suite of tests')
         sut_archiver.begin_test('Some test case')
@@ -190,7 +194,8 @@ class TestLogMessage(unittest.TestCase):
         self.mock_db = Mock()
 
     def test_insert_not_ignored_by_default(self):
-        config = configs.Config(file_config={})
+        config = configs.Config()
+        config.resolve()
         sut_archiver = archiver.Archiver(self.mock_db, config)
         sut_archiver.begin_suite('Some suite of tests')
 
@@ -205,7 +210,8 @@ class TestLogMessage(unittest.TestCase):
         self.assertEqual(self.mock_db.insert.call_count, 3)
 
     def test_insert_adheres_to_log_level_cut_off(self):
-        config = configs.Config(file_config={'ignore_logs_below': 'WARN'})
+        config = configs.Config()
+        config.resolve(file_config={'ignore_logs_below': 'WARN'})
         sut_archiver = archiver.Archiver(self.mock_db, config)
         sut_archiver.begin_suite('Some suite of tests')
 
@@ -220,7 +226,8 @@ class TestLogMessage(unittest.TestCase):
         self.mock_db.insert.assert_called_once()
 
     def test_logs_not_inserted_when_logs_ignored(self):
-        config = configs.Config(file_config={'ignore_logs': True})
+        config = configs.Config()
+        config.resolve(file_config={'ignore_logs': True})
         sut_archiver = archiver.Archiver(self.mock_db, config)
         sut_archiver.begin_suite('Some suite of tests')
 
