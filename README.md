@@ -213,6 +213,11 @@ of and you want to manually add it during archiving.
 
 
 # Release notes
+- 2.5.0 (2022-06-23)
+  * Time adjustments effect also test_run's generated field and start_time of all items
+  * Fixes pytest parser by always using keyword on failure
+  * The port option is now used when connecting to databases
+
 - 2.4.0 (2021-04-28)
   * Updates to support archiving Robot Framework 4.0
   * Fixes bug in execution path calculation for log messages
