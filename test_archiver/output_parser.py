@@ -102,7 +102,7 @@ class RobotFrameworkOutputParser(XmlOutputParser):
             self.archiver.begin_metadata(attrs.getValue('name'))
         elif name == 'doc':
             pass
-        elif name in ('arguments', 'tags', 'metadata', 'if'):
+        elif name in ('arguments', 'tags', 'metadata', 'if', 'return'):
             pass
         else:
             print("WARNING: begin unknown item '{}'".format(name))
@@ -150,7 +150,7 @@ class RobotFrameworkOutputParser(XmlOutputParser):
             self.archiver.end_metadata(self.content())
         elif name == 'doc':
             pass
-        elif name in ('arguments', 'tags', 'metadata', 'if'):
+        elif name in ('arguments', 'tags', 'metadata', 'if', 'return'):
             pass
         else:
             print("WARNING: ending unknown item '{}'".format(name))
