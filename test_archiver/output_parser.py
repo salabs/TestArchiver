@@ -183,7 +183,7 @@ class XUnitOutputParser(XmlOutputParser):
         elif name == 'testcase':
             class_name = attrs.getValue('classname')
             self.archiver.begin_test(attrs.getValue('name'), class_name=class_name)
-            elapsed = int(float(attrs.getValue('time')) * 1000)
+            elapsed = int(float(attrs.getValue('time')) * 1000) if 'time' in attrs.getNames() else None
             self.archiver.begin_status('PASS', elapsed=elapsed)
         elif name == 'failure':
             self.archiver.update_status('FAIL')
