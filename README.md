@@ -213,6 +213,10 @@ of and you want to manually add it during archiving.
 
 
 # Release notes
+- 2.5.1 (2022-09-06)
+  * JUnit parsers updated to accept results where time value is missing from a testcase
+  * XUnit parsers updated to accept results where time value is missing from a testcase
+
 - 2.5.0 (2022-06-23)
   * Time adjustments effect also test_run's generated field and start_time of all items
   * Fixes pytest parser by always using keyword on failure
