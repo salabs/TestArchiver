@@ -2,6 +2,7 @@
 
 import sys
 import time
+import json
 from hashlib import sha1
 from datetime import datetime, timedelta
 from collections import defaultdict
@@ -321,6 +322,7 @@ class Suite(FingerprintedItem):
                 self.metadata["time_adjust_secs_total"] = self.archiver.time_adjust.secs()
 
         for name in self.metadata:
+            table_prefix = 'table#'
             content = self.metadata[name]
             data = {'name': name, 'value': content,
                     'suite_id': self.id, 'test_run_id': self.test_run_id()}
@@ -333,6 +335,14 @@ class Suite(FingerprintedItem):
                 self.archiver.test_series[series_name] = build_number
             elif name == 'team':
                 self.archiver.team = content
+            elif name.startswith(table_prefix):
+                table = name[len(table_prefix):]
+                if table:
+                    fields = json.loads(content)
+                    fields['suite_id'] = self.id
+                    fields['test_run_id'] = self.test_run_id()
+                    self.archiver.db.insert(table, fields)
+
 
     def register_metadata(self, name=None, value=None):
         if name:
