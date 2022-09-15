@@ -488,15 +488,15 @@ def database_connection(configuration):
 
 
 class Archiver:
-    def __init__(self, connection, config, build_number_cache=None):
-        self.config = config
+    def __init__(self, connection, configuration, build_number_cache=None):
+        self.config = configuration
         self.test_type = None
-        self.additional_metadata = config.metadata
+        self.additional_metadata = self.config.metadata
         self.test_run_id = None
         self.test_series = {}
-        self.team = config.team
-        self.series = config.series
-        self.repository = config.repository
+        self.team = self.config.team
+        self.series = self.config.series
+        self.repository = self.config.repository
 
         self.archived_using = None
         self.output_from_dryrun = False
@@ -504,16 +504,17 @@ class Archiver:
         self.stack = []
         self.keyword_statistics = {}
         self.build_number_cache = build_number_cache or {}
-        self.execution_context = config.execution_context
-        self.changes = config.changes
-        self.execution_id = config.execution_id
+        self.execution_context = self.config.execution_context
+        self.changes = self.config.changes
+        self.execution_id = self.config.execution_id
 
-        self.time_adjust = TimeAdjust(config.time_adjust_secs,
-                                      config.time_adjust_with_system_timezone)
+        self.time_adjust = TimeAdjust(self.config.time_adjust_secs,
+                                      self.config.time_adjust_with_system_timezone)
 
         self.listeners = []
-        if config.change_engine_url:
-            self.listeners.append(archiver_listeners.ChangeEngineListener(self, config.change_engine_url))
+        if self.config.change_engine_url:
+            self.listeners.append(
+                archiver_listeners.ChangeEngineListener(self, self.config.change_engine_url))
 
     def current_item(self, expected_type=None):
         item = self.stack[-1] if self.stack else None

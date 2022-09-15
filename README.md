@@ -97,6 +97,12 @@ Limit archived data:
                         Sets a cut off level for archived log messages. By
                         default archives all available log messages.
   --ignore-logs         Do not archive any log messages
+  --max_log_message_length MAX_LOG_MESSAGE_LENGTH
+                        Specify how many characters of the log message that is
+                        archived. full: archives the complete log. positive
+                        integers: archives number of characters from the
+                        beginning. negative integers: archives number of
+                        characters from the end.
 
 Adjust timestamps:
   --time-adjust-secs TIME_ADJUST_SECS
@@ -141,6 +147,22 @@ ChangeEngine:
                         ChangeEngine prioritization might not give correct
                         result if different results from different platforms
                         are mixed together.
+  --changes CHANGES     Json file which contains information from the changed
+                        files for each repo. The file should be formatted like
+                        this: { "context": "The execution context, same as
+                        --execution-context and command line will override
+                        this setting.", "changes": [ { "name": "string
+                        representing the changed item, for example file path",
+                        "repository": "Repository (optional), for separating
+                        between changed items with identical names.",
+                        "item_type": "Separating items (optional) and for
+                        filtering subsets when prioritising", "subtype":
+                        "(optional, for separating items for filtering subsets
+                        when prioritising" } ] }
+  --execution-id EXECUTION_ID
+                        Identifier or version of the tested application for
+                        given execution-context. Stored in ChangeEngine and
+                        returned by "last_update" query.
 ```
 
 ## Data model
@@ -213,6 +235,10 @@ of and you want to manually add it during archiving.
 
 
 # Release notes
+- 2.6.0 (2022-09-15)
+  * `--max_log_message_length` option to control the length of log messages archived.
+    Defaults to 2000 chars. Negative values will archive log messages from the end.
+
 - 2.5.1 (2022-09-06)
   * JUnit parsers updated to accept results where time value is missing from a testcase
   * XUnit parsers updated to accept results where time value is missing from a testcase
