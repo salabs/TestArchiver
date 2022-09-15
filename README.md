@@ -238,6 +238,7 @@ of and you want to manually add it during archiving.
 - 2.6.0 (2022-09-15)
   * `--max_log_message_length` option to control the length of log messages archived.
     Defaults to 2000 chars. Negative values will archive log messages from the end.
+  * Ignores return statements without warnigns from Robot Framework 5.x inputs
 
 - 2.5.1 (2022-09-06)
   * JUnit parsers updated to accept results where time value is missing from a testcase
