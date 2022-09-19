@@ -2,6 +2,7 @@ import argparse
 import json
 import sys
 from collections import defaultdict
+from datetime import datetime
 
 from . import version
 
@@ -30,6 +31,10 @@ def _log_message_length(value):
         if value == 'full':
             return 0
         raise error
+
+def _parse_date(date_string):
+    return datetime.datetime.strptime(date_string, '%Y-%m-%d').date()
+
 
 LOG_LEVEL_MAP = defaultdict(lambda: 100)
 LOG_LEVEL_MAP[None] = 0
@@ -96,6 +101,15 @@ class Config(metaclass=Singleton):
                                                               default=False, cast_as=bool)
         # If major updates are allowed then minor ones are as well
         self.allow_minor_schema_updates = self.allow_major_schema_updates or self.allow_minor_schema_updates
+
+        # Cleaning history
+        self.keep_builds = self.resolve_option('keep_builds', default=0, cast_as=int)
+        self.keep_months = self.resolve_option('keep_months', default=0, cast_as=int)
+        self.keep_after = self.resolve_option('keep_after', default=None, cast_as=_parse_date)
+        self.clean_team = self.resolve_option('clean_team', default=None)
+        self.clean_logs = self.resolve_option('clean_logs', default=False, cast_as=bool)
+        self.clean_logs_below = self.resolve_option('clean_logs_below', default=None)
+        self.clean_keyword_stats = self.resolve_option('clean_keyword_stats', default=False, cast_as=bool)
 
         # Limit archived data
         self.archive_keywords = self.resolve_option('archive_keywords', default=True, cast_as=bool)
@@ -190,6 +204,33 @@ def base_argument_parser(description):
     group.add_argument('--allow-major-schema-updates', action='store_true', default=None,
                        help=('Allow TestArchiver to perform MAJOR (backwards incompatible) schema '
                              'updates the test archive'))
+
+    group = parser.add_argument_group(
+        'Clean history',
+        description=('If any of the following options are used the archiver will delete the oldest '
+                     'result data. What data is kept can be controlled with these --keep-X options '
+                     'that can also be mixed. If deletion targets are not specified with --clean-X '
+                     'options all test run data is cleaned.'))
+    group.add_argument('--keep-builds', default=None,
+                       help=('Delete old result data but keep the data for at least given '
+                             'number of builds in each series.'))
+    group.add_argument('--keep-months', default=None,
+                       help=('Delete old result data but keep data that was archived more recently than '
+                             'given number of months ago'))
+    group.add_argument('--keep-after', default=None,
+                       help=('Delete old result data but keep data that was archived more recently than '
+                             'given date in ISO 8601 format yyyy-mm-dd.'))
+    group.add_argument('--clean-team', default=None,
+                       help=('Delete results only archived under given team name.'))
+    group.add_argument('--clean-logs', action='store_true', default=None,
+                       help=('Delete oldest log messages but not test results or runs.'))
+    group.add_argument('--clean-logs-below', default=None, choices=LOG_LEVEL_CUT_OFF_OPTIONS,
+                       help=('Delete oldest log messages that are bellow given log level '
+                             'but not test results or runs.'))
+    group.add_argument('--clean-keyword-stats', action='store_true', default=None,
+                       help=('Delete oldest keyword statistics data'
+                             'but not test results or runs.'))
+
 
     group = parser.add_argument_group('Limit archived data')
     group.add_argument('--no-keywords', dest='archive_keywords', action='store_false',

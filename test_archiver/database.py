@@ -10,12 +10,14 @@ except ImportError:
     psycopg2 = None
 
 from . import version, configs
+from .configs import LOG_LEVEL_MAP
 
 
 SCHEMA_UPDATES = (
     #(update_id, minor, file)
     (1, False, '0001-schema_update_table_and_log_message_index.sql'),
     (2, True, '0002-execution_paths.sql'),
+    (3, True, '0003-test_run_mapping_cascade.sql'),
     # Updates are appended to the end
 )
 
@@ -42,6 +44,34 @@ class ArchiverSchemaException(Exception):
     """Exception for communicating a mismatch with database schema and TestArchiver version"""
 
 
+def test_runs_to_keep_query(builds_to_keep, team, placeholder):
+    team_filter = ''
+    if team:
+        team_filter = ("JOIN test_series ON test_series.id=tsm.series AND team={}").format(placeholder)
+    return """
+EXCEPT
+SELECT DISTINCT test_run_id
+FROM test_series_mapping as tsm
+JOIN test_series ON tsm.series=test_series.id
+LEFT OUTER JOIN (
+    SELECT series, build_number, true as keep_build
+    FROM (
+        SELECT series, build_number,
+            rank() OVER (PARTITION BY series ORDER BY build_number DESC) build_rank
+        FROM (
+            SELECT DISTINCT series, build_number
+            FROM test_series_mapping as tsm
+            {team_filter}
+            ORDER BY series, build_number DESC
+        ) as builds
+    ) as build_ranks
+    WHERE build_rank<={builds_to_keep}
+) AS last_builds ON last_builds.series=tsm.series
+                AND last_builds.build_number=tsm.build_number
+WHERE keep_build
+""".format(team_filter=team_filter, builds_to_keep=builds_to_keep)
+
+
 class BaseDatabase:
 
     UndefinedTableError = None
@@ -56,6 +86,9 @@ class BaseDatabase:
         self.require_ssl = config.require_ssl
         self.allow_minor_schema_updates = config.allow_minor_schema_updates
         self.allow_major_schema_updates = config.allow_major_schema_updates
+
+        self._effected_rows = None
+
         self._connection = None
         self._connect()
 
@@ -115,6 +148,9 @@ class BaseDatabase:
             self._connection.rollback()
         return None
 
+    def _value_placeholder(self):
+        raise NotImplementedError()
+
     def _execute(self, sql, values=None):
         if values is None:
             values = []
@@ -122,6 +158,7 @@ class BaseDatabase:
         cursor = self._connection.cursor()
         try:
             cursor.execute(sql, values)
+            self._effected_rows = cursor.rowcount
         finally:
             cursor.close()
 
@@ -165,6 +202,101 @@ class BaseDatabase:
     def fetch_one_value(self, table, column, where_data=None):
         raise NotImplementedError()
 
+    def delete(self, table, values=None, where_query=None):
+        raise NotImplementedError()
+
+    def _time_value(self, date_value=None, months_ago=None):
+        raise NotImplementedError()
+
+    def _run_ids_to_clean_query(self, team, keep_builds, keep_months, keep_after):
+        filters = []
+        runs_to_keep_query = ''
+        if team:
+            filters.append('team={}'.format(self._value_placeholder()))
+        if keep_builds:
+            runs_to_keep_query = test_runs_to_keep_query(keep_builds, team, self._value_placeholder())
+        if keep_months:
+            filters.append("imported_at<{}".format(self._time_value(months_ago=keep_months)))
+        if keep_after:
+            filters.append("imported_at<{}".format(self._time_value(date_value=keep_after)))
+        return """
+            SELECT test_run.id
+            FROM test_run
+            JOIN test_series_mapping as tsm ON test_run.id=tsm.test_run_id
+            JOIN test_series ON tsm.series=test_series.id
+            {filters}
+            {runs_to_keep}
+        """.format(filters='WHERE '+ ' AND '.join(filters) if filters else '',
+                   runs_to_keep=runs_to_keep_query)
+
+    def clean_orphan_test_series(self):
+        # Delete records of test series that have no associated test results
+        self.delete('test_series',
+                    where_query='WHERE id not IN (SELECT DISTINCT series FROM test_series_mapping)')
+        self.commit()
+        print("Deleted orphan series")
+
+    def _targeted_cleaning(self, ids_query, values, logs, logs_below, kw_stats):
+        if logs:
+            print('Cleaning archived log messages from history')
+            self.delete('log_message', values, where_query='WHERE test_run_id IN ({})'.format(ids_query))
+            self.commit()
+            if self._effected_rows:
+                print("Deleted {} log messages.".format(self._effected_rows))
+            else:
+                print("No log messages to delete with given parameters.")
+        elif logs_below:
+            print('Cleaning archived log messages below {} from history'.format(logs_below))
+            lower_log_levels = tuple(["'{}'".format(level) for level in LOG_LEVEL_MAP
+                                      if LOG_LEVEL_MAP[level] < LOG_LEVEL_MAP[logs_below] and level])
+            where_query = 'WHERE log_level IN ({}) AND test_run_id IN ({})'.format(
+                ','.join(lower_log_levels), ids_query)
+            self.delete('log_message', values, where_query=where_query)
+            self.commit()
+            if self._effected_rows:
+                print("Deleted {} log messages.".format(self._effected_rows))
+            else:
+                print("No log messages to delete with given parameters.")
+
+        if kw_stats:
+            print('Cleaning archived keyword statistics from history')
+            self.delete('keyword_statistics', values,
+                        where_query='WHERE test_run_id IN ({})'.format(ids_query))
+            self.commit()
+            if self._effected_rows:
+                print("Deleted {} rows from keyword statistics.".format(self._effected_rows))
+            else:
+                print("No keyword statistics to delete with given parameters.")
+
+    def delete_history(self, team, keep_builds, keep_months, keep_after, logs, logs_below, kw_stats):
+        if not any((team, keep_builds, keep_months, keep_after, logs, logs_below, kw_stats)):
+            # If no cleaning options are selected skip cleaning history
+            return
+
+        ids_query = self._run_ids_to_clean_query(team, keep_builds, keep_months, keep_after)
+        values = (team, team) if team else None
+
+        print('Cleaning archived data by the following parameters:')
+        if keep_builds:
+            print(f' - Keeping results from last {keep_builds} builds of each series')
+        if keep_months:
+            print(f' - Keeping results archived within {keep_months} months')
+        if keep_after:
+            print(f' - Keeping results archived since {keep_after}')
+        if team:
+            print(f" - Only cleaning results from team: '{team}'")
+
+        if any((logs, logs_below, kw_stats)):
+            self._targeted_cleaning(ids_query, values, logs, logs_below, kw_stats)
+        else:
+            print('Cleaning test runs from history')
+            self.delete('test_run', values, where_query='WHERE id IN ({})'.format(ids_query))
+            self.commit()
+            if self._effected_rows:
+                print("Deleted the results for {} test runs.".format(self._effected_rows))
+            else:
+                print("No results to delete with given parameters.")
+            self.clean_orphan_test_series()
 
 class PostgresqlDatabase(BaseDatabase):
 
@@ -201,6 +333,9 @@ class PostgresqlDatabase(BaseDatabase):
         with open(script_file) as file:
             self._execute(file.read().format(applied_by=version.ARCHIVER_VERSION))
             self.commit()
+
+    def _value_placeholder(self):
+        return '%s'
 
     def _handle_values(self, values):
         return values
@@ -316,6 +451,19 @@ class PostgresqlDatabase(BaseDatabase):
             return value
         return None
 
+    def delete(self, table, values=None, where_query=None):
+        sql = "DELETE FROM {table} {where_query}"
+        sql = sql.format(table=table, where_query=where_query or '')
+        self._execute(sql, values)
+
+    def _time_value(self, date_value=None, months_ago=None):
+        if date_value:
+            return "'{}'".format(date_value)
+        if months_ago:
+            return "now() - '{} months'::interval".format(months_ago)
+        return ''
+
+
 
 class SQLiteDatabase(BaseDatabase):
 
@@ -326,6 +474,8 @@ class SQLiteDatabase(BaseDatabase):
 
     def _connect(self):
         self._connection = sqlite3.connect(self.database)
+        # The Foreign key constraints are disabled by default so we enable them
+        self._execute("PRAGMA foreign_keys=ON")
 
     def _initialize_schema(self):
         query = "SELECT 1 FROM sqlite_master WHERE type='table' AND name='test_run';"
@@ -348,6 +498,9 @@ class SQLiteDatabase(BaseDatabase):
             else:
                 handled_values.append(value)
         return handled_values
+
+    def _value_placeholder(self):
+        return '?'
 
     def _fetch_id(self, table, data, key_fields):
         row_id = None
@@ -437,16 +590,33 @@ class SQLiteDatabase(BaseDatabase):
             return value
         return None
 
+    def delete(self, table, values=None, where_query=None):
+        sql = "DELETE FROM {table} {where_query}"
+        sql = sql.format(table=table, where_query=where_query or '')
+        self._execute(sql, values)
+
+    def _time_value(self, date_value=None, months_ago=None):
+        if date_value:
+            return "date('{}')".format(date_value)
+        if months_ago:
+            return "date('now', '-{} month')".format(int(months_ago))
+        return ''
+
 
 def argument_parser():
     parser = configs.base_argument_parser('Initialize and update test archive schema.')
     return parser
 
+def run_history_cleaning(connection, config):
+
+    connection.delete_history(config.clean_team, config.keep_builds, config.keep_months, config.keep_after,
+                              config.clean_logs, config.clean_logs_below, config.clean_keyword_stats)
+
 def main():
     config, _ = configs.configuration(argument_parser)
 
-    get_connection_and_check_schema(config)
-
+    connection = get_connection_and_check_schema(config)
+    run_history_cleaning(connection, config)
 
 if __name__ == '__main__':
     main()

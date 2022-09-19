@@ -5,7 +5,7 @@ import os.path
 import sys
 import xml.sax
 
-from . import archiver, configs
+from . import archiver, configs, database
 
 DEFAULT_SUITE_NAME = 'Unnamed suite'
 
@@ -859,6 +859,8 @@ def main():
     for output_file in args.output_files:
         print("Parsing: '{}'".format(output_file))
         build_number_cache = parse_xml(output_file, args.format, connection, config, build_number_cache)
+
+    database.run_history_cleaning(connection, config)
 
 
 if __name__ == '__main__':
