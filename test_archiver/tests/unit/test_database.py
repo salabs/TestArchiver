@@ -89,7 +89,7 @@ class TestSchemaCheckingAndUpdatesWithMockDatabase(unittest.TestCase):
         mock_db._run_script.assert_not_called()
 
 
-class TestSqliteDatabase(unittest.TestCase):
+class TestSqliteDatabaseTemplate(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -116,6 +116,8 @@ class TestSqliteDatabase(unittest.TestCase):
 
     def tearDown(self):
         self.database._connection.commit()
+
+class TestSqliteDatabaseMethods(TestSqliteDatabaseTemplate):
 
     def test_initialize_schema(self):
         inital_update = self.database.fetch_one_value('schema_updates', 'initial_update', {'id': 1})
@@ -209,6 +211,141 @@ class TestSqliteDatabase(unittest.TestCase):
         self.database.check_and_update_schema()
         latest_update = self.database._latest_update_applied()
         self.assertEqual(latest_update, 10003)
+
+    def test_delete(self):
+        data = {'fingerprint': '123456789012345678901234567890123456789A', 'status': 'PASS'}
+        self.database.insert('keyword_tree', data)
+        data = {'fingerprint': '123456789012345678901234567890123456789B', 'status': 'PASS'}
+        self.database.insert('keyword_tree', data)
+        row_count = self.database.fetch_one_value('keyword_tree', 'count(*)')
+        self.assertEqual(row_count, 2)
+
+        self.database.delete('keyword_tree', ('123456789012345678901234567890123456789A',),
+                             where_query="WHERE fingerprint=?")
+        row_count = self.database.fetch_one_value('keyword_tree', 'count(*)')
+        self.assertEqual(row_count, 1)
+
+        self.database.delete('keyword_tree')
+        row_count = self.database.fetch_one_value('keyword_tree', 'count(*)')
+        self.assertEqual(row_count, 0)
+
+
+class TestSqliteDatabaseCleaning(TestSqliteDatabaseTemplate):
+
+    def _generate_simple_archive(self):
+        series_with_first_id = self.database.return_id_or_insert_and_return_id(
+            'test_series', {'name': 'Series with only first run', 'team': 'Team 1'}, ['team', 'name'])
+        series_with_all_id = self.database.return_id_or_insert_and_return_id(
+            'test_series', {'name': 'Series with all test runs', 'team': 'Team 2'}, ['team', 'name'])
+        suite_id = self.database.return_id_or_insert_and_return_id(
+            'suite', {'full_name': 'Mock suite', 'name': 'Mock suite', 'repository': 'mock repo'},
+            ['full_name'])
+        test_id = self.database.return_id_or_insert_and_return_id(
+            'test_case', {'full_name': 'Mock suite', 'name': 'Mock suite', 'suite_id': suite_id},
+            ['full_name'])
+        kw_fingerprint = '1234567890123456789012345678901234567890'
+        self.database.insert_or_ignore('keyword_tree', {'fingerprint': kw_fingerprint})
+
+        # First run in both series
+        test_run_id = self._generate_test_run(suite_id, test_id, kw_fingerprint)
+        self.database.insert('test_series_mapping', {'series': series_with_first_id,
+                                                     'test_run_id': test_run_id, 'build_number': '1'})
+        self.database.insert('test_series_mapping', {'series': series_with_all_id,
+                                                     'test_run_id': test_run_id, 'build_number': '1'})
+        # Two runs in the second build of all runs series
+        test_run_id = self._generate_test_run(suite_id, test_id, kw_fingerprint)
+        self.database.insert('test_series_mapping', {'series': series_with_all_id,
+                                                     'test_run_id': test_run_id, 'build_number': '2'})
+        test_run_id = self._generate_test_run(suite_id, test_id, kw_fingerprint)
+        self.database.insert('test_series_mapping', {'series': series_with_all_id,
+                                                     'test_run_id': test_run_id, 'build_number': '2'})
+        # One more in the third build of all runs series
+        test_run_id = self._generate_test_run(suite_id, test_id, kw_fingerprint)
+        self.database.insert('test_series_mapping', {'series': series_with_all_id,
+                                                     'test_run_id': test_run_id, 'build_number': '3'})
+
+    def _generate_test_run(self, suite_id, test_id, kw_fingerprint):
+        test_run_id = self.database.insert_and_return_id(
+            'test_run', {'archived_using': 'unittests',
+                         'schema_version': self.database.current_schema_version()})
+        self.database.insert('suite_result', {'suite_id': suite_id, 'test_run_id': test_run_id})
+        self.database.insert('test_result', {'test_id': test_id, 'test_run_id': test_run_id})
+        self.database.insert('log_message', {'test_run_id': test_run_id, 'suite_id': suite_id,
+                                             'log_level': 'WARN', 'message': 'Warning'})
+        self.database.insert('log_message', {'test_run_id': test_run_id, 'suite_id': suite_id,
+                                             'log_level': 'DEBUG', 'message': 'Debug...'})
+        self.database.insert('suite_metadata', {'test_run_id': test_run_id, 'suite_id': suite_id,
+                                                'name': 'VERSION', 'value': '1.2.3'})
+        self.database.insert('test_tag', {'test_run_id': test_run_id, 'test_id': test_id, 'tag': 'mock tag'})
+        self.database.insert('keyword_statistics',
+                             {'test_run_id': test_run_id, 'fingerprint': kw_fingerprint})
+        return test_run_id
+
+    def assert_number_of_rows(self, table, expected_rows):
+        row_count = self.database.fetch_one_value(table, 'count(*)')
+        self.assertEqual(row_count, expected_rows)
+
+    def test_delete_history_no_cleaning(self):
+        self.database._run_ids_to_clean_query = Mock()
+        self.database.delete_history(None, None, None, None, None, None, None)
+        self.database._run_ids_to_clean_query.assert_not_called()
+
+    def test_delete_history_completely(self):
+        self._generate_simple_archive()
+        self.database.delete_history(None, None, None, '2222-01-01', None, None, None)
+        self.assert_number_of_rows('test_run', 0)
+        self.assert_number_of_rows('test_result', 0)
+        self.assert_number_of_rows('log_message', 0)
+        self.assert_number_of_rows('test_series_mapping', 0)
+
+    def test_delete_history_keeping_last_builds(self):
+        self._generate_simple_archive()
+        self.database.delete_history(None, 3, None, None, None, None, None)
+        self.assert_number_of_rows('test_run', 4)
+        self.assert_number_of_rows('test_result', 4)
+        self.assert_number_of_rows('log_message', 2*4)
+
+        self.database.delete_history(None, 1, None, None, None, None, None)
+        self.assert_number_of_rows('test_run', 2)
+        self.assert_number_of_rows('test_result', 2)
+        self.assert_number_of_rows('log_message', 2*2)
+
+    def test_delete_history_logs_only(self):
+        self._generate_simple_archive()
+        self.database.delete_history(None, 1, None, None, True, None, None)
+        self.assert_number_of_rows('test_run', 4)
+        self.assert_number_of_rows('test_result', 4)
+        self.assert_number_of_rows('log_message', 4)
+
+        self.database.delete_history(None, None, None, None, True, None, None)
+        self.assert_number_of_rows('test_run', 4)
+        self.assert_number_of_rows('test_result', 4)
+        self.assert_number_of_rows('log_message', 0)
+
+    def test_delete_history_logs_only_below_warn(self):
+        self._generate_simple_archive()
+        self.database.delete_history(None, 1, None, None, None, 'WARN', None)
+        self.assert_number_of_rows('test_run', 4)
+        self.assert_number_of_rows('test_result', 4)
+        self.assert_number_of_rows('log_message', 6)
+
+        self.database.delete_history(None, None, None, None, None, 'WARN', None)
+        self.assert_number_of_rows('test_run', 4)
+        self.assert_number_of_rows('test_result', 4)
+        self.assert_number_of_rows('log_message', 4)
+
+    def test_delete_history_kw_stats_only(self):
+        self._generate_simple_archive()
+        self.database.delete_history(None, 1, None, None, None, None, True)
+        self.assert_number_of_rows('test_run', 4)
+        self.assert_number_of_rows('test_result', 4)
+        self.assert_number_of_rows('keyword_statistics', 2)
+
+        self.database.delete_history(None, None, None, None, None, None, True)
+        self.assert_number_of_rows('test_run', 4)
+        self.assert_number_of_rows('test_result', 4)
+        self.assert_number_of_rows('keyword_statistics', 0)
+
 
 if __name__ == '__main__':
     unittest.main()

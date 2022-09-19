@@ -6,7 +6,7 @@ CREATE TABLE schema_updates (
     applied_by text
 );
 INSERT INTO schema_updates(schema_version, initial_update, applied_by)
-VALUES (2, true, '{applied_by}');
+VALUES (3, true, '{applied_by}');
 
 CREATE TABLE test_series (
     id serial PRIMARY KEY,
@@ -29,8 +29,8 @@ CREATE TABLE test_run (
 );
 
 CREATE TABLE test_series_mapping (
-    series int REFERENCES test_series(id),
-    test_run_id int REFERENCES test_run(id),
+    series int REFERENCES test_series(id) ON DELETE CASCADE,
+    test_run_id int REFERENCES test_run(id) ON DELETE CASCADE,
     build_number int NOT NULL,
     build_id text,
     PRIMARY KEY (series, test_run_id, build_number)
@@ -133,7 +133,7 @@ CREATE TABLE keyword_tree (
 CREATE TABLE tree_hierarchy (
     fingerprint text REFERENCES keyword_tree(fingerprint),
     subtree text REFERENCES keyword_tree(fingerprint),
-    call_index text,
+    call_index int,
     PRIMARY KEY (fingerprint, subtree, call_index)
 );
 

@@ -1,6 +1,6 @@
 import os
 
-ARCHIVER_VERSION = "2.6.4"
+ARCHIVER_VERSION = "3.0.0"
 
 
 def dynamic_package_version():
