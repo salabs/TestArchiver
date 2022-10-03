@@ -175,6 +175,19 @@ There are meta data that are useful to add with the results. Some testing framew
 
 `--metadata NAME:VALUE`
 
+### Table Extension metadata
+
+To allow extension of data tables against test runs, the metadata tag __table#<table_name>__ can be used with a __<table_name>__ record specified by a json value.
+For example a metadata entry
+`table#host_info:{"host_name":"test_machine01", "host_location":"Paris", "user":"James"}`
+would result in a record written to the database table __host_info__, with the json specified fields __host_name, host_location, user__ against TestArchiver's __suite_id__ and __test_run_id__.
+
+This will allow for extended information, specific to a test environment, to be defined as required by a test team.
+
+This table is not created by TestArchiver, so the user needs to ensure it is created by a different process.
+
+The full json value is also written to the metadata table as per any other metadata.
+
 ## Test series and teams
 
 In the data model, each test result file is represented as single test run. These test runs are linked and organized into builds in in different result series. Depending on the situation the series can be e.g. CI build jobs or different branches. By default if no series is specified the results are linked to a default series with autoincrementing build numbers. Different test runs (from different testing frameworks or parallel executions) that belong together can be organized into the same build. Different test series are additionally organized by team. Series name and build number/id are separated by `#`.
