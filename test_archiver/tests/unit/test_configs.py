@@ -46,6 +46,32 @@ FAKE_CHANGES_FILE_DATA_2 = {
 
 class TestConfig(unittest.TestCase):
 
+    def test_resolve_option(self):
+        # pylint: disable=protected-access
+        config = configs.Config()
+        config._cli_args = argparse.Namespace()
+        self.assertEqual(config.resolve_option('foo_option'), None)
+
+        config._cli_args = argparse.Namespace()
+        self.assertEqual(config.resolve_option('foo_option', default='bar'), 'bar')
+
+        config._cli_args = argparse.Namespace(foo_option='100')
+        self.assertEqual(config.resolve_option('foo_option', default=10, cast_as=int), 100)
+
+        config._cli_args = argparse.Namespace(foo_option=100)
+        self.assertEqual(config.resolve_option('foo_option', default=10, cast_as=int), 100)
+
+        config._cli_args = argparse.Namespace(foo_option='foo')
+        with self.assertRaises(ValueError):
+            config.resolve_option('foo_option', cast_as=int)
+
+        config._cli_args = argparse.Namespace(foo_option='full')
+        self.assertEqual(config.resolve_option('foo_option', cast_as=configs._log_message_length), 0)
+
+        config._cli_args = argparse.Namespace(foo_option='bar')
+        with self.assertRaises(ValueError):
+            config.resolve_option('foo_option', cast_as=configs._log_message_length)
+
     def test_default_configs_are_resolved(self):
         config = configs.Config()
         config.resolve()
@@ -141,8 +167,37 @@ class TestConfig(unittest.TestCase):
         self.assertFalse(config.log_level_ignored('FAIL'))
         self.assertFalse(config.log_level_ignored('OTHER_FOOBAR'))
 
+    def test_max_log_message_length_is_handled_correctly(self):
+        fake_cli_args = argparse.Namespace()
+        config = configs.Config()
+        config.resolve(cli_args=fake_cli_args)
+        self.assertEqual(config.max_log_message_length, 2000)
 
-class TestexEcutionContext(unittest.TestCase):
+        fake_cli_args = argparse.Namespace(max_log_message_length=None)
+        config.resolve(cli_args=fake_cli_args)
+        self.assertEqual(config.max_log_message_length, 2000)
+
+        fake_cli_args = argparse.Namespace(max_log_message_length=0)
+        config.resolve(cli_args=fake_cli_args)
+        self.assertEqual(config.max_log_message_length, 0)
+
+        fake_cli_args = argparse.Namespace(max_log_message_length='full')
+        config.resolve(cli_args=fake_cli_args)
+        self.assertEqual(config.max_log_message_length, 0)
+
+        fake_cli_args = argparse.Namespace(max_log_message_length='bar')
+        with self.assertRaises(ValueError):
+            config.resolve(cli_args=fake_cli_args)
+
+        fake_cli_args = argparse.Namespace(max_log_message_length=100)
+        config.resolve(cli_args=fake_cli_args)
+        self.assertEqual(config.max_log_message_length, 100)
+
+        fake_cli_args = argparse.Namespace(max_log_message_length=-100)
+        config.resolve(cli_args=fake_cli_args)
+        self.assertEqual(config.max_log_message_length, -100)
+
+class TestExecutionContext(unittest.TestCase):
 
     def test_execution_context(self):
         fake_cli_args = argparse.Namespace(execution_context='PR')

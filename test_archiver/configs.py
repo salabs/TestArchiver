@@ -23,6 +23,13 @@ def parse_key_value_pairs(values):
             raise Exception("Unsupported format for key-value pair: '{}' use NAME:VALUE".format(item))
     return pairs
 
+def _log_message_length(value):
+    try:
+        return int(value)
+    except ValueError as error:
+        if value == 'full':
+            return 0
+        raise error
 
 LOG_LEVEL_MAP = defaultdict(lambda: 100)
 LOG_LEVEL_MAP[None] = 0
@@ -52,6 +59,8 @@ class Config(metaclass=Singleton):
     def __init__(self):
         self._changes = 'changes'
         self._default = 'default'
+        self._cli_args = None
+        self._file_config = None
         self.resolve()
 
     def resolve(self, *, cli_args=None, file_config=None):
@@ -94,8 +103,8 @@ class Config(metaclass=Singleton):
                                                               cast_as=bool)
         self.ignore_logs = self.resolve_option('ignore_logs', default=False, cast_as=bool)
         self.ignore_logs_below = self.resolve_option('ignore_logs_below', default=None)
-        self.max_log_message_length = self.resolve_option('max_log_message_length', cast_as=str,
-                                                          default='2000')
+        self.max_log_message_length = self.resolve_option('max_log_message_length',
+                                                          cast_as=_log_message_length, default=2000)
 
         # Adjust timestamps
         self.time_adjust_secs = self.resolve_option('time_adjust_secs', default=0, cast_as=int)
@@ -194,7 +203,7 @@ def base_argument_parser(description):
                        help='Do not archive any log messages')
     group.add_argument('--max_log_message_length',
                        help="""Specify how many characters of the log message that is archived.
-                               full: archives the complete log.
+                               full or 0: archives the complete log.
                                positive integers: archives number of characters from the beginning.
                                negative integers: archives number of characters from the end.""")
 
