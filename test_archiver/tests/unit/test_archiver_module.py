@@ -244,6 +244,36 @@ class TestLogMessage(unittest.TestCase):
         message.insert('Some log message')
         self.mock_db.insert.assert_not_called()
 
+    def test_max_log_message_length_is_used(self):
+        config = configs.Config()
+        config.resolve(file_config={'max_log_message_length': 10})
+        sut_archiver = archiver.Archiver(self.mock_db, config)
+        sut_archiver.begin_suite('Some suite of tests')
+        message = archiver.LogMessage(sut_archiver, 'WARN', 'some_timestamp')
+        message.insert('Some log message')
+        self.assertEqual(self.mock_db.insert.mock_calls[0].args[1]['message'], "Some log m")
+
+        config.resolve(file_config={'max_log_message_length': -10})
+        sut_archiver = archiver.Archiver(self.mock_db, config)
+        sut_archiver.begin_suite('Some suite of tests')
+        message = archiver.LogMessage(sut_archiver, 'WARN', 'some_timestamp')
+        message.insert('Some log message')
+        self.assertEqual(self.mock_db.insert.mock_calls[1].args[1]['message'], "og message")
+
+        config.resolve(file_config={'max_log_message_length': 'full'})
+        sut_archiver = archiver.Archiver(self.mock_db, config)
+        sut_archiver.begin_suite('Some suite of tests')
+        message = archiver.LogMessage(sut_archiver, 'WARN', 'some_timestamp')
+        message.insert('Some log message')
+        self.assertEqual(self.mock_db.insert.mock_calls[2].args[1]['message'], 'Some log message')
+
+        config.resolve(file_config={'max_log_message_length': 0})
+        sut_archiver = archiver.Archiver(self.mock_db, config)
+        sut_archiver.begin_suite('Some suite of tests')
+        message = archiver.LogMessage(sut_archiver, 'WARN', 'some_timestamp')
+        message.insert('Some log message')
+        self.assertEqual(self.mock_db.insert.mock_calls[3].args[1]['message'], 'Some log message')
+
 
 class TestArchiverClass(unittest.TestCase):
 
