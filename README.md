@@ -235,6 +235,9 @@ of and you want to manually add it during archiving.
 
 
 # Release notes
+- 2.6.1 (2022-10-19)
+  * Fixes a bug/regression that caused data of log messages not to be archived.
+
 - 2.6.0 (2022-09-15)
   * `--max_log_message_length` option to control the length of log messages archived.
     Defaults to 2000 chars. Negative values will archive log messages from the end.
