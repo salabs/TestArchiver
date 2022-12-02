@@ -116,6 +116,10 @@ class Config(metaclass=Singleton):
         self.changes = self.resolve_changes()
         self.execution_id = self.resolve_option('execution_id', default='Not set')
 
+        # Link translator
+        self.link_translation_file = self.resolve_option('link_injection_file')
+
+
     def resolve_option(self, name, default=None, cast_as=str):
         if self._cli_args and name in self._cli_args and self._cli_args.__getattribute__(name) is not None:
             value = self._cli_args.__getattribute__(name)
