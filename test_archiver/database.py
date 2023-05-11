@@ -84,7 +84,7 @@ class BaseDatabase:
                 print('Test archive schema initialized')
                 return
             latest_update_applied = 0
-        if latest_update_applied < self._schema_updates[-1][0]:
+        if latest_update_applied < self.current_schema_version():
             for update_id, is_minor, file in self._schema_updates:
                 if update_id > latest_update_applied:
                     base_dir = Path(os.path.dirname(__file__))
@@ -101,10 +101,10 @@ class BaseDatabase:
                                                       'Run with --allow-major-schema-updates option to '
                                                       'update the schema to match the archiver version.')
 
-        elif latest_update_applied > self._schema_updates[-1][0]:
+        elif latest_update_applied > self.current_schema_version():
             # The schema is newer than the Archiver
             minimum_version = self.fetch_one_value('schema_updates', 'applied_by',
-                                                   {'update_id': latest_update_applied})
+                                                   {'schema_version': latest_update_applied})
             raise ArchiverSchemaException("ERROR: The version of TestArchiver is older than the schema. "
                                           "Please update to version '{}' or higher".format(minimum_version))
 

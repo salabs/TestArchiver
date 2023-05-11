@@ -122,6 +122,13 @@ class TestSqliteDatabase(unittest.TestCase):
         self.assertTrue(inital_update)
         self.assertFalse(self.database._initialize_schema())
 
+    def test_check_and_update_schema_with_newer_schema_already_applied(self):
+        # Insert newer schema version
+        self.database.insert('schema_updates', {"schema_version": self.database.current_schema_version() + 1,
+                                                "applied_by": 'future version'})
+        with self.assertRaises(database.ArchiverSchemaException):
+            self.database.check_and_update_schema()
+
     def test_return_id_or_insert_and_return_id(self):
         data = {'name': 'First suite', 'full_name': 'First suite', 'repository': 'foo repo'}
         returned_id_1 = self.database.return_id_or_insert_and_return_id('suite', data, ['full_name'])
