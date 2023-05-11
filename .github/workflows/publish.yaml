@@ -31,11 +31,11 @@ jobs:
           run: |
             python setup.py sdist bdist_wheel
         - name: Publish to Test PyPI
-          uses: pypa/gh-action-pypi-publish@master
+          uses: pypa/gh-action-pypi-publish@release/v1
           with:
             password: ${{ secrets.test_pypi_api_token }}
             repository_url: https://test.pypi.org/legacy/
         - name: Publish distribution to PyPI
-          uses: pypa/gh-action-pypi-publish@master
+          uses: pypa/gh-action-pypi-publish@release/v1
           with:
             password: ${{ secrets.pypi_api_token }}
