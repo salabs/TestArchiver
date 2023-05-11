@@ -96,10 +96,11 @@ Schema updates:
                         incompatible) schema updates the test archive
 
 Clean history:
-  If any of the following options are used the archiver will delete the
-  oldest result data. What data is kept can be controlled with these
-  --keep-X options that can also be mixed. If deletion targets are not
-  specified with --clean-X options all test run data is cleaned.
+  If any of the following options are used the archiver will delete the oldest
+  result data. What data is kept can be controlled with these --keep-X options
+  that can also be mixed. If deletion targets are not specified with --clean-X
+  options all test run data is cleaned. --keep-X options should be used when
+  using --clean-X options otherwise entire history is cleared.
 
   --keep-builds KEEP_BUILDS
                         Delete old result data but keep the data for at least
@@ -109,18 +110,24 @@ Clean history:
                         more recently than given number of months ago
   --keep-after KEEP_AFTER
                         Delete old result data but keep data that was archived
-                        more recently than given date in ISO 8601 format yyyy-
-                        mm-dd.
+                        more recently than given date in ISO 8601 format
+                        yyyy-mm-dd.
   --clean-team CLEAN_TEAM
-                        Delete results only archived under given team name.
-  --clean-logs          Delete oldest log messages but not test results or
-                        runs.
+                        Delete results only archived under given team name. Use
+                        this with --keep-X options. Otherwise will delete
+                        entire history
+  --clean-logs          Delete oldest log messages but not test results or runs.
+                        Use this with --keep-X options. Otherwise will delete
+                        entire log history
   --clean-logs-below {TRACE,DEBUG,INFO,WARN}
                         Delete oldest log messages that are bellow given log
-                        level but not test results or runs.
+                        level but not test results or runs. Use this with
+                        --keep-X options. Otherwise will delete entire log
+                        history
   --clean-keyword-stats
-                        Delete oldest keyword statistics databut not test
-                        results or runs.
+                        Delete oldest keyword statistics data but not test
+                        results or runs. Use this with --keep-X options.
+                        Otherwise will delete entire log history
 
 Limit archived data:
   --no-keywords         Do not archive keyword data
@@ -207,7 +214,7 @@ TestArchiver can perform the required schema updates if `--allow-minor-schema-up
 Some updates require only minor updates that should be backwards compatible for tools reading the archived data.
 Other updates are major and change the schema in backwards incompatible way.
 
-Schema initialisation and schema updates can be run without parsing results using `testarchive_schematool` or the module directly `python3 -m test_archiver.database`.
+Schema initialisation, schema updates and history cleaning can be run without parsing results using `testarchive_schematool` or the module directly `python3 -m test_archiver.database`.
 
 ## Useful metadata
 
@@ -275,16 +282,31 @@ of and you want to manually add it during archiving.
 
 ## Cleaning old data
 Since version 3.0.0 there is support for cleaning/deleting oldest archived data. These options allow limiting the growth of the history with various options that control what types of data are cleaned and how long history is kept.
+Different --keep-X and --clean-X options can be mixed to select what data is kept after cleaning.
+In most cases --keep-X options are used when ever --clean-X options are used.
 
+While history cleaning can be run with every results parsing update it is recomended to run cleaning operations separately.
 Cleaning history can be run without parsing results using `testarchive_schematool` or the module directly `python3 -m test_archiver.database`.
 
+Some examples
+- `python3 -m test_archiver.database --keep-months 6`
+  Will delete all results older than 6 months
+- `python3 -m test_archiver.database --keep-months 6 --clean-logs --clean-keyword-stats`
+  Only deletes logs and keywords statistics older than 6 months. Test results are not effected
+- `python3 -m test_archiver.database --keep-builds 10 --keep-months 6`
+  Will delete all results older than 6 months but still keeping at least 10 last builds of each series
+- `python3 -m test_archiver.database --lean-team Team-A`
+  Will delete all results archived under Team-A
+- `python3 -m test_archiver.database --clean-logs`
+  Will delete all log log messages
 
 # Release notes
 - 3.0.0 (2023-05-11)
   * Adds support for cleaning oldest test result data to delete in order to control the growth of test archives
-  * Major schema update #2:
+  * Major schema update #3:
     - `call_index` column of `tree_hierarchy` table is converted from text to interger
     - Adds `ON DELETE CASCADE` rule for `test_series_mapping` table to facilitate deletion of build records when their test result data is deleted
+  * Fixes error message in case of incompatible schema where schema is new then archiver
 
 - 2.6.2 (2023-05-11)
   * Fixes error message when newer schema used in archive than for archiver
