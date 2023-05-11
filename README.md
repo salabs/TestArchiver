@@ -237,6 +237,7 @@ of and you want to manually add it during archiving.
 # Release notes
 - 2.6.2 (2023-05-11)
   * Fixes error message when newer schema used in archive than for archiver
+  * Python 3.6 support no longer tested
 
 - 2.6.1 (2022-10-19)
   * Fixes a bug/regression that caused data of log messages not to be archived.
