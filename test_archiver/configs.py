@@ -210,7 +210,10 @@ def base_argument_parser(description):
         description=('If any of the following options are used the archiver will delete the oldest '
                      'result data. What data is kept can be controlled with these --keep-X options '
                      'that can also be mixed. If deletion targets are not specified with --clean-X '
-                     'options all test run data is cleaned.'))
+                     'options all test run data is cleaned. --keep-X options should be used when '
+                     'using --clean-X options otherwise entire history is cleared. '
+                     'It is recomended to run the cleaning operations separately from result '
+                     "archiving with python3 -m test_archiver.database"))
     group.add_argument('--keep-builds', default=None,
                        help=('Delete old result data but keep the data for at least given '
                              'number of builds in each series.'))
@@ -221,15 +224,18 @@ def base_argument_parser(description):
                        help=('Delete old result data but keep data that was archived more recently than '
                              'given date in ISO 8601 format yyyy-mm-dd.'))
     group.add_argument('--clean-team', default=None,
-                       help=('Delete results only archived under given team name.'))
+                       help=('Delete results only archived under given team name. '
+                             'Use this with --keep-X options. Otherwise will delete entire history'))
     group.add_argument('--clean-logs', action='store_true', default=None,
-                       help=('Delete oldest log messages but not test results or runs.'))
+                       help=('Delete oldest log messages but not test results or runs. '
+                             'Use this with --keep-X options. Otherwise will delete entire log history'))
     group.add_argument('--clean-logs-below', default=None, choices=LOG_LEVEL_CUT_OFF_OPTIONS,
                        help=('Delete oldest log messages that are bellow given log level '
-                             'but not test results or runs.'))
+                             'but not test results or runs. '
+                             'Use this with --keep-X options. Otherwise will delete entire log history'))
     group.add_argument('--clean-keyword-stats', action='store_true', default=None,
-                       help=('Delete oldest keyword statistics data'
-                             'but not test results or runs.'))
+                       help=('Delete oldest keyword statistics data but not test results or runs. '
+                             'Use this with --keep-X options. Otherwise will delete entire log history'))
 
 
     group = parser.add_argument_group('Limit archived data')
