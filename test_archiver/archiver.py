@@ -517,6 +517,9 @@ class Archiver:
         if self.config.change_engine_url:
             self.listeners.append(
                 archiver_listeners.ChangeEngineListener(self, self.config.change_engine_url))
+        if self.config.link_injection_file:
+            self.listeners.append(
+                archiver_listeners.ExternalLinkInjector(self, self.config.link_translation_file))
 
     def current_item(self, expected_type=None):
         item = self.stack[-1] if self.stack else None
@@ -667,11 +670,13 @@ class Archiver:
         return keyword
 
     def end_keyword(self, attributes=None):
+        keyword = self.current_item(Keyword)
         if attributes:
-            self.current_item(Keyword).update_status(attributes['status'], attributes['starttime'],
-                                                     attributes['endtime'])
-        self.current_item(Keyword).finish()
+            keyword.update_status(attributes['status'], attributes['starttime'], attributes['endtime'])
+        keyword.finish()
         self.stack.pop()
+        for listener in self.listeners:
+            listener.keyword_result(keyword)
 
     def keyword(self, name, library, kw_type, status, arguments=None):
         keyword = self.begin_keyword(name, library, kw_type, arguments)
@@ -703,12 +708,15 @@ class Archiver:
         self.stack.append(LogMessage(self, level, timestamp))
 
     def end_log_message(self, content):
-        self.current_item(LogMessage).insert(content)
+        log_message = self.current_item(LogMessage)
+        log_message.insert(content)
         self.stack.pop()
+        for listener in self.listeners:
+            listener.log_message(log_message, content)
 
     def report_keyword_statistics(self):
-        for fingerprint in self.keyword_statistics:
-            self.db.insert('keyword_statistics', self.keyword_statistics[fingerprint])
+        for statistic in self.keyword_statistics.values():
+            self.db.insert('keyword_statistics', statistic)
 
 
 def timestamp_to_datetime(timestamp):

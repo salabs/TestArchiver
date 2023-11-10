@@ -848,6 +848,10 @@ Json file which contains information from the changed files for each repo. The f
     group.add_argument('--execution-id', default='default',
                        help='Identifier or version of the tested application for given execution-context. '
                             'Stored in ChangeEngine and returned by "last_update" query.')
+
+    group = parser.add_argument_group('Other builtin Listeners')
+    group.add_argument('--link-injection-file', default=None,
+                       help="File with reference and links to be inserted separated by space.")
     return parser
 
 

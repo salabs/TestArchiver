@@ -14,6 +14,12 @@ class DefaultListener:
     def test_result(self, test):
         self.tests.append(test)
 
+    def keyword_result(self, keyword):
+        pass
+
+    def log_message(self, log_message, content):
+        pass
+
     def end_run(self):
         pass
 
@@ -66,3 +72,20 @@ class ChangeEngineListener(DefaultListener):
             "context": self.archiver.execution_context,
             "execution_id": self.archiver.execution_id,
         }
+
+
+class ExternalLinkInjector(DefaultListener):
+    def __init__(self, archiver, translation_file_path):
+        super().__init__(archiver)
+        self.translation_file_path = translation_file_path
+        self.mapping = {}
+        with open(translation_file_path, 'r', encoding='utf-8') as file:
+            for line in file.readlines():
+                reference, link = line.split()
+                self.mapping[reference] = link
+
+    def log_message(self, log_message, content):
+        for reference, link in self.mapping.items():
+            if reference in content:
+                self.archiver.log_message('LINK', link)
+                return
