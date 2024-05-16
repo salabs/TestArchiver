@@ -1,5 +1,5 @@
 import pytest
-from mock import Mock
+from unittest.mock import Mock
 
 from test_archiver.archiver_listeners import ChangeEngineListener
 from test_archiver.tests.unit.test_configs import FAKE_CHANGES_FILE_DATA_2

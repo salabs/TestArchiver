@@ -1,5 +1,5 @@
 import pytest
-from mock import Mock
+from unittest.mock import Mock
 
 from test_archiver import configs, archiver
 from test_archiver.output_parser import (

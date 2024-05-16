@@ -4,7 +4,7 @@
 import os
 import shutil
 import unittest
-from mock import Mock
+from unittest.mock import Mock
 
 from test_archiver import database, configs
 

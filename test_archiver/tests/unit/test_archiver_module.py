@@ -1,7 +1,7 @@
 # pylint: disable=W0212
 
 import unittest
-from mock import Mock
+from unittest.mock import Mock
 
 from test_archiver import configs, archiver
 

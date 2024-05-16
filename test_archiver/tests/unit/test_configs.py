@@ -1,7 +1,7 @@
 
 import argparse
 import unittest
-import mock
+from unittest import mock
 
 from test_archiver import configs
 
