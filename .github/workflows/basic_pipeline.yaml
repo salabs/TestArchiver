@@ -32,21 +32,21 @@ jobs:
     - name: Run unittests
       run: |
         PYTHONPATH=. pytest test_archiver/tests/ --junit-xml=output.xml
-    - name: Archive unittest results
-      if: ${{ always() && (env.archive-name != 0) }}
-      run: >-
-        testarchiver
-        output.xml
-        --database ${{ secrets.DEMO_ARCHIVE_NAME }}
-        --host ${{ secrets.ARCHIVE_HOST }}
-        --user ${{ secrets.ARCHIVE_USER }}
-        --pw ${{ secrets.ARCHIVE_PW }}
-        --dbengine postgres
-        --format pytest-junit
-        --repository TestArchiver
-        --team TestArchiver
-        --series archiver_unittests
-        --series ${GITHUB_REF##*/}
+    # - name: Archive unittest results
+    #   if: ${{ always() && (env.archive-name != 0) }}
+    #   run: >-
+    #     testarchiver
+    #     output.xml
+    #     --database ${{ secrets.DEMO_ARCHIVE_NAME }}
+    #     --host ${{ secrets.ARCHIVE_HOST }}
+    #     --user ${{ secrets.ARCHIVE_USER }}
+    #     --pw ${{ secrets.ARCHIVE_PW }}
+    #     --dbengine postgres
+    #     --format pytest-junit
+    #     --repository TestArchiver
+    #     --team TestArchiver
+    #     --series archiver_unittests
+    #     --series ${GITHUB_REF##*/}
 
     # Test packaging
     - name: Test building package
