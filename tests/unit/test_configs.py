@@ -1,9 +1,13 @@
 
 import argparse
 import unittest
+from datetime import date
 from unittest import mock
 
 from test_archiver import configs
+
+
+# pylint: disable=protected-access
 
 
 class TestHelperFunctions(unittest.TestCase):
@@ -264,6 +268,14 @@ class TestExecutionContext(unittest.TestCase):
         config = configs.Config()
         config.resolve(cli_args=fake_cli_args)
         assert config.execution_id == 'Not set', 'Execution-id should be correct'
+
+
+class TestHelperFunctions(unittest.TestCase):
+
+    def test_parse_date(self):
+        self.assertEqual(configs._parse_date("2024-01-01"), date(2024,1,1))
+        with self.assertRaises(ValueError):
+            configs._parse_date("foo")
 
 
 if __name__ == '__main__':

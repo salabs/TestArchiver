@@ -33,7 +33,7 @@ def _log_message_length(value):
         raise error
 
 def _parse_date(date_string):
-    return datetime.datetime.strptime(date_string, '%Y-%m-%d').date()
+    return datetime.strptime(date_string, '%Y-%m-%d').date()
 
 
 LOG_LEVEL_MAP = defaultdict(lambda: 100)
