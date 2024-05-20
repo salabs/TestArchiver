@@ -1,0 +1,4 @@
+{
+    "db_engine": "sqlite",
+    "database": "fixture.db"
+}

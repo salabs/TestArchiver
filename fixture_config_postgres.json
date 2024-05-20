@@ -1,0 +1,9 @@
+{
+    "db_engine": "postgresql",
+    "database": "fixture_archive",
+    "host": "localhost",
+    "port": 5432,
+    "user": "robot",
+    "password": "robot",
+    "require_ssl": false
+}

@@ -9,9 +9,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
-    env:
-      archive-name: ${{ secrets.DEMO_ARCHIVE_NAME }}
+        python-version: ['3.8', '3.9', '3.10']
 
     steps:
       # Static analysis and unittests
@@ -20,83 +18,26 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install pylint==2.4.4 pytest testarchiver
-        pip install setuptools wheel
-        pip install robotframework~=4.0
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+    - name: Install PDM
+      run: pip install --upgrade pdm
+    - name: Install project
+      run: pdm install
     - name: Lint with pylint
-      run: |
-        pylint test_archiver/
+      run: pdm lint
     - name: Run unittests
-      run: |
-        PYTHONPATH=. pytest test_archiver/tests/ --junit-xml=output.xml
-    # - name: Archive unittest results
-    #   if: ${{ always() && (env.archive-name != 0) }}
-    #   run: >-
-    #     testarchiver
-    #     output.xml
-    #     --database ${{ secrets.DEMO_ARCHIVE_NAME }}
-    #     --host ${{ secrets.ARCHIVE_HOST }}
-    #     --user ${{ secrets.ARCHIVE_USER }}
-    #     --pw ${{ secrets.ARCHIVE_PW }}
-    #     --dbengine postgres
-    #     --format pytest-junit
-    #     --repository TestArchiver
-    #     --team TestArchiver
-    #     --series archiver_unittests
-    #     --series ${GITHUB_REF##*/}
+      run: pdm utest
 
-    # Test packaging
-    - name: Test building package
+    - name: Test scripts
       run: |
-        python setup.py sdist bdist_wheel
-    - name: Test installing package locally
-      run: |
-        python -m pip install dist/testarchiver-*.tar.gz
-        testarchiver --version
-        testarchive_schematool --version
+        pdm run testarchiver --version
+        pdm run testarchive_schematool --version
+
+    - name: Build distribution
+      run: pdm build
 
     # Test parsing different test fixtures
-    - name: Run robot fixture with listener
-      run: >-
-        robot
-        --listener test_archiver.ArchiverRobotListener:fixture.db
-        --pythonpath robot_tests/libraries:robot_tests/resources:.
-        --outputdir robot_tests/run1
-        --metadata team:"TestArchiver"
-        --metadata series:"Robot listener"
-        --metadata series2:Fixture#1
-        --exclude sleep
-        --nostatusrc
-        robot_tests/tests
-    - name: Run robot fixture second time
-      run: >-
-        robot
-        --pythonpath robot_tests/libraries:robot_tests/resources:.
-        --outputdir robot_tests/run2
-        --nostatusrc
-        robot_tests/tests
-    - name: Parse the output from second robot fixture run
-      run: >-
-        testarchiver
-        robot_tests/run2/output.xml
-        --database fixture.db
-        --repository TestArchiver
-        --team TestArchiver
-        --series Parser
-        --series Fixture#2
-    - name: Run fixture python unittests
-      run: |
-        pytest pytest/fixture_tests/ --junit-xml=pytest_output.xml || true
-    - name: Parse the output from python unittests fixture run
-      run: >-
-        testarchiver
-        pytest_output.xml
-        --format pytest-junit
-        --database fixture.db
-        --repository pytest
-        --team TestArchiver
-        --series Pytest
+    - name: Run and parse robot fixtures
+      run: pdm robot_fixture_populate
+
+    - name: Run and parse pytest fixtures
+      run: pdm pytest_fixture_populate

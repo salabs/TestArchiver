@@ -1,0 +1,145 @@
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[project]
+name = "testarchiver"
+dynamic = ["version"]
+description = "Tools for serialising test results to SQL database"
+authors = [
+    {name = "Tommi Oinonen", email = "tommi.oinonen@siili.com"},
+]
+dependencies = [
+    "psycopg2-binary>=2.8.5",
+]
+requires-python = ">=3.8"
+readme = "README.md"
+license = {file = "LICENSE"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "Topic :: Software Development :: Testing",
+]
+
+[project.urls]
+Homepage = "https://github.com/salabs/TestArchiver"
+Repository = "https://github.com/salabs/TestArchiver"
+Issues = "https://github.com/salabs/TestArchiver/issues"
+
+[project.scripts]
+testarchiver = "test_archiver.output_parser:main"
+testarchive_schematool = "test_archiver.database:main"
+
+
+[tool.pdm]
+distribution = true
+
+[tool.pdm.version]
+source = "scm"
+
+[tool.pdm.dev-dependencies]
+dev = [
+    "pytest>=8.2.0",
+    "pylint==2.4.4",
+]
+robot4 = [
+    "robotframework~=4.0",
+]
+
+
+[tool.pdm.scripts]
+utest = "pytest tests/unit/ --junit-xml=unittest_output.xml"
+lint = "pylint src/"
+
+check_code.composite = [
+    "lint",
+    "utest",
+]
+
+# These are helpers to populate fixture archive for testing/demo purposes #
+###########################################################################
+
+# Robot fixture helpers
+check_fixture_config.help = "Check fixture config json works"
+check_fixture_config.cmd = "testarchive_schematool --config {args:fixture_config_sqlite.json}"
+
+robot_fixture_run_with_listener.help = "Populate robot fixture archive using RobotListener"
+robot_fixture_run_with_listener.cmd = [
+    "robot",
+    "--listener", "test_archiver.ArchiverRobotListener:{args:fixture_config_sqlite.json}",
+    "--pythonpath", "robot_tests/libraries:robot_tests/resources:src/",
+    "--outputdir", "robot_tests/listener",
+    "--metadata", "team:TestArchiver",
+    "--metadata", "series:RobotListener",
+    "--metadata", "series2:Fixture",
+    "--exclude", "sleep",
+    "--nostatusrc",
+    "robot_tests/tests",
+]
+
+robot_fixture_run.help = "Run robot fixture suite"
+robot_fixture_run.cmd = [
+    "robot",
+    "--pythonpath", "robot_tests/libraries:robot_tests/resources",
+    "--outputdir", "robot_tests/normal",
+    "--exclude", "sleep",
+    "--nostatusrc",
+    "robot_tests/tests",
+]
+
+robot_fixture_parse.help = "Populate robot fixture archive by parsing last fixture suite output"
+robot_fixture_parse.cmd = [
+    "testarchiver",
+    "robot_tests/normal/output.xml",
+    "--config {args:fixture_config_sqlite.json}",
+    "--repository", "TestArchiver",
+    "--team", "TestArchiver",
+    "--series", "Parser",
+    "--series", "Fixture",
+]
+
+robot_fixture_populate.help = "Populate full robot fixture archive with 10 builds"
+robot_fixture_populate.composite = [
+    "check_fixture_config {args:fixture_config_sqlite.json}",
+    "robot_fixture_run_with_listener {args:fixture_config_sqlite.json}", # Test run 1
+    "robot_fixture_run", # Test run 2
+    "robot_fixture_parse {args:fixture_config_sqlite.json}",
+    "robot_fixture_run", # Test run 3
+    "robot_fixture_parse {args:fixture_config_sqlite.json}",
+    "robot_fixture_run", # Test run 4
+    "robot_fixture_parse {args:fixture_config_sqlite.json}",
+    "robot_fixture_run", # Test run 5
+    "robot_fixture_parse {args:fixture_config_sqlite.json}",
+    "robot_fixture_run", # Test run 6
+    "robot_fixture_parse {args:fixture_config_sqlite.json}",
+    "robot_fixture_run", # Test run 7
+    "robot_fixture_parse {args:fixture_config_sqlite.json}",
+    "robot_fixture_run", # Test run 8
+    "robot_fixture_parse {args:fixture_config_sqlite.json}",
+    "robot_fixture_run", # Test run 9
+    "robot_fixture_parse {args:fixture_config_sqlite.json}",
+    "robot_fixture_run", # Test run 10
+    "robot_fixture_parse {args:fixture_config_sqlite.json}",
+]
+
+# Pytest fixture helpers
+pytest_fixture_run.help = "Run pytest fixture"
+pytest_fixture_run.cmd = "python pytest/fixture_runner.py"
+
+pytest_fixture_parse.help = "Parse pytest fixture output"
+pytest_fixture_parse.cmd = [
+    "testarchiver",
+    "pytest/pytest_fixture_output.xml",
+    "--format", "pytest-junit",
+    "--config {args:fixture_config_sqlite.json}",
+    "--repository", "pytest",
+    "--team", "TestArchiver",
+    "--series", "pytest",
+]
+
+pytest_fixture_populate.help = "Populate pytest fixture archive"
+pytest_fixture_populate.composite = [
+    "pytest_fixture_run",
+    "pytest_fixture_parse {args:fixture_config_sqlite.json}",
+]
