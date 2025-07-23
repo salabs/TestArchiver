@@ -43,8 +43,8 @@ dev = [
     "pytest>=8.2.0",
     "pylint==2.4.4",
 ]
-robot4 = [
-    "robotframework~=4.0",
+robot = [
+    "robotframework==6.*",
 ]
 
 
