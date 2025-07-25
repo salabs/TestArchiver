@@ -105,7 +105,7 @@ class RobotFrameworkOutputParser(XmlOutputParser):
         elif name in ('arguments', 'tags', 'metadata', 'if', 'return'):
             pass
         else:
-            print("WARNING: begin unknown item '{}'".format(name))
+            print(f"WARNING: begin unknown item '{name}'")
 
     def endElement(self, name):
         if name in RobotFrameworkOutputParser.EXCLUDED_SECTIONS:
@@ -153,13 +153,13 @@ class RobotFrameworkOutputParser(XmlOutputParser):
         elif name in ('arguments', 'tags', 'metadata', 'if', 'return'):
             pass
         else:
-            print("WARNING: ending unknown item '{}'".format(name))
+            print(f"WARNING: ending unknown item '{name}'")
         self._current_content = []
 
 
 class XUnitOutputParser(XmlOutputParser):
     def __init__(self, archiver_instance):
-        super(XUnitOutputParser, self).__init__(archiver_instance)
+        super().__init__(archiver_instance)
         self.archiver.test_type = "xunit"
 
     def startElement(self, name, attrs):
@@ -202,7 +202,7 @@ class XUnitOutputParser(XmlOutputParser):
         elif name == 'property':
             self.archiver.metadata(attrs.getValue('name'), attrs.getValue('value'))
         else:
-            print("WARNING: begin unknown item '{}'".format(name))
+            print(f"WARNING: begin unknown item '{name}'")
 
     def endElement(self, name):
         if name in []:
@@ -226,13 +226,13 @@ class XUnitOutputParser(XmlOutputParser):
         elif name == 'skipped':
             pass
         else:
-            print("WARNING: ending unknown item '{}'".format(name))
+            print(f"WARNING: ending unknown item '{name}'")
         self._current_content = []
 
 
 class JUnitOutputParser(XmlOutputParser):
     def __init__(self, archiver_instance):
-        super(JUnitOutputParser, self).__init__(archiver_instance)
+        super().__init__(archiver_instance)
         self.archiver.test_type = "junit"
 
     def _report_test_run(self):
@@ -287,7 +287,7 @@ class JUnitOutputParser(XmlOutputParser):
         elif name == 'property':
             self.archiver.metadata(attrs.getValue('name'), attrs.getValue('value'))
         else:
-            print("WARNING: begin unknown item '{}'".format(name))
+            print(f"WARNING: begin unknown item '{name}'")
 
     def endElement(self, name):
         if name in []:
@@ -313,13 +313,13 @@ class JUnitOutputParser(XmlOutputParser):
         elif name == 'skipped':
             pass
         else:
-            print("WARNING: ending unknown item '{}'".format(name))
+            print(f"WARNING: ending unknown item '{name}'")
         self._current_content = []
 
 
 class MochaJUnitOutputParser(XmlOutputParser):
     def __init__(self, archiver_instance):
-        super(MochaJUnitOutputParser, self).__init__(archiver_instance)
+        super().__init__(archiver_instance)
         self.in_setup_or_teardown = False
         self.archiver.test_type = "mocha-junit"
 
@@ -403,7 +403,7 @@ class MochaJUnitOutputParser(XmlOutputParser):
         elif name == 'property':
             self.archiver.metadata(attrs.getValue('name'), attrs.getValue('value'))
         else:
-            print("WARNING: begin unknown item '{}'".format(name))
+            print(f"WARNING: begin unknown item '{name}'")
 
     def endElement(self, name):
         if name == 'testsuites':
@@ -433,13 +433,13 @@ class MochaJUnitOutputParser(XmlOutputParser):
         elif name == 'skipped':
             pass
         else:
-            print("WARNING: ending unknown item '{}'".format(name))
+            print(f"WARNING: ending unknown item '{name}'")
         self._current_content = []
 
 
 class PytestJUnitOutputParser(XmlOutputParser):
     def __init__(self, archiver_instance):
-        super(PytestJUnitOutputParser, self).__init__(archiver_instance)
+        super().__init__(archiver_instance)
         self.in_setup_or_teardown = False
         self._current_class_name = None
         self._current_test_name = None
@@ -545,7 +545,7 @@ class PytestJUnitOutputParser(XmlOutputParser):
         elif name == 'property':
             self.archiver.metadata(attrs.getValue('name'), attrs.getValue('value'))
         else:
-            print("WARNING: begin unknown item '{}'".format(name))
+            print(f"WARNING: begin unknown item '{name}'")
 
     def endElement(self, name):
         if name in []:
@@ -579,14 +579,14 @@ class PytestJUnitOutputParser(XmlOutputParser):
         elif name == 'skipped':
             self.archiver.log_message('INFO', self.content())
         else:
-            print("WARNING: ending unknown item '{}'".format(name))
+            print(f"WARNING: ending unknown item '{name}'")
         self._current_content = []
 
 
 class PhpJUnitOutputParser(XmlOutputParser):
 
     def __init__(self, archiver_instance):
-        super(PhpJUnitOutputParser, self).__init__(archiver_instance)
+        super().__init__(archiver_instance)
         self.archiver.test_type = "php-junit"
 
     def _report_test_run(self):
@@ -653,7 +653,7 @@ class PhpJUnitOutputParser(XmlOutputParser):
         elif name == 'property':
             self.archiver.metadata(attrs.getValue('name'), attrs.getValue('value'))
         else:
-            print("WARNING: begin unknown item '{}'".format(name))
+            print(f"WARNING: begin unknown item '{name}'")
 
     def endElement(self, name):
         if name in []:
@@ -682,14 +682,14 @@ class PhpJUnitOutputParser(XmlOutputParser):
         elif name == 'skipped':
             pass
         else:
-            print("WARNING: ending unknown item '{}'".format(name))
+            print(f"WARNING: ending unknown item '{name}'")
         self._current_content = []
 
 
 class MSTestOutputParser(XmlOutputParser):
     # Currently only inital support for unittests
     def __init__(self, archiver_instance):
-        super(MSTestOutputParser, self).__init__(archiver_instance)
+        super().__init__(archiver_instance)
         self.archiver.test_type = "mstest"
 
     EXCLUDED_SECTIONS = ('TestSettings', 'ResultSummary', 'TestDefinitions', 'TestLists', 'TestEntries')
@@ -736,7 +736,7 @@ class MSTestOutputParser(XmlOutputParser):
         elif name in ('Results', 'Output', 'ErrorInfo'):
             pass
         else:
-            print("WARNING: begin unknown item '{}'".format(name))
+            print(f"WARNING: begin unknown item '{name}'")
 
     def endElement(self, name):
         if name in MSTestOutputParser.EXCLUDED_SECTIONS:
@@ -761,7 +761,7 @@ class MSTestOutputParser(XmlOutputParser):
         elif name in ('Results', 'Output', 'ErrorInfo'):
             pass
         else:
-            print("WARNING: ending unknown item '{}'".format(name))
+            print(f"WARNING: ending unknown item '{name}'")
         self._current_content = []
 
 
@@ -786,7 +786,7 @@ def parse_xml(xml_file, output_format, connection, config, build_number_cache):
     if output_format in SUPPORTED_OUTPUT_FORMATS:
         handler = SUPPORTED_OUTPUT_FORMATS[output_format](test_archiver)
     else:
-        raise Exception("Unsupported report format '{}'".format(output_format))
+        raise ValueError(f"Unsupported report format '{output_format}'")
     parser = xml.sax.make_parser()
     parser.setContentHandler(handler)
     with open(xml_file, encoding="UTF-8") as file:
@@ -795,8 +795,8 @@ def parse_xml(xml_file, output_format, connection, config, build_number_cache):
             parser.feed(buffer)
             buffer = file.read(buffer_size)
     if len(test_archiver.stack) != 1:
-        raise Exception('File parse error. Please check you used proper output format '
-                        '(default: robotframework).')
+        raise RuntimeError('File parse error. Please check you used proper output format '
+                           '(default: robotframework).')
     return test_archiver.end_test_run()
 
 
@@ -857,7 +857,7 @@ def main():
 
     build_number_cache = {}
     for output_file in args.output_files:
-        print("Parsing: '{}'".format(output_file))
+        print(f"Parsing: '{output_file}'")
         build_number_cache = parse_xml(output_file, args.format, connection, config, build_number_cache)
 
     database.run_history_cleaning(connection, config)

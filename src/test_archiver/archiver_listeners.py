@@ -21,21 +21,21 @@ class DefaultListener:
 class ChangeEngineListener(DefaultListener):
 
     def __init__(self, archiver, change_engine_url):
-        super(ChangeEngineListener, self).__init__(archiver)
+        super().__init__(archiver)
         self.change_engine_url = change_engine_url
 
     def end_run(self):
         self.report_changes(self.tests)
 
     def report_changes(self, tests):
-        url = "{}/result/".format(self.change_engine_url)
+        url = f"{self.change_engine_url}/result/"
         request = Request(url)
         request.add_header('Content-Type', 'application/json;')
         body = json.dumps(self._format_body(tests))
-        response = urlopen(request, body.encode("utf-8"))
-        if response.getcode() != 200:
-            print("ERROR: ChangeEngine update failed. Return code: {}".format(response.getcode()))
-            print(response.read())
+        with urlopen(request, body.encode("utf-8")) as response:
+            if response.getcode() != 200:
+                print(f"ERROR: ChangeEngine update failed. Return code: {response.getcode()}")
+                print(response.read())
 
     def _filter_tests(self, tests):
         return [

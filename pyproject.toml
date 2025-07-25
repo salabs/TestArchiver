@@ -43,6 +43,7 @@ dev = [
     "pytest>=8.3.5",
     "pylint>=3.2.7",
     "setuptools>=75.3.2",
+    "pytest-cov>=6.2.1",
 ]
 robot = [
     "robotframework==6.*",
@@ -50,7 +51,7 @@ robot = [
 
 
 [tool.pdm.scripts]
-utest = "pytest tests/unit/ --junit-xml=unittest_output.xml"
+utest = "pytest --cov-report term --cov=test_archiver tests/unit/ --junit-xml=unittest_output.xml"
 lint = "pylint src/"
 
 check_code.composite = [

@@ -11,6 +11,7 @@ class ArchiverRobotListener:
 
     def __init__(self, config_file_or_database,
                  db_engine=None, user=None, pw=None, host=None, port=5432, adjust_with_system_timezone=False):
+        # pylint: disable=too-many-positional-arguments
         config = configs.Config()
         if not db_engine:
             config.resolve(file_config=config_file_or_database)

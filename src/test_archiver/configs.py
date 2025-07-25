@@ -8,7 +8,7 @@ from . import version
 
 
 def read_config_file(file_name):
-    with open(file_name, 'r') as config_file:
+    with open(file_name, 'r', encoding='utf-8') as config_file:
         return json.load(config_file)
 
 
@@ -20,8 +20,8 @@ def parse_key_value_pairs(values):
         try:
             name, value = item.split(':', 1)
             pairs[name] = value
-        except Exception:
-            raise Exception("Unsupported format for key-value pair: '{}' use NAME:VALUE".format(item))
+        except Exception as ex:
+            raise ValueError(f"Unsupported format for key-value pair: '{item}' use NAME:VALUE") from ex
     return pairs
 
 def _log_message_length(value):
@@ -131,8 +131,8 @@ class Config(metaclass=Singleton):
         self.execution_id = self.resolve_option('execution_id', default='Not set')
 
     def resolve_option(self, name, default=None, cast_as=str):
-        if self._cli_args and name in self._cli_args and self._cli_args.__getattribute__(name) is not None:
-            value = self._cli_args.__getattribute__(name)
+        if self._cli_args and name in self._cli_args and getattr(self._cli_args, name) is not None:
+            value = getattr(self._cli_args, name)
         else:
             value = self._file_config.get(name, default)
         if value is None:
@@ -140,7 +140,7 @@ class Config(metaclass=Singleton):
         try:
             return value if value is None else cast_as(value)
         except ValueError as value_error:
-            print("Error: incompatible value for option '{}'".format(name))
+            print(f"Error: incompatible value for option '{name}'")
             raise value_error
 
     def resolve_execution_context(self):
@@ -163,14 +163,14 @@ class Config(metaclass=Singleton):
 
     def resolve_list_option(self, name):
         values = self._file_config.get(name, [])
-        if self._cli_args and name in self._cli_args and self._cli_args.__getattribute__(name) is not None:
-            values.extend(self._cli_args.__getattribute__(name))
+        if self._cli_args and name in self._cli_args and getattr(self._cli_args, name) is not None:
+            values.extend(getattr(self._cli_args, name))
         return values
 
     def resolve_map_option(self, name):
         values = parse_key_value_pairs(self._file_config.get(name, []))
-        if self._cli_args and name in self._cli_args and self._cli_args.__getattribute__(name) is not None:
-            values.update(parse_key_value_pairs(self._cli_args.__getattribute__(name)))
+        if self._cli_args and name in self._cli_args and getattr(self._cli_args, name) is not None:
+            values.update(parse_key_value_pairs(getattr(self._cli_args, name)))
         return values
 
     def log_level_ignored(self, log_level):
@@ -180,7 +180,7 @@ class Config(metaclass=Singleton):
 def base_argument_parser(description):
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument('--version', '-v', action='version',
-                        version='%(prog)s {}'.format(version.ARCHIVER_VERSION))
+                        version=f'%(prog)s {version.ARCHIVER_VERSION}')
     parser.add_argument('--config', dest='config_file',
                         help=('Path to JSON config file containing database credentials and other '
                               'configurations. Options given on command line will override options '

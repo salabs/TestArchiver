@@ -1,4 +1,4 @@
-# pylint: disable=C0103
+# pylint: disable=invalid-name,too-many-positional-arguments
 
 import sys
 import time
@@ -67,7 +67,7 @@ class TestItem:
 
 class FingerprintedItem(TestItem):
     def __init__(self, archiver, name, class_name=None):
-        super(FingerprintedItem, self).__init__(archiver)
+        super().__init__(archiver)
         self.name = name
         self.parent_item = self._parent_item()
         if class_name:
@@ -245,7 +245,7 @@ class FingerprintedItem(TestItem):
             else:
                 identifier += '1'
             if self.parent_item and self.parent_item.execution_path():
-                self._execution_path = (self.parent_item.execution_path() + '-' + identifier)
+                self._execution_path = self.parent_item.execution_path() + '-' + identifier
             else:
                 self._execution_path = identifier
         return self._execution_path
@@ -253,7 +253,7 @@ class FingerprintedItem(TestItem):
 
 class TestRun(FingerprintedItem):
     def __init__(self, archiver, archived_using, generated, generator, rpa, dryrun):
-        super(TestRun, self).__init__(archiver, '')
+        super().__init__(archiver, '')
         data = {'archived_using': archived_using,
                 'archiver_version': version.ARCHIVER_VERSION,
                 'generated': adjusted_timestamp(generated, self.archiver.time_adjust.secs())
@@ -264,11 +264,11 @@ class TestRun(FingerprintedItem):
                 'schema_version': self.archiver.db.current_schema_version()}
         try:
             self.id = self.archiver.db.insert_and_return_id('test_run', data)
-        except database.IntegrityError:
+        except database.IntegrityError as err:
             raise database.IntegrityError(
                 'ERROR: Unable to insert results. Probably the test archive schema is not '
                 'compatible with the version of TestArchiver you are using. '
-                'Consider updating to 2.0 or later.')
+                'Consider updating to 2.0 or later.') from err
 
     def execution_path(self):
         return ''
@@ -279,7 +279,7 @@ class TestRun(FingerprintedItem):
 
 class Suite(FingerprintedItem):
     def __init__(self, archiver, name, repository):
-        super(Suite, self).__init__(archiver, name)
+        super().__init__(archiver, name)
         data = {'full_name': self.full_name, 'name': name, 'repository': repository}
         self.id = self.archiver.db.return_id_or_insert_and_return_id('suite', data,
                                                                      ['repository', 'full_name'])
@@ -305,9 +305,8 @@ class Suite(FingerprintedItem):
                 self.parent_item.child_suite_ids.append(self.id)
                 self.parent_item.child_suite_ids.extend(self.child_suite_ids)
                 self.parent_item.child_test_ids.extend(self.child_test_ids)
-
         else:
-            print("WARNING: duplicate results for suite '{}' are ignored".format(self.full_name))
+            print(f"WARNING: duplicate results for suite '{self.full_name}' are ignored")
 
     def insert_metadata(self):
         # If the top suite add/override metadata with metadata given to archiver
@@ -320,8 +319,7 @@ class Suite(FingerprintedItem):
             if self.archiver.config.time_adjust_with_system_timezone:
                 self.metadata["time_adjust_secs_total"] = self.archiver.time_adjust.secs()
 
-        for name in self.metadata:
-            content = self.metadata[name]
+        for name, content in self.metadata.items():
             data = {'name': name, 'value': content,
                     'suite_id': self.id, 'test_run_id': self.test_run_id()}
             self.archiver.db.insert('suite_metadata', data)
@@ -343,7 +341,7 @@ class Suite(FingerprintedItem):
 
 class Test(FingerprintedItem):
     def __init__(self, archiver, name, class_name):
-        super(Test, self).__init__(archiver, name, class_name)
+        super().__init__(archiver, name, class_name)
         data = {'full_name': self.full_name, 'name': name, 'suite_id': self.parent_item.id}
         self.id = self.archiver.db.return_id_or_insert_and_return_id('test_case', data,
                                                                      ['suite_id', 'full_name'])
@@ -367,7 +365,7 @@ class Test(FingerprintedItem):
             self.insert_tags()
             self.parent_item.child_test_ids.append(self.id)
         else:
-            print("WARNING: duplicate results for test '{}' are ignored".format(self.full_name))
+            print(f"WARNING: duplicate results for test '{self.full_name}' are ignored")
 
     def insert_tags(self):
         for tag in self.tags:
@@ -386,7 +384,7 @@ class Test(FingerprintedItem):
 
 class Keyword(FingerprintedItem):
     def __init__(self, archiver, name, library, kw_type, arguments):
-        super(Keyword, self).__init__(archiver, name)
+        super().__init__(archiver, name)
         self.library = library
         self.kw_type = kw_type
         self.kw_call_depth = self.parent_item.kw_call_depth + 1
@@ -453,7 +451,7 @@ class Keyword(FingerprintedItem):
 
 class LogMessage(TestItem):
     def __init__(self, archiver, log_level, timestamp):
-        super(LogMessage, self).__init__(archiver)
+        super().__init__(archiver)
         self.parent_item = self._parent_item()
         self.log_level = log_level
         self.timestamp = timestamp
@@ -525,9 +523,9 @@ class Archiver:
                 print("PARSING ERROR - printing current stack:")
                 for item in self.stack:
                     print(item.__class__.__name__)
-                raise Exception("Expected to have '{}' but had '{}' currently in stack".format(
-                    expected_type,
-                    item.__class__.__name__))
+                raise RuntimeError(
+                    f"Expected to have '{expected_type}' but had "
+                    "'{item.__class__.__name__}' currently in stack")
         return item
 
     def current_item_is_keyword(self):
@@ -574,8 +572,8 @@ class Archiver:
             else:
                 series_name, build_number = content, None
             self.test_series[series_name] = build_number
-        for name in self.test_series:
-            self.report_series(name, self.test_series[name])
+        for name, build_id in self.test_series.items():
+            self.report_series(name, build_id)
         if not self.test_series:
             self.report_series('default series', None)
         self.report_series('All builds', None)
@@ -707,8 +705,8 @@ class Archiver:
         self.stack.pop()
 
     def report_keyword_statistics(self):
-        for fingerprint in self.keyword_statistics:
-            self.db.insert('keyword_statistics', self.keyword_statistics[fingerprint])
+        for stats in self.keyword_statistics.values():
+            self.db.insert('keyword_statistics', stats)
 
 
 def timestamp_to_datetime(timestamp):
@@ -718,7 +716,7 @@ def timestamp_to_datetime(timestamp):
             return parsed_datetime
         except ValueError:
             pass
-    raise Exception("timestamp: '{}' is in unsupported format".format(timestamp))
+    raise ValueError(f"timestamp: '{timestamp}' is in unsupported format")
 
 
 def adjusted_timestamp_to_datetime(timestamp, time_adjust_secs=0):

@@ -28,13 +28,13 @@ def get_connection_and_check_schema(config):
         connection = PostgresqlDatabase(config)
     elif config.db_engine in ('sqlite', 'sqlite3'):
         if config.host or config.user:
-            raise Exception("--host or --user options should not be used "
-                            "with default sqlite3 database engine")
+            raise ValueError("--host or --user options should not be used "
+                             "with default sqlite3 database engine")
         connection = SQLiteDatabase(config)
     if connection:
         connection.check_and_update_schema()
         return connection
-    raise Exception("Unsupported database type '{}'".format(config.db_engine))
+    raise ValueError("Unsupported database type '{config.db_engine}'")
 
 
 class IntegrityError(Exception):
@@ -47,8 +47,8 @@ class ArchiverSchemaException(Exception):
 def test_runs_to_keep_query(builds_to_keep, team, placeholder):
     team_filter = ''
     if team:
-        team_filter = ("JOIN test_series ON test_series.id=tsm.series AND team={}").format(placeholder)
-    return """
+        team_filter = f"JOIN test_series ON test_series.id=tsm.series AND team={placeholder}"
+    return f"""
 EXCEPT
 SELECT DISTINCT test_run_id
 FROM test_series_mapping as tsm
@@ -69,7 +69,7 @@ LEFT OUTER JOIN (
 ) AS last_builds ON last_builds.series=tsm.series
                 AND last_builds.build_number=tsm.build_number
 WHERE keep_build
-""".format(team_filter=team_filter, builds_to_keep=builds_to_keep)
+"""
 
 
 class BaseDatabase:
@@ -123,7 +123,7 @@ class BaseDatabase:
                     base_dir = Path(os.path.dirname(__file__))
                     script_file = base_dir / 'schemas/migrations' / self._db_engine_identifier() / file
                     if self.allow_major_schema_updates or (is_minor and self.allow_minor_schema_updates):
-                        print('Running schema update {} from: {}'.format(update_id, script_file))
+                        print(f'Running schema update {update_id} from: {script_file}')
                         self._run_script(script_file)
                     elif is_minor:
                         raise ArchiverSchemaException('ERROR: pending minor schema update is needed.'
@@ -139,7 +139,7 @@ class BaseDatabase:
             minimum_version = self.fetch_one_value('schema_updates', 'applied_by',
                                                    {'schema_version': latest_update_applied})
             raise ArchiverSchemaException("ERROR: The version of TestArchiver is older than the schema. "
-                                          "Please update to version '{}' or higher".format(minimum_version))
+                                          f"Please update to version '{minimum_version}' or higher")
 
     def _latest_update_applied(self):
         try:
@@ -212,22 +212,21 @@ class BaseDatabase:
         filters = []
         runs_to_keep_query = ''
         if team:
-            filters.append('team={}'.format(self._value_placeholder()))
+            filters.append(f'team={self._value_placeholder()}')
         if keep_builds:
             runs_to_keep_query = test_runs_to_keep_query(keep_builds, team, self._value_placeholder())
         if keep_months:
-            filters.append("imported_at<{}".format(self._time_value(months_ago=keep_months)))
+            filters.append(f"imported_at<{self._time_value(months_ago=keep_months)}")
         if keep_after:
-            filters.append("imported_at<{}".format(self._time_value(date_value=keep_after)))
-        return """
+            filters.append(f"imported_at<{self._time_value(date_value=keep_after)}")
+        return f"""
             SELECT test_run.id
             FROM test_run
             JOIN test_series_mapping as tsm ON test_run.id=tsm.test_run_id
             JOIN test_series ON tsm.series=test_series.id
-            {filters}
-            {runs_to_keep}
-        """.format(filters='WHERE '+ ' AND '.join(filters) if filters else '',
-                   runs_to_keep=runs_to_keep_query)
+            {'WHERE '+ ' AND '.join(filters) if filters else ''}
+            {runs_to_keep_query}
+        """
 
     def clean_orphan_test_series(self):
         # Delete records of test series that have no associated test results
@@ -237,38 +236,40 @@ class BaseDatabase:
         print("Deleted orphan series")
 
     def _targeted_cleaning(self, ids_query, values, logs, logs_below, kw_stats):
+        # pylint: disable=too-many-positional-arguments
         if logs:
             print('Cleaning archived log messages from history')
-            self.delete('log_message', values, where_query='WHERE test_run_id IN ({})'.format(ids_query))
+            self.delete('log_message', values, where_query=f'WHERE test_run_id IN ({ids_query})')
             self.commit()
             if self._effected_rows:
-                print("Deleted {} log messages.".format(self._effected_rows))
+                print(f"Deleted {self._effected_rows} log messages.")
             else:
                 print("No log messages to delete with given parameters.")
         elif logs_below:
-            print('Cleaning archived log messages below {} from history'.format(logs_below))
-            lower_log_levels = tuple(["'{}'".format(level) for level in LOG_LEVEL_MAP
-                                      if LOG_LEVEL_MAP[level] < LOG_LEVEL_MAP[logs_below] and level])
-            where_query = 'WHERE log_level IN ({}) AND test_run_id IN ({})'.format(
-                ','.join(lower_log_levels), ids_query)
+            print(f'Cleaning archived log messages below {logs_below} from history')
+            lower_log_levels = ','.join([
+                f"'{level}'" for level in LOG_LEVEL_MAP
+                if LOG_LEVEL_MAP[level] < LOG_LEVEL_MAP[logs_below] and level])
+            where_query = f'WHERE log_level IN ({lower_log_levels}) AND test_run_id IN ({ids_query})'
             self.delete('log_message', values, where_query=where_query)
             self.commit()
             if self._effected_rows:
-                print("Deleted {} log messages.".format(self._effected_rows))
+                print(f"Deleted {self._effected_rows} log messages.")
             else:
                 print("No log messages to delete with given parameters.")
 
         if kw_stats:
             print('Cleaning archived keyword statistics from history')
             self.delete('keyword_statistics', values,
-                        where_query='WHERE test_run_id IN ({})'.format(ids_query))
+                        where_query=f'WHERE test_run_id IN ({ids_query})')
             self.commit()
             if self._effected_rows:
-                print("Deleted {} rows from keyword statistics.".format(self._effected_rows))
+                print(f"Deleted {self._effected_rows} rows from keyword statistics.")
             else:
                 print("No keyword statistics to delete with given parameters.")
 
     def delete_history(self, team, keep_builds, keep_months, keep_after, logs, logs_below, kw_stats):
+        # pylint: disable=too-many-positional-arguments
         if not any((team, keep_builds, keep_months, keep_after, logs, logs_below, kw_stats)):
             # If no cleaning options are selected skip cleaning history
             return
@@ -290,10 +291,10 @@ class BaseDatabase:
             self._targeted_cleaning(ids_query, values, logs, logs_below, kw_stats)
         else:
             print('Cleaning test runs from history')
-            self.delete('test_run', values, where_query='WHERE id IN ({})'.format(ids_query))
+            self.delete('test_run', values, where_query=f'WHERE id IN ({ids_query})')
             self.commit()
             if self._effected_rows:
-                print("Deleted the results for {} test runs.".format(self._effected_rows))
+                print(f"Deleted the results for {self._effected_rows} test runs.")
             else:
                 print("No results to delete with given parameters.")
             self.clean_orphan_test_series()
@@ -307,8 +308,9 @@ class PostgresqlDatabase(BaseDatabase):
 
     def _connect(self):
         if not psycopg2:
-            raise Exception("ERROR: Trying to use Postgresql database but psycopg2 is not installed! "
-                            "Try for example: 'pip install psycopg2-binary'")
+            raise RuntimeError(
+                "ERROR: Trying to use Postgresql database but psycopg2 is not installed! "
+                "Try for example: 'pip install psycopg2-binary'")
 
         self._connection = psycopg2.connect(
             host=self.host,
@@ -330,7 +332,7 @@ class PostgresqlDatabase(BaseDatabase):
         return False
 
     def _run_script(self, script_file):
-        with open(script_file) as file:
+        with open(script_file, 'r', encoding='utf-8') as file:
             self._execute(file.read().format(applied_by=version.ARCHIVER_VERSION))
             self.commit()
 
@@ -344,7 +346,7 @@ class PostgresqlDatabase(BaseDatabase):
         sql = "SELECT id FROM {table} WHERE {key_placeholders}"
         sql = sql.format(
             table=table,
-            key_placeholders=' AND '.join(['{}=%s'.format(key) for key in key_fields])
+            key_placeholders=' AND '.join([f'{key}=%s' for key in key_fields])
             )
         row = self._execute_and_fetchone(sql, [data[key] for key in key_fields])
         if row:
@@ -357,7 +359,7 @@ class PostgresqlDatabase(BaseDatabase):
             sql = ("INSERT INTO {table}({fields}) VALUES ({value_placeholders}) "
                    "{conflict_statement} RETURNING id;")
             keys = list(data)
-            on_conflict = ' ON CONFLICT ({}) DO NOTHING '.format(','.join(key_fields)) if key_fields else ''
+            on_conflict = f" ON CONFLICT ({','.join(key_fields)}) DO NOTHING " if key_fields else ''
             sql = sql.format(
                 table=table,
                 fields=','.join(keys),
@@ -371,7 +373,7 @@ class PostgresqlDatabase(BaseDatabase):
     def insert_and_return_id(self, table, data, key_fields=None):
         sql = "INSERT INTO {table}({fields}) VALUES ({value_placeholders}) {conflict_statement} RETURNING id;"
         keys = list(data)
-        on_conflict = ' ON CONFLICT ({}) DO NOTHING '.format(','.join(key_fields)) if key_fields else ''
+        on_conflict = f" ON CONFLICT ({','.join(key_fields)}) DO NOTHING " if key_fields else ''
         sql = sql.format(
             table=table,
             fields=','.join(keys),
@@ -388,7 +390,7 @@ class PostgresqlDatabase(BaseDatabase):
     def insert_or_ignore(self, table, data, key_fields=None):
         sql = "INSERT INTO {table}({fields}) VALUES ({value_placeholders}) {conflict_statement};"
         keys = list(data)
-        on_conflict = ' ON CONFLICT ({}) DO NOTHING '.format(','.join(key_fields)) if key_fields else ''
+        on_conflict = f" ON CONFLICT ({','.join(key_fields)}) DO NOTHING " if key_fields else ''
         sql = sql.format(
             table=table,
             fields=','.join(keys),
@@ -400,8 +402,8 @@ class PostgresqlDatabase(BaseDatabase):
     def update(self, table, data, key_data):
         sql = "UPDATE {table} SET {updates} WHERE {key_fields};"
         keys = list(data)
-        updates = ','.join(['{}=%s'.format(field) for field in data])
-        key_fields = ' AND '.join(['{}=%s'.format(field) for field in key_data])
+        updates = ','.join([f'{field}=%s' for field in data])
+        key_fields = ' AND '.join([f'{field}=%s' for field in key_data])
         sql = sql.format(
             table=table,
             updates=updates,
@@ -421,18 +423,17 @@ class PostgresqlDatabase(BaseDatabase):
             )
         try:
             self._execute(sql, [data[key] for key in keys])
-        except (psycopg2.errors.UniqueViolation, psycopg2.errors.NotNullViolation):
-            raise IntegrityError()
-
+        except (psycopg2.errors.UniqueViolation, psycopg2.errors.NotNullViolation) as err:
+            raise IntegrityError() from err
 
     def max_value(self, table, column, where_data=None):
         where_data = where_data or {}
-        where_filters = ' AND '.join(['{}=%s'.format(col) for col in where_data])
+        where_filters = ' AND '.join([f'{col}=%s' for col in where_data])
         sql = "SELECT max({column}) FROM {table} {where};"
         sql = sql.format(
             table=table,
             column=column,
-            where='WHERE {}'.format(where_filters) if where_data else '',
+            where=f'WHERE {where_filters}' if where_data else '',
             )
         (value, ) = self._execute_and_fetchone(sql, [where_data[key] for key in where_data])
         return value
@@ -443,7 +444,7 @@ class PostgresqlDatabase(BaseDatabase):
         sql = sql.format(
             table=table,
             column=column,
-            where='WHERE ' + ' AND '.join(['{}=%s'.format(col) for col in where_data]) if where_data else '',
+            where='WHERE ' + ' AND '.join([f'{col}=%s' for col in where_data]) if where_data else '',
             )
         row = self._execute_and_fetchone(sql, [where_data[key] for key in where_data])
         if row:
@@ -458,9 +459,9 @@ class PostgresqlDatabase(BaseDatabase):
 
     def _time_value(self, date_value=None, months_ago=None):
         if date_value:
-            return "'{}'".format(date_value)
+            return f"'{date_value}'"
         if months_ago:
-            return "now() - '{} months'::interval".format(months_ago)
+            return f"now() - '{months_ago} months'::interval"
         return ''
 
 
@@ -486,7 +487,7 @@ class SQLiteDatabase(BaseDatabase):
         return False
 
     def _run_script(self, script_file):
-        with open(script_file) as file:
+        with open(script_file, 'r', encoding='utf-8') as file:
             self._connection.executescript(file.read().format(applied_by=version.ARCHIVER_VERSION))
             self.commit()
 
@@ -511,7 +512,7 @@ class SQLiteDatabase(BaseDatabase):
             sql = "SELECT id FROM {table} WHERE {key_placeholders}"
             sql = sql.format(
                 table=table,
-                key_placeholders=' AND '.join(['{}=?'.format(key) for key in key_fields])
+                key_placeholders=' AND '.join([f'{key}=?' for key in key_fields])
                 )
             row = self._execute_and_fetchone(sql, [data[key] for key in key_fields])
             if row:
@@ -539,8 +540,8 @@ class SQLiteDatabase(BaseDatabase):
     def update(self, table, data, key_data):
         sql = "UPDATE {table} SET {updates} WHERE {key_fields};"
         keys = list(data)
-        updates = ','.join(['{}=?'.format(field) for field in data])
-        key_fields = ' AND '.join(['{}=?'.format(field) for field in key_data])
+        updates = ','.join([f'{field}=?' for field in data])
+        key_fields = ' AND '.join([f'{field}=?' for field in key_data])
         sql = sql.format(
             table=table,
             updates=updates,
@@ -560,18 +561,18 @@ class SQLiteDatabase(BaseDatabase):
             )
         try:
             self._execute(sql, [data[key] for key in keys])
-        except sqlite3.IntegrityError:
-            raise IntegrityError()
+        except sqlite3.IntegrityError as err:
+            raise IntegrityError() from err
 
 
     def max_value(self, table, column, where_data=None):
         where_data = where_data or {}
-        where_filters = ' AND '.join(['{}=?'.format(col) for col in where_data])
+        where_filters = ' AND '.join([f'{col}=?' for col in where_data])
         sql = "SELECT max({column}) FROM {table} {where};"
         sql = sql.format(
             table=table,
             column=column,
-            where='WHERE {}'.format(where_filters) if where_data else '',
+            where=f'WHERE {where_filters}' if where_data else '',
             )
         (value, ) = self._execute_and_fetchone(sql, [where_data[key] for key in where_data])
         return value
@@ -582,7 +583,7 @@ class SQLiteDatabase(BaseDatabase):
         sql = sql.format(
             table=table,
             column=column,
-            where='WHERE ' + ' AND '.join(['{}=?'.format(col) for col in where_data]) if where_data else '',
+            where='WHERE ' + ' AND '.join([f'{col}=?' for col in where_data]) if where_data else '',
             )
         row = self._execute_and_fetchone(sql, [where_data[key] for key in where_data])
         if row:
@@ -597,9 +598,9 @@ class SQLiteDatabase(BaseDatabase):
 
     def _time_value(self, date_value=None, months_ago=None):
         if date_value:
-            return "date('{}')".format(date_value)
+            return f"date('{date_value}')"
         if months_ago:
-            return "date('now', '-{} month')".format(int(months_ago))
+            return f"date('now', '-{int(months_ago)} month')"
         return ''
 
 
