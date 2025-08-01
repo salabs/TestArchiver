@@ -1,6 +1,6 @@
 *** Settings ***
 Test Template                       random-driven
-Force tags                          data-driven        randomized
+Test Tags                          data-driven        randomized
 
 
 *** Test Cases ***                  Line value         Max value          

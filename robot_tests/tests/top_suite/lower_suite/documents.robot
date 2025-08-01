@@ -1,6 +1,5 @@
 *** Settings ***
-
-Force tags  documenting
+Test Tags  documenting
 
 *** Test cases ***
 Set test documentation

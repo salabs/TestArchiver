@@ -26,6 +26,8 @@ jobs:
       run: pdm lint
     - name: Run unittests
       run: pdm utest
+    - name: Run integration tests (sqlite)
+      run: pdm itest -k RobotFixtureArchivingSqliteTests
 
     - name: Test scripts
       run: |

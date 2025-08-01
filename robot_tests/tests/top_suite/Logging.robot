@@ -1,6 +1,6 @@
 *** Settings ***
-Resource        common_keywords.robot
-Force tags      logging
+Resource     ../../resources/common_keywords.robot
+Test Tags    logging
 
 *** Test cases ***
 Log a trace message

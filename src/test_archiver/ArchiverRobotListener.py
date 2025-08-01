@@ -52,12 +52,21 @@ class ArchiverRobotListener:
 
     def start_keyword(self, name, attrs):
         kw_type = attrs['type']
-        contol_structure = kw_type.lower() in ('if', 'else if', 'else', 'for', 'for iteration')
-        name = attrs['type'] if contol_structure else attrs['kwname']
-        library = attrs['libname']
-        arguments = [attrs['kwname']] if contol_structure else attrs['args']
-        arguments = [] if len(arguments) == 1 and arguments[0] == '' else arguments
-        self.archiver.begin_keyword(name, library, kw_type, arguments)
+        if kw_type in ('KEYWORD', 'SETUP', 'TEARDOWN', 'GROUP'):
+            self.archiver.begin_keyword(
+                attrs['kwname'] or kw_type, attrs['libname'], kw_type, attrs['assign'] + attrs['args'])
+            return
+        # The rest are control structures
+        arguments = [attrs['condition']] if attrs.get('condition', None) else []
+        arguments += attrs['args']
+        variables = attrs.get('variables', None)
+        if isinstance(variables, dict):
+            # Flatten variables dict to list
+            arguments.extend(list(sum(variables.items(), ())))
+        elif isinstance(variables, list):
+            arguments.extend(variables)
+        arguments.extend(attrs.get('values', []))
+        self.archiver.begin_keyword(kw_type, '', kw_type, arguments)
 
     def end_keyword(self, name, attrs):
         self.archiver.end_keyword(attrs)

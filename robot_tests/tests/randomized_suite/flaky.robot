@@ -1,5 +1,9 @@
-*** Test Cases ***
 
+*** Variables ***
+${VAL}=                     true
+
+
+*** Test Cases ***
 Passing test
     Log                     This test shall pass
 
@@ -21,7 +25,3 @@ Always fails
 Always fails with tag
     Set Tags                should-fail
     Fail                    Test will fail      should-fail
-
-
-*** Variables ***
-${VAL}=                     true

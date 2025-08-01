@@ -1,6 +1,6 @@
 *** Settings ***
 Documentation       Suite where everything passes
-Resource            common_keywords.robot
+Resource    ../../../resources/common_keywords.robot
 
 *** Test Cases ***
 First passing testcase

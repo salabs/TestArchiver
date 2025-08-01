@@ -5,7 +5,7 @@
 groups = ["default", "dev", "robot"]
 strategy = ["cross_platform", "inherit_metadata"]
 lock_version = "4.4.1"
-content_hash = "sha256:680fb5f50c594c05be70e70e1077ccd83fdc78f5fe5773754012d71868310378"
+content_hash = "sha256:285134ba44f4b6928b91b40d09fb555c74539b6b845a8ae4428432061643dcfd"
 
 [[package]]
 name = "astroid"
@@ -465,13 +465,13 @@ files = [
 
 [[package]]
 name = "robotframework"
-version = "6.1.1"
-requires_python = ">=3.6"
+version = "7.3.2"
+requires_python = ">=3.8"
 summary = "Generic automation framework for acceptance testing and robotic process automation (RPA)"
-groups = ["robot"]
+groups = ["dev"]
 files = [
-    {file = "robotframework-6.1.1-py3-none-any.whl", hash = "sha256:ee0d512d557e72ed760dd075525f6226baaab309010a48f9c9bf1f416ca434f7"},
-    {file = "robotframework-6.1.1.zip", hash = "sha256:3fa18f2596a4df2418c4b59abf43248327c15ed38ad8665f6a9a9c75c95d7789"},
+    {file = "robotframework-7.3.2-py3-none-any.whl", hash = "sha256:14ef2afa905285cc073df6ce06d0cd3af4a113df6f815532718079e00c98cca4"},
+    {file = "robotframework-7.3.2.tar.gz", hash = "sha256:3bb3e299831ecb1664f3d5082f6ff9f08ba82d61a745bef2227328ef3049e93a"},
 ]
 
 [[package]]

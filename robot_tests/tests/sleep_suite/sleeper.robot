@@ -1,6 +1,6 @@
 *** Settings ***
 Test Template    sleep-driven
-Force tags       data-driven    sleep
+Test Tags       data-driven    sleep
 
 *** Test Cases ***              Sleep time
 First sleep                     1

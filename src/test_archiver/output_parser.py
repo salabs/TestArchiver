@@ -43,18 +43,28 @@ class RobotFrameworkOutputParser(XmlOutputParser):
         super().__init__(archiver_instance)
         self.archiver.test_type = "Robot Framework"
 
+    @staticmethod
+    def _kw_library_from_attributes(attrs) -> str:
+        library = attrs.getValue('library') if 'library' in attrs.getNames() else ''
+        library = attrs.getValue('owner') if 'owner' in attrs.getNames() else library
+        return library
+
+    @staticmethod
+    def _normalize_elapsed(elapsed) -> int:
+        return int(float(elapsed) * 1000)
+
     def startElement(self, name, attrs):
         if name in RobotFrameworkOutputParser.EXCLUDED_SECTIONS:
             self.excluding = True
         elif self.excluding:
             self.skipping_content = True
         elif name == 'robot':
-            self.archiver.begin_test_run('RF parser',
-                                         attrs.get('generated'),
-                                         attrs.get('generator'),
-                                         attrs.get('rpa') if 'rpa' in attrs.getNames() else False,
-                                         None,
-                                        )
+            self.archiver.begin_test_run(
+                'RF parser',
+                attrs.get('generated'),
+                attrs.get('generator'),
+                attrs.get('rpa') if 'rpa' in attrs.getNames() else False,
+                None)
         elif name == 'suite':
             execution_path = attrs.getValue('id') if 'id' in attrs.getNames() else None
             self.archiver.begin_suite(attrs.getValue('name'), execution_path=execution_path)
@@ -62,19 +72,33 @@ class RobotFrameworkOutputParser(XmlOutputParser):
             execution_path = attrs.getValue('id') if 'id' in attrs.getNames() else None
             self.archiver.begin_test(attrs.getValue('name'), execution_path=execution_path)
         elif name == 'kw':
-            name = attrs.getValue('name') if 'name' in attrs.getNames() else ''
+            name = attrs.getValue('name') if 'name' in attrs.getNames() else 'KEYWORD'
             kw_type = attrs.getValue('type') if 'type' in attrs.getNames() else 'Keyword'
-            library = attrs.getValue('library') if 'library' in attrs.getNames() else ''
+            library = self._kw_library_from_attributes(attrs)
             self.archiver.begin_keyword(name, library, kw_type)
+        elif name == 'error':
+            self.archiver.begin_keyword('ERROR', '', 'ERROR')
         elif name == 'for':
             self.archiver.begin_keyword('FOR', '', 'FOR')
-            self.archiver.update_arguments(attrs.getValue('flavor'))
+        elif name == 'while':
+            self.archiver.begin_keyword('WHILE', '', 'WHILE')
+            if 'condition' in attrs.getNames():
+                self.archiver.update_arguments(attrs.getValue('condition'))
         elif name == 'iter':
-            self.archiver.begin_keyword('FOR ITERATION', '', 'FOR ITERATION')
+            self.archiver.begin_keyword('ITERATION', '', 'ITERATION')
+        elif name == 'break':
+            self.archiver.begin_keyword('BREAK', '', 'BREAK')
         elif name == 'branch':
             self.archiver.begin_keyword(attrs.getValue('type'), '', attrs.getValue('type'))
             if 'condition' in attrs.getNames():
                 self.archiver.update_arguments(attrs.getValue('condition'))
+        elif name == 'group':
+            group_name = attrs.getValue('name') if 'name' in attrs.getNames() else 'GROUP'
+            self.archiver.begin_keyword(group_name, '', 'GROUP')
+        elif name == 'break':
+            self.archiver.begin_keyword('BREAK', '', 'BREAK')
+        elif name == 'continue':
+            self.archiver.begin_keyword('CONTINUE', '', 'CONTINUE')
         elif name == 'var':
             if 'name' in attrs.getNames():
                 self.archiver.update_arguments(attrs.getValue('name'))
@@ -83,13 +107,28 @@ class RobotFrameworkOutputParser(XmlOutputParser):
         elif name == 'arg':
             pass
         elif name == 'msg':
-            self.archiver.begin_log_message(attrs.getValue('level'), attrs.getValue('timestamp'))
+            if 'timestamp' in attrs.getNames():
+                timestamp = attrs.getValue('timestamp')
+            else:
+                timestamp = attrs.getValue('time')
+            self.archiver.begin_log_message(attrs.getValue('level'), timestamp)
             if self.archiver.config.log_level_ignored(attrs.getValue('level')):
                 self.skipping_content = True
         elif name == 'status':
             critical = attrs.getValue('critical') == 'yes' if 'critical' in attrs.getNames() else None
-            self.archiver.begin_status(attrs.getValue('status'), attrs.getValue('starttime'),
-                                       attrs.getValue('endtime'), critical=critical)
+            if 'starttime' in attrs.getNames():
+                starttime = attrs.getValue('starttime')
+            else:
+                starttime = attrs.getValue('start')
+            elapsed = None
+            if 'elapsed' in attrs.getNames():
+                elapsed = self._normalize_elapsed(attrs.getValue('elapsed'))
+            self.archiver.begin_status(
+                attrs.getValue('status'),
+                starttime,
+                end_time=attrs.getValue('endtime') if 'endtime' in attrs.getNames() else None,
+                elapsed=elapsed,
+                critical=critical)
         elif name == 'assign':
             pass
         elif name == 'timeout':
@@ -102,10 +141,12 @@ class RobotFrameworkOutputParser(XmlOutputParser):
             self.archiver.begin_metadata(attrs.getValue('name'))
         elif name == 'doc':
             pass
-        elif name in ('arguments', 'tags', 'metadata', 'if', 'return'):
+        elif name in ('arguments', 'tags', 'metadata', 'if', 'return', 'try', 'pattern'):
             pass
         else:
             print(f"WARNING: begin unknown item '{name}'")
+
+
 
     def endElement(self, name):
         if name in RobotFrameworkOutputParser.EXCLUDED_SECTIONS:
@@ -120,9 +161,19 @@ class RobotFrameworkOutputParser(XmlOutputParser):
             self.archiver.end_test()
         elif name == 'kw':
             self.archiver.end_keyword()
+        elif name == 'error':
+            self.archiver.end_keyword()
         elif name == 'for':
             self.archiver.end_keyword()
+        elif name == 'while':
+            self.archiver.end_keyword()
         elif name == 'iter':
+            self.archiver.end_keyword()
+        elif name == 'group':
+            self.archiver.end_keyword()
+        elif name == 'break':
+            self.archiver.end_keyword()
+        elif name == 'continue':
             self.archiver.end_keyword()
         elif name == 'branch':
             self.archiver.end_keyword()
@@ -150,7 +201,7 @@ class RobotFrameworkOutputParser(XmlOutputParser):
             self.archiver.end_metadata(self.content())
         elif name == 'doc':
             pass
-        elif name in ('arguments', 'tags', 'metadata', 'if', 'return'):
+        elif name in ('arguments', 'tags', 'metadata', 'if', 'return', 'try', 'pattern'):
             pass
         else:
             print(f"WARNING: ending unknown item '{name}'")
@@ -777,7 +828,9 @@ SUPPORTED_OUTPUT_FORMATS = {
 }
 
 
-def parse_xml(xml_file, output_format, connection, config, build_number_cache):
+def parse_xml(xml_file, output_format, connection, config, build_number_cache=None):
+    if build_number_cache is None:
+        build_number_cache = {}
     output_format = output_format.lower()
     if not os.path.exists(xml_file):
         sys.exit('Could not find input file: ' + xml_file)

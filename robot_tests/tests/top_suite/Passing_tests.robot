@@ -1,6 +1,6 @@
 *** Settings ***
-Resource    common_keywords.robot
-Force tags  passing
+Resource    ../../resources/common_keywords.robot
+Test Tags  passing
 
 *** Test cases ***
 Just log something

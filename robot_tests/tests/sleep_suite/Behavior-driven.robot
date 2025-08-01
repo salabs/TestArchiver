@@ -1,5 +1,5 @@
 *** Settings ***
-Force tags              behavior-driven         sleep
+Test Tags              behavior-driven         sleep
 
 *** Test Cases ***
 Behavior sleeping

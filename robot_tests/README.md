@@ -28,18 +28,10 @@ Arguments for ArchiverRobotListener:
 
 The tests in this folder are simple ones demonstrating some features of Robot Framework. They can be used to generate data for TestArchiver.
 
+Integration tests use these robot tests as the test material. `pdm itest`
+
 ### Usage
 
-With windows, run `run.bat` from command line.
+To run robot fixture test run `pdm robot_fixture_run`. The ouput is stored to `robot_tests/normal/` directory.
 
-```
--n should-fail
-```
-
-Tells the Robot to pass suites even tests fail with tag "should-fail".
-
-```
---pythonpath ./libraries:./resources
-```
-
-Tells where Robot can find needed files for some tests.
+To run robot fixture test with ArchiverRobotListener run `pdm robot_fixture_run_with_listener`. The ouput is stored to `robot_tests/listener/` directory.

@@ -44,19 +44,33 @@ dev = [
     "pylint>=3.2.7",
     "setuptools>=75.3.2",
     "pytest-cov>=6.2.1",
-]
-robot = [
-    "robotframework==6.*",
+    "robotframework==7.*",
 ]
 
 
 [tool.pdm.scripts]
-utest = "pytest --cov-report term --cov=test_archiver tests/unit/ --junit-xml=unittest_output.xml"
+
+echo.help = "Echo some message"
+echo.cmd = "echo"
+
+utest.help = "Run unit tests"
+utest.cmd = [
+    "pytest",
+    "--cov-report=term",
+    "--cov=test_archiver",
+    "tests/unit/",
+    "--junit-xml=unittest_output.xml",
+]
+
+itest.help = "Run integration tests parsing results to databases"
+itest.cmd = "pytest tests/integration/"
+
 lint = "pylint src/"
 
 check_code.composite = [
     "lint",
     "utest",
+    "echo 'All code validations passed'",
 ]
 
 # These are helpers to populate fixture archive for testing/demo purposes #
@@ -77,12 +91,25 @@ robot_fixture_run_with_listener.cmd = [
     "--metadata", "series2:Fixture",
     "--exclude", "sleep",
     "--nostatusrc",
+    "--console=none",
     "robot_tests/tests",
+]
+
+robot_listener_parse.help = "Populate robot fixture archive by parsing last fixture suite output"
+robot_listener_parse.cmd = [
+    "testarchiver",
+    "robot_tests/listener/output.xml",
+    "--config {args:fixture_config_sqlite.json}",
+    "--repository", "TestArchiver",
+    "--team", "TestArchiver",
+    "--series", "Parser",
+    "--series", "Fixture",
 ]
 
 robot_fixture_run.help = "Run robot fixture suite"
 robot_fixture_run.cmd = [
     "robot",
+    "--console=none",
     "--pythonpath", "robot_tests/libraries:robot_tests/resources",
     "--outputdir", "robot_tests/normal",
     "--exclude", "sleep",
@@ -123,6 +150,7 @@ robot_fixture_populate.composite = [
     "robot_fixture_parse {args:fixture_config_sqlite.json}",
     "robot_fixture_run", # Test run 10
     "robot_fixture_parse {args:fixture_config_sqlite.json}",
+    "echo 'Fixture archive populated'",
 ]
 
 # Pytest fixture helpers

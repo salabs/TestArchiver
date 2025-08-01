@@ -1,5 +1,5 @@
 *** Settings ***
-Force tags                    embedded               loops
+Test Tags                    embedded               loops
 
 *** Test Cases ***
 Normal test case with embedded arguments

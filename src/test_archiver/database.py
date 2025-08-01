@@ -22,21 +22,6 @@ SCHEMA_UPDATES = (
 )
 
 
-def get_connection_and_check_schema(config):
-    connection = None
-    if config.db_engine in ('postgresql', 'postgres'):
-        connection = PostgresqlDatabase(config)
-    elif config.db_engine in ('sqlite', 'sqlite3'):
-        if config.host or config.user:
-            raise ValueError("--host or --user options should not be used "
-                             "with default sqlite3 database engine")
-        connection = SQLiteDatabase(config)
-    if connection:
-        connection.check_and_update_schema()
-        return connection
-    raise ValueError("Unsupported database type '{config.db_engine}'")
-
-
 class IntegrityError(Exception):
     """Exception for uniformly communicating a database integrity error"""
 
@@ -298,6 +283,15 @@ class BaseDatabase:
             else:
                 print("No results to delete with given parameters.")
             self.clean_orphan_test_series()
+
+    def get_row_count(self, table_name: str) -> int:
+        return self._execute_and_fetchone(f"SELECT COUNT(*) FROM {table_name}")[0]
+
+    def is_empty_archive(self) -> bool:
+        if self.get_row_count('test_run') == 0:
+            return True
+        return False
+
 
 class PostgresqlDatabase(BaseDatabase):
 
@@ -604,12 +598,30 @@ class SQLiteDatabase(BaseDatabase):
         return ''
 
 
+def get_connection(config) -> BaseDatabase:
+    connection = None
+    if config.db_engine in ('postgresql', 'postgres'):
+        connection = PostgresqlDatabase(config)
+    elif config.db_engine in ('sqlite', 'sqlite3'):
+        if config.host or config.user:
+            raise ValueError("--host or --user options should not be used "
+                             "with default sqlite3 database engine")
+        connection = SQLiteDatabase(config)
+    if connection:
+        return connection
+    raise ValueError("Unsupported database type '{config.db_engine}'")
+
+def get_connection_and_check_schema(config) -> BaseDatabase:
+    connection = get_connection(config)
+    connection.check_and_update_schema()
+    return connection
+
+
 def argument_parser():
     parser = configs.base_argument_parser('Initialize and update test archive schema.')
     return parser
 
 def run_history_cleaning(connection, config):
-
     connection.delete_history(config.clean_team, config.keep_builds, config.keep_months, config.keep_after,
                               config.clean_logs, config.clean_logs_below, config.clean_keyword_stats)
 

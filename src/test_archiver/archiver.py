@@ -525,7 +525,7 @@ class Archiver:
                     print(item.__class__.__name__)
                 raise RuntimeError(
                     f"Expected to have '{expected_type}' but had "
-                    "'{item.__class__.__name__}' currently in stack")
+                    f"'{item.__class__.__name__}' currently in stack")
         return item
 
     def current_item_is_keyword(self):
@@ -649,7 +649,7 @@ class Archiver:
                                                   attributes['endtime'], critical=critical)
             self.current_item(Test).tags = attributes['tags']
         self.current_item(Test).finish()
-        test = self.stack.pop()
+        test: Test = self.stack.pop()
         for listener in self.listeners:
             listener.test_result(test)
 
@@ -665,10 +665,11 @@ class Archiver:
         return keyword
 
     def end_keyword(self, attributes=None):
+        kw = self.current_item(Keyword)
         if attributes:
-            self.current_item(Keyword).update_status(attributes['status'], attributes['starttime'],
-                                                     attributes['endtime'])
-        self.current_item(Keyword).finish()
+            kw.update_status(attributes['status'], attributes['starttime'], attributes['endtime'])
+        kw.finish()
+        #print(kw.name, kw.fingerprint, kw.arguments)
         self.stack.pop()
 
     def keyword(self, name, library, kw_type, status, arguments=None):

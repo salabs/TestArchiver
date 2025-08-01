@@ -1,6 +1,6 @@
 *** Settings ***
-Test Template    data-driven
-Force tags       data-driven
+Test Template    Data driven Template
+Test Tags        data-driven
 
 *** Test Cases ***              First value                 Second value
 First passes                    1                           1
@@ -11,7 +11,7 @@ Fourth fails                    2                           1
 
 
 *** Keywords ***
-data-driven 
+Data driven Template
     [Arguments]                 ${fval}                     ${sval}
     Run Keyword If              ${fval}==${sval}            Log                    Passed                            
     ...                         ELSE IF                     ${fval}<${sval}        Log         Warning             WARN    

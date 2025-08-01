@@ -1,5 +1,5 @@
 *** Settings ***
-Force Tags      R2-D2
+Test Tags      R2-D2
 Default Tags    Robot    C-3PO
 
 *** Variables ***

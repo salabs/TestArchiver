@@ -1,6 +1,6 @@
 *** Settings ***
-Resource    common_keywords.robot
-Force tags  failing
+Resource    ../../resources/common_keywords.robot
+Test Tags  failing
 
 *** Test cases ***
 You can do it! Go for it!
