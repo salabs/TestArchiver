@@ -37,6 +37,7 @@ distribution = true
 
 [tool.pdm.version]
 source = "scm"
+write_to = "test_archiver/version.txt"
 
 [tool.pdm.dev-dependencies]
 dev = [

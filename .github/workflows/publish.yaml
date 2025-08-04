@@ -13,29 +13,25 @@ jobs:
       runs-on: ubuntu-latest
       steps:
         - uses: actions/checkout@master
-        - name: Set up Python 3.8
-          uses: actions/setup-python@v1
+        - name: Set up Python 3.12
+          uses: actions/setup-python@v2
           with:
-            python-version: 3.8
-        - name: Install dependencies
-          run: |
-            python -m pip install --upgrade pip
-            pip install setuptools wheel twine
-            if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+            python-version: 3.12
+        - name: Install PDM
+          run: pip install --upgrade pdm
+        - name: Install project
+          run: pdm install
 
-        - name: Set build number for development builds
-          if: ${{ !startsWith(github.ref, 'refs/tags') }}
+        - name: Test scripts
           run: |
-            echo "BUILD_NUMBER_FOR_DEV_PACKAGE_VERSION=$GITHUB_RUN_ID" >> $GITHUB_ENV
-        - name: Build a binary wheel and a source tarball
-          run: |
-            python setup.py sdist bdist_wheel
-        - name: Publish to Test PyPI
-          uses: pypa/gh-action-pypi-publish@release/v1
-          with:
-            password: ${{ secrets.test_pypi_api_token }}
-            repository_url: https://test.pypi.org/legacy/
-        - name: Publish distribution to PyPI
-          uses: pypa/gh-action-pypi-publish@release/v1
-          with:
-            password: ${{ secrets.pypi_api_token }}
+            pdm run testarchiver --version
+            pdm run testarchive_schematool --version
+
+        - name: Build package
+          run: pdm build
+
+        - name: Build package
+          run: pdm publish --no-build
+          env:
+            PDM_PUBLISH_USERNAME: __token__
+            PDM_PUBLISH_PASSWORD: ${{ secrets.pypi_api_token }}
