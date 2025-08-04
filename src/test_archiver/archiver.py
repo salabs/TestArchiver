@@ -669,7 +669,6 @@ class Archiver:
         if attributes:
             kw.update_status(attributes['status'], attributes['starttime'], attributes['endtime'])
         kw.finish()
-        #print(kw.name, kw.fingerprint, kw.arguments)
         self.stack.pop()
 
     def keyword(self, name, library, kw_type, status, arguments=None):

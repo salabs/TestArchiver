@@ -11,27 +11,51 @@ from test_archiver.database import BaseDatabase, PostgresqlDatabase
 from test_archiver.database import get_connection, get_connection_and_check_schema
 
 
+EXPECTED_SUITE_FINGERPRINTS = (
+    (27, "626b7a1d92583433bb5aeeeeb06b768f8b688dea", "Passing Suite2"),
+    (26, "f605ea592cf7dd82cf416034b602262503453223", "Passing Suite1"),
+    (25, "c2a3400d50e0a52a8835b664ee3851d49b03082e", "Teardown Failure"),
+    (24, "9fb1c4d300b79fa95199209f8d32a41d3802c3ad", "Skipping"),
+    (23, "437154e64daa5673d1f1dfed7b197e5ec3324ebc", "Passing tests"),
+    (22, "3f9fe7b5b308fa539fcd944b245f5057438973bc", "Tagging"),
+    (21, "964b22820abc48e24cd40c77376aabbc0e8a1a04", "Empty"),
+    (20, "86cd41aec1024c33708f567df61bd98596612435", "Embedded"),
+    (19, "35a4859cbb96002f38f34910cf07e70a39fe2489", "Documents"),
+    (18, "89000e1ca6c885adad34ac26180b48751bc2191e", "Lower Suite"),
+    (17, "6b7661113a2fe813ea92318813929019b1e0a3bb", "Logging"),
+    (16, "3ba443851e42cd88e8592eb7bf3860e16947dcb8", "Failing tests"),
+    (15, "0363aa40786bcbe4e2b5a047d6f95c393f75cebe", "Data-Driven"),
+    (14, "ae39ac2af17cc96c78e16f2d77740fd196f3fe90", "Top Suite"),
+    # (13, "8cc2febd046cba652abd871d359d667f09919f6a", "Random Pass"),
+    # (12, "cfe075f0ea543b599d50d9f343cb777d0a110327", "Flaky"),
+    # (11, "98da3249f2df4e6ac55292741b0976108dbe070c", "Bigrandom"),
+    # (10, "df8c6f0cbe9b443cf5204ffdc148dd25484f7f9c", "Randomized Suite"),
+    # (9, "17c89565ddf7e7933f6520cfb2db67fb71a1b2b9", "Errors"),
+     (8, "e53f0c275eb32ade2f7d49fd50e0fde642f95ad2", "While Loops"),
+     (7, "a977de5415ac04b2b25642c6f2d7e2ee5aac0514", "Try Except"),
+     (6, "ab1272aaec0bc45693def5fca31932a50925ded0", "Other Control Structures"),
+     (5, "0cf39c21908fcfd2ea69038dbacba78619abfd54", "If Else"),
+     (4, "582a72f2fa8a798466f82f820c3a9c2209795e1a", "Grouped Templates"),
+     (3, "3e75289f1043386e2b31bbb781b38b1ad154cb78", "For Loops"),
+     (2, "876dfa6bd8ab6c3359ebb44612c4ac37b1b70f59", "Control Structures"),
+     #(1, "001ad0634fab318d8823fa722535b447e2c641b8", "Tests"),
+)
+
 class RobotFixtureTests(unittest.TestCase):
+
+
+    def check_fixture_suite_fingerprints(self, connection: BaseDatabase):
+        for suite_id, fingerprint, name in EXPECTED_SUITE_FINGERPRINTS:
+            self.assertEqual(connection.fetch_one_value('suite', 'name', where_data={'id': suite_id}), name)
+            self.assertEqual(
+                connection.fetch_one_value('suite_result', 'fingerprint', where_data={'suite_id': suite_id}),
+                fingerprint, f"Suite '{name}' has an unexpected fingerprint")
 
     def check_fixture_content(self, connection: BaseDatabase):
         self.assertEqual(connection.get_row_count('test_run'), 1)
-        self.assertEqual(connection.get_row_count('test_case'), 74) # 63 tests - 2 duplicates = 61
+        self.assertEqual(connection.get_row_count('test_case'), 74)
         self.assertEqual(connection.get_row_count('test_result'), 74)
-
-        self.assertEqual(connection.fetch_one_value('suite', 'name', where_data={'id': 1}),
-                         'Tests')
-
-        self.assertEqual(connection.fetch_one_value('suite', 'name', where_data={'id': 2}),
-                         'Control Structures')
-        self.assertEqual(
-            connection.fetch_one_value('suite_result', 'fingerprint', where_data={'suite_id': 2}),
-            '26f3bee0aa075611e3a2d52401b4cf11908551b5')
-
-        self.assertEqual(connection.fetch_one_value('suite', 'name', where_data={'id': 14}),
-                         'Top Suite')
-        self.assertEqual(
-            connection.fetch_one_value('suite_result', 'fingerprint', where_data={'suite_id': 14}),
-            'ae39ac2af17cc96c78e16f2d77740fd196f3fe90')
+        self.check_fixture_suite_fingerprints(connection)
 
     def fetch_full_fixture_fingerprint(self, connection: BaseDatabase) -> str:
         # First check that Full fixture suite is suite id 1
