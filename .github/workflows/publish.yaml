@@ -27,6 +27,7 @@ jobs:
           run: |
             pdm run testarchiver --version
             pdm run testarchive_schematool --version
+            git status
 
         - name: Build package
           run: pdm build
