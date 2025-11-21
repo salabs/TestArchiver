@@ -32,7 +32,7 @@ jobs:
         - name: Build package
           run: pdm build
 
-        - name: Build package
+        - name: Publish package
           run: pdm publish --no-build
           env:
             PDM_PUBLISH_USERNAME: __token__
