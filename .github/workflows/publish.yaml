@@ -4,8 +4,6 @@ on:
   push:
     tags:
       - '[0-9]+.[0-9]+.[0-9]+'
-    branches:
-      - develop
 jobs:
     build-and-publish:
       name:
