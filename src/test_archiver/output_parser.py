@@ -118,9 +118,10 @@ class RobotFrameworkOutputParser(XmlOutputParser):
                 self.skipping_content = True
         elif name == 'status':
             critical = attrs.getValue('critical') == 'yes' if 'critical' in attrs.getNames() else None
+            starttime = None
             if 'starttime' in attrs.getNames():
                 starttime = attrs.getValue('starttime')
-            else:
+            elif 'start' in attrs.getNames():
                 starttime = attrs.getValue('start')
             elapsed = None
             if 'elapsed' in attrs.getNames():
