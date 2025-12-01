@@ -90,6 +90,7 @@ robot_fixture_run_with_listener.cmd = [
     "--metadata", "team:TestArchiver",
     "--metadata", "series:RobotListener",
     "--metadata", "series2:Fixture",
+    "--include=variables",
     "--exclude", "sleep",
     "--nostatusrc",
     "--console=none",

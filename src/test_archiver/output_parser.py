@@ -102,6 +102,8 @@ class RobotFrameworkOutputParser(XmlOutputParser):
         elif name == 'var':
             if 'name' in attrs.getNames():
                 self.archiver.update_arguments(attrs.getValue('name'))
+        elif name == 'variable':
+            self.archiver.begin_keyword('VAR', '', 'VAR')
         elif name == 'value':
             pass
         elif name == 'arg':
@@ -188,6 +190,8 @@ class RobotFrameworkOutputParser(XmlOutputParser):
             pass
         elif name == 'var':
             self.archiver.update_arguments(self.content())
+        elif name == 'variable':
+            self.archiver.end_keyword()
         elif name == 'value':
             self.archiver.update_arguments(self.content())
         elif name == 'timeout':
