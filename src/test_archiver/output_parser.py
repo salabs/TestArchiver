@@ -4,6 +4,7 @@ import datetime
 import os.path
 import sys
 import xml.sax
+from pathlib import Path
 
 from . import archiver, configs, database
 
@@ -876,7 +877,7 @@ Json file which contains information from the changed files for each repo. The f
     """
     parser = configs.base_argument_parser('Parse test automation output.xml files to SQL database.')
     parser.add_argument('output_files', nargs='+',
-                        help='list of test output files to parse in to the test archive')
+                        help='Test output files to parse into the test archive. Can be glob patterns')
 
     parser.add_argument('--format', help='output format (default: robotframework)', default='robotframework',
                         choices=SUPPORTED_OUTPUT_FORMATS, type=str.lower)
@@ -914,7 +915,7 @@ def main():
     connection = archiver.database_connection(config)
 
     build_number_cache = {}
-    for output_file in args.output_files:
+    for output_file in [item for pattern in args.output_files for item in Path().glob(pattern)]:
         print(f"Parsing: '{output_file}'")
         build_number_cache = parse_xml(output_file, args.format, connection, config, build_number_cache)
 

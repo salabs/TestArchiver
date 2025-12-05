@@ -37,8 +37,8 @@ EXPECTED_SUITE_FINGERPRINTS = (
      (6, "ab1272aaec0bc45693def5fca31932a50925ded0", "ab1272aaec0bc45693def5fca31932a50925ded0", "Other Control Structures"),
      (5, "0cf39c21908fcfd2ea69038dbacba78619abfd54", "0cf39c21908fcfd2ea69038dbacba78619abfd54", "If Else"),
      (4, "582a72f2fa8a798466f82f820c3a9c2209795e1a", "582a72f2fa8a798466f82f820c3a9c2209795e1a", "Grouped Templates"),
-     (3, "7e284392d57e5df13cb4a0e1e3d53a3f2709e292", "7e284392d57e5df13cb4a0e1e3d53a3f2709e292", "For Loops"),
-     (2, "4eaa92280420ec346280ab12b0b1ba34a2feb618", "4eaa92280420ec346280ab12b0b1ba34a2feb618", "Control Structures"),
+     (3, "a642b51f46ca3f3169b431db8208e3af183648f4", "a642b51f46ca3f3169b431db8208e3af183648f4", "For Loops"),
+     (2, "5a6a1de73088bce20ee3bf7da48c4cf620801888", "5a6a1de73088bce20ee3bf7da48c4cf620801888", "Control Structures"),
      #(1, "001ad0634fab318d8823fa722535b447e2c641b8", "Tests"),
 )
 
