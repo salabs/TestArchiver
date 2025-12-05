@@ -301,6 +301,19 @@ Some examples
   Will delete all log log messages
 
 # Release notes
+- 4.1.0 (2025-12-05)
+  * Allow use of glob patterns to list output files to parse
+
+- 4.0.1 (2025-12-01)
+  * Fixes parsing outputs containing elements missing timestamps
+    * This can be caused for example by custom libraries
+
+- 4.0.1 (2025-12-01)
+  * Fixes for parsing robot outputs using VAR syntax
+
+- 4.0.0 (2025-11-21)
+  * Parser updates to support parsing latest Robotframework 7.x outputs
+
 - 3.0.0 (2023-05-11)
   * Adds support for cleaning oldest test result data to delete in order to control the growth of test archives
   * Major schema update #3:
